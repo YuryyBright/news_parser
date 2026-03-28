@@ -1,48 +1,60 @@
 # infrastructure/task_queue/background_queue.py
-# Реєстр зберігає не функції а STRING імена — resolve відбувається lazy
+"""
+Проста реалізація ITaskQueue через FastAPI BackgroundTasks / asyncio.
+Не залежить від Celery — легко замінюється.
+"""
 from __future__ import annotations
 import asyncio
-import importlib
+import logging
 import uuid
 from typing import Any
 
-_REGISTRY: dict[str, str] = {}   # task_name → "module.path:function_name"
-_RESULTS:  dict[str, dict] = {}
+from application.ports import ITaskQueue
+
+logger = logging.getLogger(__name__)
+
+# Реєстр задач — infrastructure реєструє свої функції
+_TASK_REGISTRY: dict[str, Any] = {}
 
 
-def register_task(name: str, import_path: str) -> None:
+def register_task(name: str):
+    """Декоратор для реєстрації функції як іменованої задачі."""
+    def decorator(fn):
+        _TASK_REGISTRY[name] = fn
+        return fn
+    return decorator
+
+
+class InMemoryTaskQueue(ITaskQueue):
     """
-    import_path: "infrastructure.workers.handlers:fetch_source"
-    Реєстрація без імпорту — resolve тільки при виконанні.
+    Dev-реалізація: задачі виконуються в asyncio background.
+    В production замінити на CeleryTaskQueue (той самий інтерфейс).
     """
-    _REGISTRY[name] = import_path
 
+    def __init__(self) -> None:
+        self._statuses: dict[str, str] = {}
 
-async def _resolve_and_call(name: str, *args, **kwargs) -> Any:
-    import_path = _REGISTRY.get(name)
-    if not import_path:
-        raise ValueError(f"Unknown task: {name}")
-
-    module_path, fn_name = import_path.rsplit(":", 1)
-    module = importlib.import_module(module_path)
-    fn = getattr(module, fn_name)
-    return await fn(*args, **kwargs)
-
-
-class BackgroundTaskQueue:
     async def enqueue(self, task_name: str, *args: Any, **kwargs: Any) -> str:
         task_id = str(uuid.uuid4())
-        _RESULTS[task_id] = {"task_id": task_id, "status": "STARTED"}
+        self._statuses[task_id] = "pending"
+
+        handler = _TASK_REGISTRY.get(task_name)
+        if handler is None:
+            logger.error("Unknown task: %s", task_name)
+            self._statuses[task_id] = "failed"
+            return task_id
 
         async def _run():
+            self._statuses[task_id] = "in_progress"
             try:
-                result = await _resolve_and_call(task_name, *args, **kwargs)
-                _RESULTS[task_id] = {"task_id": task_id, "status": "SUCCESS", "result": result}
-            except Exception as e:
-                _RESULTS[task_id] = {"task_id": task_id, "status": "FAILURE", "error": str(e)}
+                await handler(*args, **kwargs)
+                self._statuses[task_id] = "completed"
+            except Exception as exc:
+                logger.exception("Task %s failed: %s", task_name, exc)
+                self._statuses[task_id] = "failed"
 
         asyncio.create_task(_run())
         return task_id
 
-    async def get_status(self, task_id: str) -> dict:
-        return _RESULTS.get(task_id, {"task_id": task_id, "status": "PENDING"})
+    async def get_status(self, task_id: str) -> str:
+        return self._statuses.get(task_id, "unknown")
