@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from enum import StrEnum
 from uuid import UUID
 
-from domain.shared.base_entity import BaseEntity, AggregateRoot
+from src.domain.shared.base_entity import BaseEntity, AggregateRoot
 from .value_objects import SourceConfig, ParsedContent, FetchSchedule
 from .events import ArticleIngested, FetchJobFailed
 

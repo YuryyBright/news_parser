@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from application.ports import ISourceRepository, ITaskQueue
+from src.application.ports.task_queue import ISourceRepository, ITaskQueue
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class StartupUseCase:
         self._task_queue = task_queue
 
     async def execute(self) -> StartupResult:
-        sources = await self._sources.get_all_active()
+        sources = await self._sources.list_active()
         logger.info("Startup: found %d active sources", len(sources))
 
         enqueued = 0

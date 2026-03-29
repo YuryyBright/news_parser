@@ -1,190 +1,113 @@
-# application/use_cases/ingest_articles.py
+# application/use_cases/ingest_article.py
 """
-FetchPipelineUseCase — Application Service.
+IngestArticleUseCase — прийом нової статті з парсера.
 
-У DDD Application Service (Use Case) — це тонкий оркестратор.
-Він:
-  1. отримує залежності (repos, domain services) через конструктор
-  2. викликає доменні методи в правильному порядку
-  3. керує транзакцією (через session.commit)
-  4. НЕ містить бізнес-логіки сам по собі
+Дедуплікація відбувається тут, ПЕРЕД збереженням:
+  1. exists_by_url()  — точний збіг URL
+  2. exists_by_hash() — збіг контенту (sha256 title+body)
 
-Цей use case запускається автоматично при старті і потім periodically.
+Якщо стаття вже є — повертаємо DuplicateArticleResult.
+Якщо нова — зберігаємо як RawArticle зі статусом "pending"
+і ставимо задачу process_articles в чергу.
+
+Dependency rule:
+  ✅ domain interfaces (IRawArticleRepository)
+  ✅ application dtos
+  ❌ НЕ знає про SQLAlchemy, HTTP, Chroma
 """
 from __future__ import annotations
-import asyncio
+
 import hashlib
 import logging
-from datetime import datetime, timezone
-from uuid import UUID
+from dataclasses import dataclass
+from enum import auto, Enum
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from infrastructure.persistence.models import (
-    ArticleModel,
-    RawArticleModel,
-    FetchJobModel,
-    SourceModel,
-)
-from infrastructure.persistence.repositories.article_repo import ArticleRepository
+from domain.ingestion.entities import RawArticle
+from domain.ingestion.repositories import IRawArticleRepository
+from domain.ingestion.value_objects import ParsedContent
+from application.ports.task_queue import ITaskQueue
 
 logger = logging.getLogger(__name__)
 
 
-# ─── простий RSS-парсер (без зовнішніх залежностей) ─────────────────────────
+class IngestResult(Enum):
+    SAVED     = auto()   # нова стаття збережена
+    DUPLICATE = auto()   # стаття вже існує (url або hash)
 
-async def _parse_rss(url: str) -> list[dict]:
+
+@dataclass(frozen=True)
+class IngestArticleCommand:
+    source_id: object          # UUID
+    title: str
+    body: str
+    url: str
+    published_at: object       # datetime | None
+    language: str | None = None
+
+
+@dataclass(frozen=True)
+class IngestArticleResult:
+    status: IngestResult
+    raw_article_id: object | None = None   # UUID, None якщо duplicate
+
+
+class IngestArticleUseCase:
     """
-    Мінімальний RSS-парсер для демонстрації.
-    В реальному проекті замінити на feedparser або aiohttp + lxml.
-    """
-    import aiohttp
-    import xml.etree.ElementTree as ET
+    Приймає одну статтю від парсера та вирішує: зберегти чи відкинути.
 
-    try:
-        async with aiohttp.ClientSession() as client:
-            async with client.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
-                text = await resp.text()
-    except Exception as e:
-        logger.warning(f"RSS fetch failed for {url}: {e}")
-        return []
-
-    try:
-        root = ET.fromstring(text)
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
-        items = []
-        # RSS 2.0
-        for item in root.findall(".//item"):
-            items.append({
-                "title":  (item.findtext("title") or "").strip(),
-                "body":   (item.findtext("description") or "").strip(),
-                "url":    (item.findtext("link") or "").strip(),
-                "pub":    item.findtext("pubDate"),
-            })
-        # Atom
-        for entry in root.findall(".//atom:entry", ns):
-            link_el = entry.find("atom:link", ns)
-            items.append({
-                "title": (entry.findtext("atom:title", namespaces=ns) or "").strip(),
-                "body":  (entry.findtext("atom:summary", namespaces=ns) or "").strip(),
-                "url":   link_el.get("href", "") if link_el is not None else "",
-                "pub":   entry.findtext("atom:published", namespaces=ns),
-            })
-        return items
-    except ET.ParseError as e:
-        logger.warning(f"XML parse error for {url}: {e}")
-        return []
-
-
-def _content_hash(title: str, body: str) -> str:
-    """SHA-256 від title+body для дедуплікації."""
-    return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()
-
-
-# ─── Use Case ────────────────────────────────────────────────────────────────
-
-class FetchPipelineUseCase:
-    """
-    Оркеструє повний цикл: завантажити → перевірити дублікати → зберегти.
-
-    Після збереження статті з статусом 'pending' запускається
-    EmbedAndScoreUseCase (можна в тій самій транзакції або окремо).
+    Використовується всередині handle_ingest_source worker'а.
+    Один парсинг source → N викликів IngestArticleUseCase.
     """
 
     def __init__(
         self,
-        session: AsyncSession,
-        article_repo: ArticleRepository,
+        raw_article_repo: IRawArticleRepository,
+        task_queue: ITaskQueue,
     ) -> None:
-        self._session      = session
-        self._article_repo = article_repo
+        self._raw = raw_article_repo
+        self._queue = task_queue
 
-    async def run_for_source(self, source: SourceModel) -> int:
-        """
-        Завантажити статті для одного джерела.
-        Повертає кількість нових (не-дублікатів) статей.
-        """
-        logger.info(f"Fetching source: {source.name} ({source.url})")
+    async def execute(self, cmd: IngestArticleCommand) -> IngestArticleResult:
+        content_hash = _compute_hash(cmd.title, cmd.body)
 
-        # 1. Створити FetchJob зі статусом 'running'
-        job = FetchJobModel(
-            source_id=source.id,
-            status="running",
-            last_run_at=datetime.now(timezone.utc),
+        # ── Дедуплікація рівень 1: URL ────────────────────────────────────────
+        if await self._raw.exists_by_url(cmd.url):
+            logger.debug("Duplicate URL skipped: %s", cmd.url)
+            return IngestArticleResult(status=IngestResult.DUPLICATE)
+
+        # ── Дедуплікація рівень 2: content hash ───────────────────────────────
+        if await self._raw.exists_by_hash(content_hash):
+            logger.debug("Duplicate content hash skipped: url=%s", cmd.url)
+            return IngestArticleResult(status=IngestResult.DUPLICATE)
+
+        # ── Зберігаємо нову статтю ────────────────────────────────────────────
+        content = ParsedContent(
+            title=cmd.title,
+            body=cmd.body,
+            url=cmd.url,
+            published_at=cmd.published_at,
+            language=cmd.language,
         )
-        self._session.add(job)
-        await self._session.flush()
+        raw_article = RawArticle(source_id=cmd.source_id, content=content)
+        raw_article.mark_ingested()
 
-        try:
-            # 2. Завантажити статті (RSS або інший тип)
-            if source.source_type in ("rss", "atom"):
-                raw_items = await _parse_rss(source.url)
-            else:
-                logger.info(f"Source type '{source.source_type}' not implemented yet")
-                raw_items = []
+        await self._raw.save(raw_article)
 
-            new_count = 0
+        logger.info("Article ingested: id=%s url=%s", raw_article.id, cmd.url)
 
-            for item in raw_items:
-                title = item.get("title", "")
-                body  = item.get("body", "")
-                url   = item.get("url", "")
+        # ── Запускаємо обробку ────────────────────────────────────────────────
+        # Не чекаємо — просто ставимо в чергу
+        await self._queue.enqueue(
+            "process_articles",
+            raw_article_id=str(raw_article.id),
+        )
 
-                if not title or not url:
-                    continue
+        return IngestArticleResult(
+            status=IngestResult.SAVED,
+            raw_article_id=raw_article.id,
+        )
 
-                content_hash = _content_hash(title, body)
 
-                # 3. Перевірка дублікатів за hash — якщо вже є, пропускаємо
-                existing = await self._article_repo.get_by_hash(content_hash)
-                if existing is not None:
-                    continue
-
-                # 4. Перевірка за URL — той самий контент міг прийти з іншого джерела
-                existing_url = await self._article_repo.get_by_url(url)
-                if existing_url is not None:
-                    continue
-
-                # 5. Зберегти RawArticle (сирий, до нормалізації)
-                raw = RawArticleModel(
-                    source_id=source.id,
-                    title=title,
-                    body=body,
-                    url=url,
-                    content_hash=content_hash,
-                    language=None,
-                    published_at=None,
-                )
-                self._session.add(raw)
-                await self._session.flush()
-
-                # 6. Зберегти нормалізовану Article зі статусом 'pending'
-                #    Pipeline embedding/scoring підхопить її окремо
-                article = ArticleRepository.build(
-                    source_id=UUID(source.id),
-                    raw_article_id=UUID(raw.id),
-                    title=title,
-                    body=body,
-                    url=url,
-                    content_hash=content_hash,
-                    published_at=raw.published_at,
-                )
-                await self._article_repo.save(article)
-                new_count += 1
-
-            # 7. Оновити статус FetchJob
-            job.status = "done"
-            job.error_message = None
-            await self._session.commit()
-
-            logger.info(f"Source '{source.name}': {new_count} new articles saved")
-            return new_count
-
-        except Exception as e:
-            await self._session.rollback()
-            job.status = "failed"
-            job.retries += 1
-            job.error_message = str(e)
-            await self._session.commit()
-            logger.error(f"Fetch failed for source '{source.name}': {e}", exc_info=True)
-            return 0
+def _compute_hash(title: str, body: str) -> str:
+    """SHA-256 від title+body. Однаковий алгоритм у repo і use case."""
+    return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()

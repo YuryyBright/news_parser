@@ -38,6 +38,7 @@ class Article(AggregateRoot):
     Відповідає за весь lifecycle статті після фільтрації.
     """
     source_id: UUID = None          # type: ignore[assignment]
+    raw_article_id: UUID | None = None
     title: str = ""
     body: str = ""
     url: str = ""

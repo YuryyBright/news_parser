@@ -105,6 +105,10 @@ class LLMSettings(BaseSettings):
     model: str      = "claude-haiku-4-5-20251001"
     max_tokens: int = 512
 
+class LoggingSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="LOG__", extra="ignore")
+    level: str = "INFO"
+    format: str = "json"  # "json" | "plain"
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -126,6 +130,7 @@ class Settings(BaseSettings):
     workers:       WorkersSettings       = Field(default_factory=WorkersSettings)
     auth:          AuthSettings          = Field(default_factory=AuthSettings)
     llm:           LLMSettings          = Field(default_factory=LLMSettings)
+    logging:       LoggingSettings      = Field(default_factory=LoggingSettings)
 
     # Shortcut — єдиний рядок для всього коду
     @property

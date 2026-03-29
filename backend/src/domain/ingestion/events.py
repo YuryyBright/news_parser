@@ -1,7 +1,7 @@
 # domain/ingestion/events.py
 from dataclasses import dataclass
 from uuid import UUID
-from domain.shared.events import DomainEvent
+from src.domain.shared.events import DomainEvent
 
 
 @dataclass(frozen=True)
