@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from uuid import UUID
 import numpy as np
 
-from domain.shared.base_entity import AggregateRoot, BaseEntity
+from src.domain.shared.base_entity import AggregateRoot, BaseEntity
 from .value_objects import ArticleStatus, ContentHash, Language, PublishedAt
 from .events import ArticleSaved, ArticleTagged, EmbeddingStored, ArticleExpired
 

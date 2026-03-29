@@ -15,11 +15,11 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from domain.knowledge.entities import Article, Tag
-from domain.knowledge.repositories import IArticleRepository
-from domain.knowledge.value_objects import ArticleStatus, Language
-from infrastructure.persistence.mappers.article_mapper import ArticleMapper
-from infrastructure.persistence.models import ArticleModel, TagModel, ArticleTagModel
+from src.domain.knowledge.entities import Article, Tag
+from src.domain.knowledge.repositories import IArticleRepository
+from src.domain.knowledge.value_objects import ArticleStatus, Language
+from src.infrastructure.persistence.mappers.article_mapper import ArticleMapper
+from src.infrastructure.persistence.models import ArticleModel, TagModel, ArticleTagModel
 
 logger = logging.getLogger(__name__)
 
