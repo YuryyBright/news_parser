@@ -201,6 +201,62 @@ class Container:
         client = await self._get_chroma()
         return CriteriaVectorRepository(client)
 
+    def create_article_uc(self, session: AsyncSession):
+        from src.application.use_cases.create_article import CreateArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return CreateArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+
+    def update_article_uc(self, session: AsyncSession):
+        from src.application.use_cases.update_article import UpdateArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return UpdateArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+
+    def delete_article_uc(self, session: AsyncSession):
+        from src.application.use_cases.update_article import DeleteArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return DeleteArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+
+    def tag_article_uc(self, session: AsyncSession):
+        from src.application.use_cases.update_article import TagArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return TagArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+
+    def expire_article_uc(self, session: AsyncSession):
+        from src.application.use_cases.update_article import ExpireArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return ExpireArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+
+    def filter_article_uc(self, session: AsyncSession, scoring_service=None):
+        """
+        FilterArticleUseCase потребує IScoringService.
+        Якщо scoring_service=None — передати NoOpScoringService або
+        EmbeddingsScoringService з infrastructure.
+        """
+        from src.application.use_cases.filter_article import FilterArticleUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        from src.config.settings import get_settings
+
+        if scoring_service is None:
+            # fallback — заглушка поки embedding pipeline не реалізовано
+            from src.infrastructure.scoring.noop_scoring import NoOpScoringService
+            scoring_service = NoOpScoringService()
+
+        cfg = get_settings()
+        return FilterArticleUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+            scoring_service=scoring_service,
+            threshold=cfg.filtering.default_threshold,
+        )
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
