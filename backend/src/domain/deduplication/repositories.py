@@ -14,18 +14,18 @@ from abc import abstractmethod
 from uuid import UUID
 
 from src.domain.shared.base_repository import IRepository
-from .dedup_service import MinHashSignature
-from .entities import RawArticle
+from .services import MinHashSignature
+from src.domain.knowledge.entities import Article
 from .value_objects import ContentHash
 
 
-class IRawArticleRepository(IRepository[RawArticle]):
+class IRawArticleRepository(IRepository[Article]):
 
     @abstractmethod
-    async def get_by_url(self, url: str) -> RawArticle | None: ...
+    async def get_by_url(self, url: str) -> Article | None: ...
 
     @abstractmethod
-    async def get_by_hash(self, content_hash: ContentHash) -> RawArticle | None: ...
+    async def get_by_hash(self, content_hash: ContentHash) -> Article | None: ...
 
     @abstractmethod
     async def mark_as_deduplicated(self, raw_id: UUID, duplicate_of: UUID) -> None:
@@ -43,7 +43,7 @@ class IRawArticleRepository(IRepository[RawArticle]):
         ...
 
     @abstractmethod
-    async def list_pending(self, limit: int = 100) -> list[RawArticle]:
+    async def list_pending(self, limit: int = 100) -> list[Article]:
         """Отримати необроблені raw articles для pipeline."""
         ...
 
