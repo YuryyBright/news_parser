@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from domain.knowledge.entities import Article, ArticleEmbedding, Tag
-from domain.knowledge.value_objects import (
+from src.domain.knowledge.entities import Article, ArticleEmbedding, Tag
+from src.domain.knowledge.value_objects import (
     ArticleStatus, ContentHash, Language, PublishedAt,
 )
-from domain.ingestion.entities import RawArticle
-from domain.ingestion.value_objects import ParsedContent
-from infrastructure.persistence.models import ArticleModel, RawArticleModel, TagModel
+from src.domain.ingestion.entities import RawArticle
+from src.domain.ingestion.value_objects import ParsedContent
+from src.infrastructure.persistence.models import ArticleModel, RawArticleModel, TagModel
 
 
 class ArticleMapper:

@@ -3,7 +3,7 @@ from abc import abstractmethod
 from datetime import datetime
 from uuid import UUID
 
-from domain.shared.base_repository import IRepository
+from src.domain.shared.base_repository import IRepository
 from .entities import Article, ArticleEmbedding, Tag
 from .value_objects import ArticleStatus, Language
 
