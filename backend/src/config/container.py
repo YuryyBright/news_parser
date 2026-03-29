@@ -258,6 +258,55 @@ class Container:
             threshold=cfg.filtering.default_threshold,
         )
 
+    def _get_minhash_repo(self):
+        """
+        Вибір реалізації IMinHashRepository залежно від середовища.
+
+        dev  → InMemoryMinHashRepository (без Redis)
+        prod → RedisMinHashRepository
+        """
+        from src.config.settings import get_settings
+        settings = get_settings()
+
+        if settings.is_dev:
+            from src.infrastructure.dedup.minhash_repo import InMemoryMinHashRepository
+            # Singleton для dev — щоб підписи не губились між запитами
+            if not hasattr(self, "_minhash_repo_instance"):
+                self._minhash_repo_instance = InMemoryMinHashRepository()
+            return self._minhash_repo_instance
+        else:
+            from src.infrastructure.dedup.minhash_repo import RedisMinHashRepository
+            # Redis client — потрібно додати в __init__ або lazy init
+            # self._redis = aioredis.from_url(settings.redis_url)
+            return RedisMinHashRepository(self._redis)
+
+    def deduplicate_uc(self, session: AsyncSession):
+        from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
+        from src.domain.ingestion.dedup_service import DeduplicationDomainService
+        from src.infrastructure.persistence.repositories.raw_article_repo import (
+            SqlAlchemyRawArticleRepository,
+        )
+        from src.infrastructure.persistence.repositories.article_repo import (
+            SqlAlchemyArticleRepository,
+        )
+        from src.config.settings import get_settings
+
+        cfg = get_settings()
+        return DeduplicateRawArticleUseCase(
+            raw_repo=SqlAlchemyRawArticleRepository(session),
+            article_repo=SqlAlchemyArticleRepository(session),
+            minhash_repo=self._get_minhash_repo(),
+            dedup_service=DeduplicationDomainService(
+                num_perm=cfg.dedup.minhash_num_perm,
+            ),
+            minhash_threshold=cfg.dedup.minhash_threshold,
+        )
+
+    def batch_deduplicate_uc(self, session: AsyncSession):
+        from src.application.use_cases.deduplicate_article import BatchDeduplicateUseCase
+        return BatchDeduplicateUseCase(
+            single_uc=self.deduplicate_uc(session),
+        )
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _container: Container | None = None
