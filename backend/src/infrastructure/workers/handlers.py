@@ -62,8 +62,6 @@ async def handle_ingest_source(source_id: str) -> dict:
         source_id, result.fetched, result.saved, result.skipped_duplicates,
     )
 
-    # Якщо use case повернув помилку — кидаємо RuntimeError
-    # щоб черга зафіксувала задачу як failed
     if result.error:
         raise RuntimeError(result.error)
 

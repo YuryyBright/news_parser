@@ -5,7 +5,7 @@ from uuid import UUID
 import numpy as np
 
 from src.domain.shared.base_entity import AggregateRoot, BaseEntity
-from .value_objects import ArticleStatus, ContentHash, Language, PublishedAt
+from .value_objects import ArticleStatus, ContentHash, PublishedAt
 from .events import ArticleSaved, ArticleTagged, EmbeddingStored, ArticleExpired
 
 
@@ -42,7 +42,7 @@ class Article(AggregateRoot):
     title: str = ""
     body: str = ""
     url: str = ""
-    language: Language = Language.UNKNOWN
+    language: str = ""
     status: ArticleStatus = ArticleStatus.PENDING
     relevance_score: float = 0.0
     content_hash: ContentHash = None  # type: ignore[assignment]

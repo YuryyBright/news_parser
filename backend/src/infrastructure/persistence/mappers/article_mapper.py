@@ -15,7 +15,7 @@ from uuid import UUID
 
 from src.domain.knowledge.entities import Article, Tag
 from src.domain.knowledge.value_objects import (
-    ArticleStatus, ContentHash, Language, PublishedAt,
+    ArticleStatus, ContentHash, PublishedAt,
 )
 from src.domain.ingestion.entities import FetchJob, FetchJobStatus, RawArticle
 from src.domain.ingestion.value_objects import ParsedContent
@@ -29,7 +29,7 @@ from src.infrastructure.persistence.models import (
 class ArticleMapper:
 
     @staticmethod
-    def to_model(article: Article, raw_article_id: str | None = None) -> ArticleModel:
+    def to_model(article: Article) -> ArticleModel:
         """
         Domain Article → ORM ArticleModel.
 
@@ -39,11 +39,11 @@ class ArticleMapper:
         return ArticleModel(
             id=str(article.id),
             source_id=str(article.source_id) if article.source_id else None,
-            raw_article_id=raw_article_id,                      # ← було відсутнє
+            raw_article_id=article.raw_article_id,                    
             title=article.title,
             body=article.body,
             url=article.url,
-            language=article.language.value,
+            language=article.language,
             status=article.status.value,
             relevance_score=article.relevance_score,
             content_hash=article.content_hash.value if article.content_hash else "",
@@ -75,45 +75,36 @@ class ArticleMapper:
 
 # ── RawArticle (ingestion) ────────────────────────────────────────────────────
 
+# infrastructure/persistence/mappers/raw_article_mapper.py
 class RawArticleMapper:
-
     @staticmethod
-    def to_model(raw: RawArticle) -> RawArticleModel:
-        """
-        Domain RawArticle → ORM RawArticleModel.
-
-        content_hash береться з raw.content_hash якщо вже порахований use case'ом,
-        інакше рахується тут (fallback щоб маппер завжди був коректним).
-        """
-        content_hash = raw.content_hash or _compute_hash(
-            raw.content.title, raw.content.body
-        )
+    def to_model(entity: RawArticle) -> RawArticleModel:
         return RawArticleModel(
-            id=str(raw.id),
-            source_id=str(raw.source_id) if raw.source_id else None,
-            title=raw.content.title,
-            body=raw.content.body,
-            url=raw.content.url,
-            language=raw.content.language,
-            content_hash=content_hash,
-            published_at=raw.content.published_at,
+            id=str(entity.id),
+            source_id=str(entity.source_id),
+            title=entity.content.title,        # розгортаємо
+            body=entity.content.body,
+            url=entity.content.url,
+            language=entity.content.language,
+            published_at=entity.content.published_at,
+            content_hash=entity.content_hash,
+            status="pending",
         )
 
     @staticmethod
     def to_domain(model: RawArticleModel) -> RawArticle:
-        """ORM RawArticleModel → Domain RawArticle."""
+        content = ParsedContent(            # збираємо назад
+            title=model.title,
+            body=model.body,
+            url=model.url,
+            published_at=model.published_at,
+            language=model.language,
+        )
         return RawArticle(
             id=UUID(model.id),
             source_id=UUID(model.source_id) if model.source_id else None,
-            content=ParsedContent(
-                title=model.title,
-                body=model.body,
-                url=model.url,
-                published_at=model.published_at,
-                language=model.language,
-            ),
+            content=content,
             content_hash=model.content_hash,
-            created_at=model.created_at,
         )
 
 
@@ -149,12 +140,8 @@ class FetchJobMapper:
 
 # ── Утиліти ───────────────────────────────────────────────────────────────────
 
-def _safe_language(value: str | None) -> Language:
-    try:
-        return Language(value) if value else Language.UNKNOWN
-    except ValueError:
-        return Language.UNKNOWN
-
+def _safe_language(value: str | None) -> str:
+    return value or "unknown"
 
 def _compute_hash(title: str, body: str) -> str:
     return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()

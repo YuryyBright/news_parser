@@ -1,22 +1,42 @@
 # application/use_cases/process_articles.py
+"""
+ProcessArticlesUseCase — обробляє pending RawArticle → Article.
+
+Pipeline для кожної статті:
+  1. Detect language        (через ILanguageDetector порт)
+  2. Score relevance        (через IScoringService порт)
+  3. Dedup check            (url + content_hash в article repo)
+  4. Build Article aggregate
+  5. Accept (score >= threshold) або Reject
+  6. Auto-tag якщо accepted
+  7. Save Article + mark RawArticle processed
+
+Чого тут НЕМАЄ:
+  - langdetect import (це infrastructure)
+  - hashlib (хеш береться з raw.content_hash — вже обчислений)
+  - Article(id=uuid4()) без домену — Article будується тут але
+    через domain value objects і state machine методи
+"""
 from __future__ import annotations
 
-import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Callable, Any
 from uuid import uuid4
 
+from src.application.ports.language_detector import ILanguageDetector
+from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.entities import RawArticle
 from src.domain.ingestion.repositories import IRawArticleRepository
-from src.domain.knowledge.repositories import IArticleRepository
 from src.domain.knowledge.entities import Article
-from src.domain.knowledge.value_objects import ArticleStatus, ContentHash, Language, PublishedAt
+from src.domain.knowledge.repositories import IArticleRepository
 from src.domain.knowledge.services import ArticleClassificationService
+from src.domain.knowledge.value_objects import ArticleStatus, ContentHash, PublishedAt
 
 logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 100
+
 
 @dataclass
 class ProcessArticlesResult:
@@ -24,14 +44,20 @@ class ProcessArticlesResult:
     failed: int = 0
     errors: list[str] = field(default_factory=list)
 
+
 class ProcessArticlesUseCase:
+    """
+    Версія для worker'а — кожна стаття в окремій транзакції.
+    session_factory передається щоб use case сам контролював lifecycle.
+    """
+
     def __init__(
         self,
-        session_factory: Callable[..., Any], 
-        raw_repo_factory: Callable[[Any], IRawArticleRepository], 
-        article_repo_factory: Callable[[Any], IArticleRepository], 
-        language_detector=None,
-        scoring_service=None,
+        session_factory: Callable[..., Any],
+        raw_repo_factory: Callable[[Any], IRawArticleRepository],
+        article_repo_factory: Callable[[Any], IArticleRepository],
+        language_detector: ILanguageDetector,
+        scoring_service: IScoringService,
         batch_size: int = _BATCH_SIZE,
         threshold: float = 0.25,
     ) -> None:
@@ -46,10 +72,9 @@ class ProcessArticlesUseCase:
     async def execute(self) -> ProcessArticlesResult:
         result = ProcessArticlesResult()
 
-        # ── читаємо pending в окремій короткій транзакції ─────────────────
+        # Читаємо pending в окремій короткій транзакції
         async with self._session_factory() as session:
             async with session.begin():
-                # Використовуємо фабрику замість прямого імпорту
                 raw_repo = self._raw_repo_factory(session)
                 raw_articles = await raw_repo.get_unprocessed(limit=self._batch_size)
 
@@ -59,19 +84,17 @@ class ProcessArticlesUseCase:
 
         logger.info("process_articles: processing %d articles", len(raw_articles))
 
-        # ── кожна стаття — окрема транзакція ─────────────────────────────
+        # Кожна стаття — окрема транзакція (ізоляція помилок)
         for raw in raw_articles:
             try:
-                # Винесено логіку сесії в окремий блок
                 async with self._session_factory() as session:
                     async with session.begin():
-                        await self._process_one_in_session(session, raw)
+                        await self._process_one(session, raw)
                 result.processed += 1
             except Exception as exc:
                 result.failed += 1
-                error_msg = f"raw_id={raw.id}: {exc}"
-                result.errors.append(error_msg)
-                logger.exception("Failed to process raw article %s: %s", raw.id, exc)
+                result.errors.append(f"raw_id={raw.id}: {exc}")
+                logger.exception("Failed to process raw article %s", raw.id)
 
         logger.info(
             "process_articles done: processed=%d failed=%d",
@@ -79,78 +102,100 @@ class ProcessArticlesUseCase:
         )
         return result
 
-    async def _process_one_in_session(self, session, raw) -> None:
-        # Ініціалізуємо репозиторії через передані фабрики
+    async def _process_one(self, session, raw: RawArticle) -> None:
         article_repo = self._article_repo_factory(session)
-        raw_repo = self._raw_repo_factory(session)
+        raw_repo     = self._raw_repo_factory(session)
 
-        # ── 1. Detect language ────────────────────────────────────────────
+        # ── 1. Detect language ────────────────────────────────────────────────
+        language = await self._detect_language(raw)
+
+        # ── 2. Score ──────────────────────────────────────────────────────────
+        relevance_score = await self._score(raw)
+
+
+        # ── 3. Dedup (проти вже збережених Article) ───────────────────────────
+        if await article_repo.get_by_url(raw.content.url):
+            logger.debug("Duplicate url=%s, skipping", raw.content.url)
+            # await raw_repo.mark_deduplicated(raw.id)
+            return
+
+        if await article_repo.get_by_hash(raw.content_hash):
+            logger.debug("Duplicate hash url=%s, skipping", raw.content.url)
+            # await raw_repo.mark_deduplicated(raw.id)
+            return
+
+        # ── 4. Відфільтрувати статті з низьким score до збереження ───────────
+        # Статті нижче threshold одразу reject — не зберігаємо в knowledge domain
+        # якщо хочемо зберігати всі (для статистики) — прибрати цей early return
+        if relevance_score < self._threshold:
+            logger.debug(
+                "Score %.3f < threshold %.3f, rejecting url=%s",
+                relevance_score, self._threshold, raw.content.url,
+            )
+            article = _build_article(raw, language)
+            logger.info(
+                    "Processed raw_article_id=%s → article=%s status=%s score=%.3f tags=%s",
+                    article.raw_article_id, article.id, article.status.value,
+                    relevance_score, [t.name for t in article.tags],
+                )
+            article.reject(relevance_score)
+            await article_repo.save(article)
+            # await raw_repo.mark_processed(raw.id)
+            return
+
+        # ── 5. Прийняти і тегувати ────────────────────────────────────────────
+        article = _build_article(raw, language)
+        article.accept(relevance_score)
+
+        tags = ArticleClassificationService().extract_auto_tags(article)
+        if tags:
+            article.add_tags(tags)
+
+        # ── 6. Зберегти ───────────────────────────────────────────────────────
+        await article_repo.save(article)
+        # await raw_repo.mark_processed(raw.id)
+
+
+
+    async def _detect_language(self, raw: RawArticle):
+        """Detect language через порт. Fallback → UNKNOWN."""
         language_str = raw.content.language
-        if not language_str and self._lang_detector :
+        if not language_str:
             try:
                 language_str = await self._lang_detector.detect(raw.content.full_text())
             except Exception as exc:
                 logger.warning("Language detection failed for %s: %s", raw.id, exc)
                 language_str = "unknown"
-
         try:
-            language = Language(language_str) if language_str else Language.UNKNOWN
+            return language_str
         except ValueError:
-            language = Language.UNKNOWN
+            return "unknown"
 
-        # ── 2. Score ──────────────────────────────────────────────────────
-        relevance_score = 0.0
-        if self._scoring_service:
-            try:
-                relevance_score = await self._scoring_service.score(raw.content)
-            except Exception as exc:
-                logger.warning("Scoring failed for %s: %s", raw.id, exc)
+    async def _score(self, raw: RawArticle) -> float:
+        """Score через порт. Fallback → 0.0."""
+        try:
+            return await self._scoring_service.score(raw.content)
+        except Exception as exc:
+            logger.warning("Scoring failed for %s: %s", raw.id, exc)
+            return 0.0
 
-        # ── 3. Dedup ──────────────────────────────────────────────────────
-        if await article_repo.get_by_url(raw.content.url):
-            logger.debug("Duplicate url=%s, skipping", raw.content.url)
-            await raw_repo.mark_processed(raw.id)
-            return
 
-        content_hash = raw.content_hash or hashlib.sha256(
-            raw.content.full_text().encode()
-        ).hexdigest()
-
-        if await article_repo.get_by_hash(content_hash):
-            logger.debug("Duplicate hash url=%s, skipping", raw.content.url)
-            await raw_repo.mark_processed(raw.id)
-            return
-
-        # ── 4. Build Article ──────────────────────────────────────────────
-        article = Article(
-            id=uuid4(),
-            source_id=raw.source_id,
-            raw_article_id=raw.id,
-            title=raw.content.title,
-            body=raw.content.body,
-            url=raw.content.url,
-            language=language,
-            status=ArticleStatus.PENDING,
-            relevance_score=0.0,
-            content_hash=ContentHash(value=content_hash),
-            published_at=PublishedAt(value=raw.content.published_at) if raw.content.published_at else None,
-            tags=[],
-        )
-
-        # ── 5. Accept / Reject + теги ─────────────────────────────────────
-        if relevance_score >= self._threshold:
-            article.accept(relevance_score)
-            tags = ArticleClassificationService().extract_auto_tags(article)
-            if tags:
-                article.add_tags(tags)
-        else:
-            article.reject(relevance_score)
-
-        # ── 6. Зберегти ───────────────────────────────────────────────────
-        await article_repo.save(article)
-        await raw_repo.mark_processed(raw.id)
-
-        logger.debug(
-            "Processed raw=%s → article=%s status=%s score=%.3f",
-            raw.id, article.id, article.status.value, relevance_score,
-        )
+def _build_article(raw: RawArticle, language: str) -> Article:
+    """
+    Побудувати Article aggregate з RawArticle.
+    ContentHash береться з raw.content_hash — вже обчислений у ParsedContent.
+    """
+    return Article(
+        id=uuid4(),
+        source_id=raw.source_id,
+        raw_article_id=str(raw.id),
+        title=raw.content.title,
+        body=raw.content.body,
+        url=raw.content.url,
+        language=language,
+        status=ArticleStatus.PENDING,
+        relevance_score=0.0,
+        content_hash=ContentHash(value=raw.content_hash),
+        published_at=PublishedAt(value=raw.content.published_at) if raw.content.published_at else None,
+        tags=[],
+    )

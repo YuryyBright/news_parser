@@ -17,7 +17,7 @@ from uuid import UUID
 
 from src.domain.shared.base_repository import IRepository
 from .entities import Article, ArticleEmbedding, Tag
-from .value_objects import ArticleStatus, Language
+from .value_objects import ArticleStatus
 
 
 class IArticleRepository(IRepository[Article]):
@@ -33,7 +33,7 @@ class IArticleRepository(IRepository[Article]):
         self,
         limit: int = 50,
         offset: int = 0,
-        language: Language | None = None,
+        language: str | None = None,
     ) -> list[Article]: ...
 
     @abstractmethod

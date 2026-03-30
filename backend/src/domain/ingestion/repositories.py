@@ -1,30 +1,30 @@
 # domain/ingestion/repositories.py
 """
-Інтерфейси репозиторіїв для ingestion bounded context.
+Порти (interfaces) домену Ingestion.
 
-Визначаються в domain — реалізуються в infrastructure.
-Application знає тільки про ці інтерфейси.
+Правило DDD: інтерфейс живе в ДОМЕНІ, реалізація — в infrastructure.
+Use cases залежать тільки від цих абстракцій.
 """
 from __future__ import annotations
 
 from abc import abstractmethod
 from uuid import UUID
 
-from src.domain.ingestion.entities import FetchJob, RawArticle, Source
 from src.domain.shared.base_repository import IRepository
+from .entities import FetchJob, RawArticle, Source
 
 
 class ISourceRepository(IRepository[Source]):
+
     @abstractmethod
     async def list_active(self) -> list[Source]: ...
 
     @abstractmethod
-    async def get_by_url(self, url: str) -> Source | None:
-        """Потрібен для перевірки унікальності при додаванні джерела."""
-        ...
+    async def get_by_url(self, url: str) -> Source | None: ...
 
 
 class IRawArticleRepository(IRepository[RawArticle]):
+
     @abstractmethod
     async def exists_by_url(self, url: str) -> bool: ...
 
@@ -37,8 +37,15 @@ class IRawArticleRepository(IRepository[RawArticle]):
     @abstractmethod
     async def mark_processed(self, id: UUID) -> None: ...
 
+    @abstractmethod
+    async def mark_deduplicated(self, id: UUID) -> None: ...
+
+    @abstractmethod
+    async def mark_invalid(self, id: UUID) -> None: ...
+
 
 class IFetchJobRepository(IRepository[FetchJob]):
+
     @abstractmethod
     async def get_pending(self, limit: int = 10) -> list[FetchJob]: ...
 

@@ -15,13 +15,6 @@ class ArticleStatus(StrEnum):
     EXPIRED   = "expired"    # старіший за retention window
 
 
-class Language(StrEnum):
-    UK = "uk"
-    EN = "en"
-    DE = "de"
-    FR = "fr"
-    PL = "pl"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True)

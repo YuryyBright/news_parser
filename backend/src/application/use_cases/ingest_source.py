@@ -1,41 +1,39 @@
 # application/use_cases/ingest_source.py
 """
-IngestSourceUseCase — серце ingestion pipeline.
+IngestSourceUseCase — завантажує і зберігає сирі статті для одного джерела.
 
-Відповідальність:
-  1. Завантажити сирі статті через IFetcher (RssFetcher / WebFetcher)
-  2. Дедуплікувати: пропустити вже відомі за URL і content hash
-  3. Зберегти нові RawArticle в IRawArticleRepository
-  4. Зафіксувати результат FetchJob (done / failed)
+Pipeline:
+  1. Отримати Source з репозиторію
+  2. Запустити FetchJob (start)
+  3. IFetcher.fetch(source) → list[ParsedContent]
+  4. Для кожного ParsedContent:
+     a. dedup check (url + hash) проти raw_articles
+     b. IngestionDomainService.create_raw_article() → RawArticle
+     c. IRawArticleRepository.save(raw_article)
+  5. FetchJob.complete() або fail()
 
-Use case НЕ:
-  - НЕ парсить HTML/RSS напряму (це IFetcher)
-  - НЕ детектує мову чи рахує score (це ProcessArticlesUseCase)
-  - НЕ знає про HTTP або Celery
+Dependency rule:
+  ✅ domain interfaces (ISourceRepository, IRawArticleRepository, IFetchJobRepository)
+  ✅ application ports (IFetcher)
+  ✅ domain service (IngestionDomainService)
 """
 from __future__ import annotations
 
-import hashlib
 import logging
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from uuid import UUID
 
 from src.application.ports.fetcher import IFetcher
-from src.domain.ingestion.entities import FetchJob, FetchJobStatus
-from src.domain.ingestion.exceptions import ParseError, SourceUnreachable
-from src.domain.ingestion.repositories import (
-    IFetchJobRepository,
-    IRawArticleRepository,
-    ISourceRepository,
-)
+from src.domain.ingestion.entities import Source
+from src.domain.ingestion.repositories import IFetchJobRepository, IRawArticleRepository, ISourceRepository
+from src.domain.ingestion.services import IngestionDomainService
+from src.domain.ingestion.exceptions import SourceUnreachable, ParseError
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class IngestSourceResult:
-    """Результат одного запуску ingestion для джерела."""
     source_id: UUID
     fetched: int = 0
     saved: int = 0
@@ -44,12 +42,6 @@ class IngestSourceResult:
 
 
 class IngestSourceUseCase:
-    """
-    Завантажує та зберігає сирі статті для одного джерела.
-
-    Викликається з handle_ingest_source (worker handler).
-    Не знає нічого про HTTP, feedparser, Celery.
-    """
 
     def __init__(
         self,
@@ -58,81 +50,76 @@ class IngestSourceUseCase:
         fetch_job_repo: IFetchJobRepository,
         fetcher: IFetcher,
     ) -> None:
-        self._source_repo      = source_repo
-        self._raw_article_repo = raw_article_repo
-        self._fetch_job_repo   = fetch_job_repo
-        self._fetcher          = fetcher
+        self._sources    = source_repo
+        self._raw        = raw_article_repo
+        self._jobs       = fetch_job_repo
+        self._fetcher    = fetcher
+        self._domain_svc = IngestionDomainService()
 
     async def execute(self, source_id: UUID) -> IngestSourceResult:
         result = IngestSourceResult(source_id=source_id)
 
-        # ── 1. Завантажити джерело ─────────────────────────────────────────
-        source = await self._source_repo.get(source_id)
-        if source is None:
-            result.error = f"Source {source_id} not found"
-            logger.error(result.error)
+        # ── 1. Отримати джерело ───────────────────────────────────────────────
+        source = await self._sources.get(source_id)
+        if not source or not source.is_active:
+            result.error = f"Source {source_id} not found or inactive"
             return result
 
-        if not source.is_active:
-            result.error = f"Source {source_id} is inactive, skipping"
-            logger.warning(result.error)
-            return result
+        # ── 2. FetchJob ───────────────────────────────────────────────────────
+        job = await self._jobs.get_by_source_id(source_id)
+        if job is None:
+            from src.domain.ingestion.entities import FetchJob
+            job = FetchJob(source_id=source_id)
+            await self._jobs.save(job)
 
-        # ── 2. Знайти або створити FetchJob ────────────────────────────────
-        job = await self._get_or_create_job(source_id)
         job.start()
-        await self._fetch_job_repo.save(job)
+        await self._jobs.update(job)
 
-        # ── 3. Fetching + обробка помилок ──────────────────────────────────
+        # ── 3. Fetch ──────────────────────────────────────────────────────────
         try:
-            raw_articles = await self._fetcher.fetch(source)
+            parsed_contents = await self._fetcher.fetch(source)
         except (SourceUnreachable, ParseError) as exc:
+            job.fail(str(exc))
+            await self._jobs.update(job)
             result.error = str(exc)
-            job.fail(reason=str(exc), max_retries=3)
-            await self._fetch_job_repo.save(job)
-            logger.warning(
-                "ingest_source failed for %s: %s (retries=%d)",
-                source_id, exc, job.retries,
-            )
+            logger.warning("Fetch failed for source %s: %s", source_id, exc)
+            return result
+        except Exception as exc:
+            job.fail(str(exc))
+            await self._jobs.update(job)
+            result.error = f"Unexpected error: {exc}"
+            logger.exception("Unexpected fetch error for source %s", source_id)
             return result
 
-        result.fetched = len(raw_articles)
+        result.fetched = len(parsed_contents)
+        logger.info("Fetched %d items from source %s", result.fetched, source_id)
 
-        # ── 4. Дедуплікація і збереження ──────────────────────────────────
-        for article in raw_articles:
-            url          = article.content.url
-            content_hash = article.content_hash or hashlib.sha256(
-                article.content.full_text().encode('utf-8')
-            ).hexdigest()
-
-            # Рівень 1: дедуп за URL (найшвидший — є унікальний індекс)
-            if await self._raw_article_repo.exists_by_url(url):
+        # ── 4. Dedup + Save ───────────────────────────────────────────────────
+        for content in parsed_contents:
+            # Dedup рівень 1: URL
+            if await self._raw.exists_by_url(content.url):
                 result.skipped_duplicates += 1
                 continue
 
-            # Рівень 2: дедуп за SHA-256 (ловить перевидані статті)
-            if await self._raw_article_repo.exists_by_hash(content_hash):
+            # Dedup рівень 2: content hash (обчислюється в ParsedContent)
+            if await self._raw.exists_by_hash(content.content_hash):
                 result.skipped_duplicates += 1
                 continue
 
-            await self._raw_article_repo.save(article)
+            # Доменний сервіс створює RawArticle і генерує подію ArticleIngested
+            raw_article = self._domain_svc.create_raw_article(
+                source_id=source.id,
+                content=content,
+            )
+            await self._raw.save(raw_article)
             result.saved += 1
 
-        # ── 5. Завершити job ───────────────────────────────────────────────
+        # ── 5. Complete ───────────────────────────────────────────────────────
         job.complete()
-        await self._fetch_job_repo.save(job)
+        await self._jobs.update(job)
 
         logger.info(
-            "ingest_source done: source=%s fetched=%d saved=%d skipped=%d",
+            "IngestSource done: source=%s fetched=%d saved=%d skipped=%d",
             source_id, result.fetched, result.saved, result.skipped_duplicates,
         )
         return result
-
-    # ingest_source.py
-    async def _get_or_create_job(self, source_id: UUID) -> FetchJob:
-        existing = await self._fetch_job_repo.get_by_source_id(source_id)
-        if existing is not None:
-            return existing
-        new_job = FetchJob(id=UUID(), source_id=source_id)
-        await self._fetch_job_repo.save(new_job)
-        return new_job

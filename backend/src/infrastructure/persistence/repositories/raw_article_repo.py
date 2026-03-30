@@ -2,30 +2,20 @@
 """
 SqlAlchemyRawArticleRepository — реалізує IRawArticleRepository.
 
-Bounded context: INGESTION (не knowledge).
-Таблиця: raw_articles
-
-Ключова відповідальність: зберігання та дедуплікація сирих статей.
-
-Дедуплікація на двох рівнях (обидва викликаються в IngestSourceUseCase):
-  1. exists_by_url()  — точний збіг URL (швидко, є унікальний індекс)
-  2. exists_by_hash() — SHA-256(title+body), ловить перевидані з іншим URL
+Mapper розгортає ParsedContent ↔ плоскі колонки ORM моделі.
+Domain entity ніколи не знає про структуру БД.
 """
 from __future__ import annotations
 
-import hashlib
-import logging
 from uuid import UUID
 
-from sqlalchemy import select, exists
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.ingestion.entities import RawArticle
+from src.domain.ingestion.entities import RawArticle, RawArticleStatus
 from src.domain.ingestion.repositories import IRawArticleRepository
-from src.infrastructure.persistence.mappers.article_mapper import RawArticleMapper  # RawArticleMapper живе в article_mapper.py
+from src.domain.ingestion.value_objects import ParsedContent
 from src.infrastructure.persistence.models import RawArticleModel
-
-logger = logging.getLogger(__name__)
 
 
 class SqlAlchemyRawArticleRepository(IRawArticleRepository):
@@ -33,27 +23,22 @@ class SqlAlchemyRawArticleRepository(IRawArticleRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    # ─── IRepository (base) ───────────────────────────────────────────────────
+    # ── IRepository (base) ────────────────────────────────────────────────────
 
     async def get(self, id: UUID) -> RawArticle | None:
         model = await self._session.get(RawArticleModel, str(id))
-        return RawArticleMapper.to_domain(model) if model else None
+        return _to_domain(model) if model else None
 
-    async def save(self, raw: RawArticle) -> None:
-        """
-        Upsert за ID.
-        RawArticle після збереження — immutable (не оновлюємо контент).
-        При повторному save — оновлюємо тільки статус (на випадок retry).
-        """
-        existing = await self._session.get(RawArticleModel, str(raw.id))
+    async def save(self, entity: RawArticle) -> None:
+        existing = await self._session.get(RawArticleModel, str(entity.id))
         if existing:
-            existing.status = existing.status  # не змінюємо — лише flush
+            _update_model(existing, entity)
         else:
-            self._session.add(RawArticleMapper.to_model(raw))
+            self._session.add(_to_model(entity))
         await self._session.flush()
 
-    async def update(self, raw: RawArticle) -> None:
-        await self.save(raw)
+    async def update(self, entity: RawArticle) -> None:
+        await self.save(entity)
 
     async def delete(self, id: UUID) -> None:
         model = await self._session.get(RawArticleModel, str(id))
@@ -63,61 +48,93 @@ class SqlAlchemyRawArticleRepository(IRawArticleRepository):
 
     async def list(self) -> list[RawArticle]:
         result = await self._session.execute(select(RawArticleModel))
-        return [RawArticleMapper.to_domain(m) for m in result.scalars().all()]
+        return [_to_domain(m) for m in result.scalars().all()]
 
-    # ─── IRawArticleRepository (specific) ────────────────────────────────────
+    # ── IRawArticleRepository (specific) ─────────────────────────────────────
 
     async def exists_by_url(self, url: str) -> bool:
-        """
-        Дедуплікація рівень 1: перевірка за URL.
-        Очікує унікальний індекс на raw_articles.url — O(log n).
-        """
-        stmt = select(exists().where(RawArticleModel.url == url))
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
+        result = await self._session.execute(
+            select(RawArticleModel.id).where(RawArticleModel.url == url).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def exists_by_hash(self, content_hash: str) -> bool:
-        """
-        Дедуплікація рівень 2: SHA-256 хеш title+body.
-        Ловить перевидані матеріали з іншим URL але однаковим контентом.
-        Очікує індекс на raw_articles.content_hash.
-        """
-        stmt = select(exists().where(RawArticleModel.content_hash == content_hash))
-        result = await self._session.execute(stmt)
-        return bool(result.scalar())
+        result = await self._session.execute(
+            select(RawArticleModel.id)
+            .where(RawArticleModel.content_hash == content_hash)
+            .limit(1)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def get_unprocessed(self, limit: int = 100) -> list[RawArticle]:
-        """
-        Повертає сирі статті зі статусом 'pending'.
-        Використовується в ProcessArticlesUseCase.
-        Сортування за created_at asc — обробляємо в порядку надходження (FIFO).
-        """
         result = await self._session.execute(
             select(RawArticleModel)
-            .where(RawArticleModel.status == "pending")
-            .order_by(RawArticleModel.created_at.asc())
+            .where(RawArticleModel.status == RawArticleStatus.PENDING.value)
+            .order_by(RawArticleModel.created_at)
             .limit(limit)
         )
-        return [RawArticleMapper.to_domain(m) for m in result.scalars().all()]
+        return [_to_domain(m) for m in result.scalars().all()]
 
-    async def mark_processed(self, raw_id: UUID) -> None:
-        """
-        Позначити raw article як оброблену.
-        Викликається ProcessArticlesUseCase після успішного створення Article.
-        """
-        model = await self._session.get(RawArticleModel, str(raw_id))
+    async def mark_processed(self, id: UUID) -> None:
+        await self._set_status(id, RawArticleStatus.PROCESSED)
+
+    async def mark_deduplicated(self, id: UUID) -> None:
+        await self._set_status(id, RawArticleStatus.DEDUPLICATED)
+
+    async def mark_invalid(self, id: UUID) -> None:
+        await self._set_status(id, RawArticleStatus.INVALID)
+
+    async def _set_status(self, id: UUID, status: RawArticleStatus) -> None:
+        model = await self._session.get(RawArticleModel, str(id))
         if model:
-            model.status = "processed"
+            model.status = status.value
             await self._session.flush()
 
-    # ─── Утиліта ──────────────────────────────────────────────────────────────
 
-    @staticmethod
-    def compute_hash(title: str, body: str) -> str:
-        """
-        SHA-256 від title+body.
+# ── Mapper functions ──────────────────────────────────────────────────────────
 
-        Статичний метод — можна викликати без інстансу репозиторію.
-        IngestSourceUseCase використовує цей метод перед exists_by_hash().
-        """
-        return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()
+def _to_model(entity: RawArticle) -> RawArticleModel:
+    """
+    RawArticle → RawArticleModel.
+
+    ParsedContent розгортається у плоскі колонки ORM —
+    бо реляційна БД не знає про value objects.
+    """
+    return RawArticleModel(
+        id=str(entity.id),
+        source_id=str(entity.source_id) if entity.source_id else None,
+        title=entity.content.title,
+        body=entity.content.body,
+        url=entity.content.url,
+        language=entity.content.language,
+        published_at=entity.content.published_at,
+        content_hash=entity.content_hash,     # із ParsedContent.content_hash
+        status=entity.processing_status.value,
+    )
+
+
+def _update_model(model: RawArticleModel, entity: RawArticle) -> None:
+    """Оновити існуючу ORM модель з domain entity."""
+    model.status = entity.processing_status.value
+    # title/body/url/hash не змінюються після створення
+
+
+def _to_domain(model: RawArticleModel) -> RawArticle:
+    """
+    RawArticleModel → RawArticle.
+
+    Плоскі колонки збираються назад у ParsedContent.
+    """
+    content = ParsedContent(
+        title=model.title,
+        body=model.body,
+        url=model.url,
+        published_at=model.published_at,
+        language=model.language,
+    )
+    return RawArticle(
+        id=UUID(model.id),
+        source_id=UUID(model.source_id) if model.source_id else None,
+        content=content,
+        processing_status=RawArticleStatus(model.status),
+    )

@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from src.domain.knowledge.entities import Article, Tag
 from src.domain.knowledge.repositories import IArticleRepository
-from src.domain.knowledge.value_objects import ArticleStatus, Language
+from src.domain.knowledge.value_objects import ArticleStatus
 from src.infrastructure.persistence.mappers.article_mapper import ArticleMapper
 from src.infrastructure.persistence.models import ArticleModel, TagModel, ArticleTagModel
 
@@ -46,7 +46,8 @@ class SqlAlchemyArticleRepository(IArticleRepository):
             existing.title           = article.title
             existing.body            = article.body
             existing.url             = article.url
-            existing.language        = article.language.value
+            existing.language        = article.language
+            existing.raw_article_id  = article.raw_article_id
             existing.status          = article.status.value
             existing.relevance_score = article.relevance_score
             existing.content_hash    = article.content_hash.value if article.content_hash else ""
@@ -98,7 +99,7 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         self,
         limit: int = 50,
         offset: int = 0,
-        language: Language | None = None,
+        language: str | None = None,
     ) -> list[Article]:
         stmt = (
             select(ArticleModel)

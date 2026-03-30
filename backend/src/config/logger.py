@@ -66,11 +66,11 @@ def setup_logging() -> None:
                 "level": "WARNING", 
                 "propagate": False,
             },
-            "uvicorn.access": {
-                "handlers": ["console", "file"], # Додано file
-                "level": "WARNING",
-                "propagate": False,
-            },
+            # "uvicorn.access": {
+            #     "handlers": ["console", "file"], # Додано file
+            #     "level": "WARNING",
+            #     "propagate": False,
+            # },
         },
     }
 

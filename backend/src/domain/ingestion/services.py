@@ -1,30 +1,46 @@
 # domain/ingestion/services.py
-from .entities import RawArticle, Source, FetchJob
+"""
+IngestionDomainService — чиста доменна логіка.
+
+Що тут є:
+  - фабрика RawArticle (хеш обчислюється тут, а не в fetcher'і)
+  - логіка re-fetch
+
+Чого тут НЕМАЄ:
+  - HTTP, feedparser, SQL
+  - asyncio (сервіс синхронний — тільки обчислення)
+"""
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+from .entities import FetchJob, RawArticle
 from .value_objects import ParsedContent
-from .repositories import IRawArticleRepository
 from .exceptions import SourceUnreachable
 
 
 class IngestionDomainService:
-    """
-    Бізнес-правила інгестії — тут вирішується чи приймати статтю.
-    Не знає про HTTP, Telegram, парсери — це infrastructure.
-    """
 
     def create_raw_article(
         self,
-        source: Source,
+        source_id,          # UUID — джерело
         content: ParsedContent,
     ) -> RawArticle:
-        if not source.is_active:
-            raise SourceUnreachable(f"Source {source.id} is disabled")
+        """
+        Єдина точка створення RawArticle.
 
-        article = RawArticle(source_id=source.id, content=content)
+        content_hash делегується в ParsedContent.content_hash,
+        тому fetcher'и і use cases не рахують хеш самостійно.
+        ID призначається тут через __post_init__ у RawArticle.
+        """
+        article = RawArticle(
+            source_id=source_id,
+            content=content,
+        )
         article.mark_ingested()
         return article
 
     def should_refetch(self, job: FetchJob, schedule_seconds: int) -> bool:
-        from datetime import datetime, timezone
         if job.last_run_at is None:
             return True
         elapsed = (datetime.now(timezone.utc) - job.last_run_at).total_seconds()

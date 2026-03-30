@@ -1,17 +1,23 @@
 # application/ports/fetcher.py
 """
-Порт для fetcher-адаптерів.
+Порт IFetcher — визначається в application, реалізується в infrastructure.
 
-Application визначає ЩО потрібно (інтерфейс IFetcher).
-Infrastructure реалізує ЯК (RssFetcher, WebFetcher тощо).
+Повертає ParsedContent, а не RawArticle:
+  - Fetcher знає як завантажити і розпарсити контент (infrastructure)
+  - Fetcher НЕ знає як створити domain entity (це робота domain service)
+  - Це усуває залежність infrastructure → domain entities у зворотний бік
 
-Use cases та handlers знають тільки про IFetcher — не про feedparser.
+Lifecycle:
+  RssFetcher.fetch(source) → list[ParsedContent]
+  IngestionDomainService.create_raw_article(source_id, content) → RawArticle
+  IRawArticleRepository.save(raw_article)
 """
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from src.domain.ingestion.entities import RawArticle, Source
+from src.domain.ingestion.entities import Source
+from src.domain.ingestion.value_objects import ParsedContent
 
 
 class IFetcher(ABC):
@@ -25,15 +31,12 @@ class IFetcher(ABC):
     """
 
     @abstractmethod
-    async def fetch(self, source: Source) -> list[RawArticle]:
+    async def fetch(self, source: Source) -> list[ParsedContent]:
         """
-        Завантажити статті із джерела.
-
-        Args:
-            source: доменна сутність джерела з конфігурацією (url, headers тощо)
+        Завантажити і розпарсити контент із джерела.
 
         Returns:
-            Список RawArticle — ще не збережених, без ID у БД.
+            Список ParsedContent — чисті дані без ID, без хешів.
             Порожній список якщо джерело недоступне або пусте.
 
         Raises:
