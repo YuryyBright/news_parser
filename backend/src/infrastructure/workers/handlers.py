@@ -1,6 +1,6 @@
 # infrastructure/workers/handlers.py
 """
-Task handlers — конкретні async функції що виконуються в черзі.
+Task handlers — async функції що виконуються чергою задач.
 
 Handler — це glue-код між task queue і use case:
   1. Отримує kwargs (прості типи — рядки, числа)
@@ -10,13 +10,13 @@ Handler — це glue-код між task queue і use case:
   5. Логує результат
 
 Handlers знають про:
-  ✓ container (щоб дістати сесію та репозиторії)
-  ✓ use cases (що викликати)
-  ✓ infrastructure adapters (fetchers тощо)
+  ✓ container (сесія, task_queue)
+  ✓ use cases
+  ✓ infrastructure adapters (fetchers, репозиторії)
 
 Handlers НЕ знають про:
-  ✗ FastAPI / HTTP
-  ✗ task queue механіку (register_task — у registry.py)
+  ✗ FastAPI / HTTP / Pydantic
+  ✗ механіку черги (register_task — у registry.py)
 """
 from __future__ import annotations
 
@@ -38,12 +38,12 @@ async def handle_ingest_source(source_id: str) -> dict:
     Args:
         source_id: str UUID джерела
     """
-    from infrastructure.config.container import get_container
-    from infrastructure.fetchers.rss_fetcher import RssFetcher
-    from infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
-    from infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
-    from infrastructure.persistence.repositories.fetch_job_repo import SqlAlchemyFetchJobRepository
-    from application.use_cases.ingest_source import IngestSourceUseCase
+    from src.config.container import get_container
+    from src.application.use_cases.ingest_source import IngestSourceUseCase
+    from src.infrastructure.parsers.rss_parser import RssFetcher
+    from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
+    from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
+    from src.infrastructure.persistence.repositories.fetch_job_repo import SqlAlchemyFetchJobRepository
 
     container = get_container()
 
@@ -60,6 +60,8 @@ async def handle_ingest_source(source_id: str) -> dict:
         source_id, result.fetched, result.saved, result.skipped_duplicates,
     )
 
+    # Якщо use case повернув помилку — кидаємо RuntimeError
+    # щоб черга зафіксувала задачу як failed
     if result.error:
         raise RuntimeError(result.error)
 
@@ -76,19 +78,21 @@ async def handle_process_articles() -> dict:
     Обробити всі 'pending' статті:
       - визначити мову
       - порахувати relevance score
-      - оновити статус на 'processed'
+      - оновити статус → ACCEPTED або REJECTED
 
     Запускається після handle_ingest_source або окремо по scheduler.
     """
-    from infrastructure.config.container import get_container
-    from infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
-    from application.use_cases.process_articles import ProcessArticlesUseCase
+    from src.config.container import get_container
+    from src.application.use_cases.process_articles import ProcessArticlesUseCase
+    from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+    from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
 
     container = get_container()
 
     async with container.db_session() as session:
         result = await ProcessArticlesUseCase(
             article_repo=SqlAlchemyArticleRepository(session),
+            raw_article_repo=SqlAlchemyRawArticleRepository(session),
         ).execute()
 
     logger.info(
@@ -103,12 +107,11 @@ async def handle_schedule_all_sources() -> dict:
     """
     Scheduler handler — ставить ingest_source в чергу для всіх активних джерел.
 
-    Запускається periodically (наприклад, кожні 5 хвилин через APScheduler
-    або як окремий Celery beat task).
+    Запускається periodically (APScheduler або Celery beat).
     """
-    from infrastructure.config.container import get_container
-    from infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
-    from application.use_cases.startup import StartupUseCase
+    from src.config.container import get_container
+    from src.application.use_cases.startup import StartupUseCase
+    from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
 
     container = get_container()
 

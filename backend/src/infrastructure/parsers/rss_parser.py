@@ -11,13 +11,13 @@ from uuid import uuid4
 
 import feedparser
 
-from application.ports import IFetcher, RawArticleDTO, SourceDTO
 
+from src.domain.ingestion.entities import Source, RawArticle, FetchJob
 logger = logging.getLogger(__name__)
 
 
-class RssFetcher(IFetcher):
-    async def fetch(self, source: SourceDTO) -> list[RawArticleDTO]:
+class RssFetcher(FetchJob):
+    async def fetch(self, source: Source) -> list[RawArticle]:
         feed = feedparser.parse(source.url)
         articles = []
 
@@ -36,7 +36,7 @@ class RssFetcher(IFetcher):
             if hasattr(entry, "published_parsed") and entry.published_parsed:
                 published_at = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
 
-            articles.append(RawArticleDTO(
+            articles.append(RawArticle(
                 id=uuid4(),
                 source_id=source.id,
                 title=title,

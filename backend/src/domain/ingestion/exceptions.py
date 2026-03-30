@@ -1,5 +1,5 @@
 # domain/ingestion/exceptions.py
-from domain.shared.exceptions import DomainException
+from src.domain.shared.exceptions import DomainException
 
 class ParseError(DomainException): pass
 class SourceUnreachable(DomainException): pass

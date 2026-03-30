@@ -11,8 +11,8 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from src.application.ports.task_queue import ISourceRepository, ITaskQueue
-
+from src.application.ports.task_queue import  ITaskQueue
+from src.domain.ingestion.repositories import ISourceRepository
 logger = logging.getLogger(__name__)
 
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ class TaskInfo:
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
-    kwargs: dict[str, Any]        # аргументи з якими запущено задачу
+    kwargs: dict[str, Any]
     error: str | None = None      # повідомлення помилки якщо status=failed
     result: Any = None            # результат якщо status=completed
 
@@ -47,7 +47,7 @@ class ITaskQueue(ABC):
         Поставити задачу в чергу.
 
         Повертає task_id (str UUID).
-        kwargs — серіалізуються в JSON, тому тільки прості типи.
+        kwargs серіалізуються в JSON — тільки прості типи (str, int, float, bool).
         """
         ...
 
@@ -69,9 +69,9 @@ class ITaskQueue(ABC):
         """
         Список задач з фільтрацією.
 
-        task_name: фільтр по імені ("ingest_source", "process_articles"...)
-        status:    фільтр по статусу
-        limit:     максимум записів
+        task_name: "ingest_source" | "process_articles" | "schedule_all_sources"
+        status:    "pending" | "in_progress" | "completed" | "failed"
+        limit:     максимум записів у відповіді
         """
         ...
 
@@ -83,8 +83,3 @@ class ITaskQueue(ABC):
         """
         ...
 
-class ISourceRepository(ABC):
-    @abstractmethod
-    async def list_active(self) -> Sequence[Any]: # Replace Any with your Source entity
-        """Retrieve all sources where is_active is True."""
-        ...
