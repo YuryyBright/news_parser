@@ -34,3 +34,5 @@ archive.zip
 .log
 /data/
 /logs/
+./logs/
+./data/
