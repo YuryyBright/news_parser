@@ -48,7 +48,7 @@ class InterestProfileRepository:
 
     def __init__(self, client: chromadb.AsyncClientAPI) -> None:
         self._client = client
-        from config.settings import get_settings
+        from src.config.settings import get_settings
         cfg = get_settings()
         # Нова колекція — додай у settings.chroma якщо потрібно
         self._col_name = getattr(cfg.chroma, "collection_interest_profile", "interest_profile")

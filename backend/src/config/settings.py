@@ -110,6 +110,13 @@ class LoggingSettings(BaseSettings):
     level: str = "INFO"
     format: str = "json"  # "json" | "plain"
 
+class ScoringSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SCORING__", extra="ignore")
+    bm25_min_threshold: float = 0.10
+    bm25_weight: float = 0.25
+    embed_weight: float = 0.60
+    tagger_threshold: float = 0.40
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -131,6 +138,7 @@ class Settings(BaseSettings):
     auth:          AuthSettings          = Field(default_factory=AuthSettings)
     llm:           LLMSettings          = Field(default_factory=LLMSettings)
     logging:       LoggingSettings      = Field(default_factory=LoggingSettings)
+    scoring:       ScoringSettings      = Field(default_factory=ScoringSettings)
 
     # Shortcut — єдиний рядок для всього коду
     @property
