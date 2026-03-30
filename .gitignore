@@ -32,3 +32,5 @@ archive.zip
 .codspeed
 /logs
 .log
+/data/
+/logs/
