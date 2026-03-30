@@ -57,6 +57,8 @@ async def lifespan(app: FastAPI):
         "Startup: %d sources → %d tasks enqueued",
         result.sources_found, result.tasks_enqueued,
     )
+    await container.task_queue.enqueue("process_articles")
+    logger.info("process_articles enqueued on startup to handle pending raw articles")
 
     # ── 5. Periodic scheduler ─────────────────────────────────────────────────
     scheduler = _start_scheduler(container)

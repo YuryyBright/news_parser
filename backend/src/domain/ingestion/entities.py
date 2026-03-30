@@ -50,16 +50,10 @@ class Source(AggregateRoot):
 
 @dataclass
 class RawArticle(AggregateRoot):
-    """
-    Aggregate root — стаття одразу після парсингу, до фільтрації.
-
-    Зберігає сирий контент через ParsedContent value object.
-    content_hash рахується use case'ом ПЕРЕД збереженням (для дедуплікації).
-    Мова (language) — None до обробки ProcessArticlesUseCase.
-    """
-    source_id: UUID = None              # type: ignore[assignment]
-    content: ParsedContent = None       # type: ignore[assignment]
-    content_hash: str = ""             # SHA-256(title+body), заповнюється use case'ом
+    id: UUID = None
+    source_id: UUID = None
+    content: ParsedContent = None       # єдине джерело правди
+    content_hash: str = ""
 
     def mark_ingested(self) -> None:
         """Записує доменну подію ArticleIngested."""
@@ -109,3 +103,5 @@ class FetchJob(BaseEntity):
             reason=reason,
             retries=self.retries,
         ))
+
+    

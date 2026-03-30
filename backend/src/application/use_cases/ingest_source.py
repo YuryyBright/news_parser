@@ -101,7 +101,9 @@ class IngestSourceUseCase:
         # ── 4. Дедуплікація і збереження ──────────────────────────────────
         for article in raw_articles:
             url          = article.content.url
-            content_hash = _compute_hash(article.content.title, article.content.body)
+            content_hash = article.content_hash or hashlib.sha256(
+                article.content.full_text().encode('utf-8')
+            ).hexdigest()
 
             # Рівень 1: дедуп за URL (найшвидший — є унікальний індекс)
             if await self._raw_article_repo.exists_by_url(url):
@@ -126,25 +128,11 @@ class IngestSourceUseCase:
         )
         return result
 
+    # ingest_source.py
     async def _get_or_create_job(self, source_id: UUID) -> FetchJob:
-        """
-        Знайти існуючий FetchJob для джерела або створити новий.
-        Зазвичай job один на джерело — переходить між статусами.
-        """
-        pending_jobs = await self._fetch_job_repo.get_pending(limit=1)
-        for job in pending_jobs:
-            if job.source_id == source_id:
-                return job
-
-        # Нового job — якщо не знайшли
-        new_job = FetchJob(
-            id=__import__("uuid").uuid4(),
-            source_id=source_id,
-        )
+        existing = await self._fetch_job_repo.get_by_source_id(source_id)
+        if existing is not None:
+            return existing
+        new_job = FetchJob(id=UUID(), source_id=source_id)
         await self._fetch_job_repo.save(new_job)
         return new_job
-
-
-def _compute_hash(title: str, body: str) -> str:
-    """SHA-256 від title+body — для дедуплікації за контентом."""
-    return hashlib.sha256(f"{title}\n{body}".encode()).hexdigest()

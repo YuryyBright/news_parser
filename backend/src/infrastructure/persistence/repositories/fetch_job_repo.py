@@ -72,7 +72,7 @@ class SqlAlchemyFetchJobRepository(IFetchJobRepository):
         )
         return [FetchJobMapper.to_domain(m) for m in result.scalars().all()]
 
-    async def get_by_source(self, source_id: UUID) -> FetchJob | None:
+    async def get_by_source_id(self, source_id: UUID) -> FetchJob | None:
         """
         Знайти job для конкретного джерела.
         Зручніше ніж get_pending() коли знаємо source_id.

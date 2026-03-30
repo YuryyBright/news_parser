@@ -1,0 +1,87 @@
+2026-03-30 11:12:45 - src.presentation.api.main - INFO - Starting up application...
+2026-03-30 11:12:45 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-30 11:12:45 - src.config.container - INFO - Container initialized
+2026-03-30 11:12:45 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-30 11:12:45 - src.presentation.api.main - INFO - Database ready
+2026-03-30 11:12:45 - src.application.use_cases.startup - INFO - Startup: found 1 active sources
+2026-03-30 11:12:45 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=2c1e0c8f kwargs={'source_id': '08e6001c-12d6-45d0-ae43-bcc8371530a0'}
+2026-03-30 11:12:45 - src.application.use_cases.startup - INFO - Enqueued source string → task 2c1e0c8f-7452-43b5-bd28-34bb176d388b
+2026-03-30 11:12:45 - src.presentation.api.main - INFO - Startup: 1 sources → 1 tasks enqueued
+2026-03-30 11:12:45 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=b10f8650 kwargs={}
+2026-03-30 11:12:45 - src.presentation.api.main - INFO - process_articles enqueued on startup to handle pending raw articles
+2026-03-30 11:12:45 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-30 11:12:45 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-30 11:12:45 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-30 11:12:45 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-30 11:12:45 - src.application.use_cases.process_articles - INFO - process_articles: processing 30 articles
+2026-03-30 11:12:48 - src.application.use_cases.ingest_source - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:12:48 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:12:48 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=2c1e0c8f
+2026-03-30 11:12:48 - src.application.use_cases.process_articles - INFO - process_articles done: processed=30 failed=0
+2026-03-30 11:12:48 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=30 failed=0
+2026-03-30 11:12:48 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=b10f8650
+2026-03-30 11:12:52 - src.presentation.api.main - INFO - Starting up application...
+2026-03-30 11:12:52 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-30 11:12:52 - src.config.container - INFO - Container initialized
+2026-03-30 11:12:52 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-30 11:12:52 - src.presentation.api.main - INFO - Database ready
+2026-03-30 11:12:52 - src.application.use_cases.startup - INFO - Startup: found 1 active sources
+2026-03-30 11:12:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=1479a3ab kwargs={'source_id': '08e6001c-12d6-45d0-ae43-bcc8371530a0'}
+2026-03-30 11:12:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 1479a3ab-fbbf-46d8-9cba-426263d0bccb
+2026-03-30 11:12:52 - src.presentation.api.main - INFO - Startup: 1 sources → 1 tasks enqueued
+2026-03-30 11:12:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=6fd6f863 kwargs={}
+2026-03-30 11:12:52 - src.presentation.api.main - INFO - process_articles enqueued on startup to handle pending raw articles
+2026-03-30 11:12:52 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-30 11:12:52 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-30 11:12:52 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-30 11:12:52 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-30 11:12:52 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=0 failed=0
+2026-03-30 11:12:52 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=6fd6f863
+2026-03-30 11:12:52 - src.application.use_cases.ingest_source - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:12:52 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:12:52 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=1479a3ab
+2026-03-30 11:14:09 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-30 11:14:09 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-30 11:14:09 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-30 11:14:09 - src.config.container - INFO - Container closed
+2026-03-30 11:14:09 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Starting up application...
+2026-03-30 11:14:11 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-30 11:14:11 - src.config.container - INFO - Container initialized
+2026-03-30 11:14:11 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Starting up application...
+2026-03-30 11:14:11 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-30 11:14:11 - src.config.container - INFO - Container initialized
+2026-03-30 11:14:11 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Database ready
+2026-03-30 11:14:11 - src.application.use_cases.startup - INFO - Startup: found 1 active sources
+2026-03-30 11:14:11 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=a8e7a74d kwargs={'source_id': '08e6001c-12d6-45d0-ae43-bcc8371530a0'}
+2026-03-30 11:14:11 - src.application.use_cases.startup - INFO - Enqueued source string → task a8e7a74d-b464-4a78-ba55-52938d70ba91
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Database ready
+2026-03-30 11:14:11 - src.application.use_cases.startup - INFO - Startup: found 1 active sources
+2026-03-30 11:14:11 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=4f59fb83 kwargs={'source_id': '08e6001c-12d6-45d0-ae43-bcc8371530a0'}
+2026-03-30 11:14:11 - src.application.use_cases.startup - INFO - Enqueued source string → task 4f59fb83-b175-40f7-926f-3050c1783c37
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Startup: 1 sources → 1 tasks enqueued
+2026-03-30 11:14:11 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=d7d27a6e kwargs={}
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - process_articles enqueued on startup to handle pending raw articles
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Startup: 1 sources → 1 tasks enqueued
+2026-03-30 11:14:11 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=7fdf3911 kwargs={}
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - process_articles enqueued on startup to handle pending raw articles
+2026-03-30 11:14:11 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-30 11:14:11 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-30 11:14:11 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-30 11:14:11 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-30 11:14:12 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=0 failed=0
+2026-03-30 11:14:12 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=d7d27a6e
+2026-03-30 11:14:12 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-30 11:14:12 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-30 11:14:12 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-30 11:14:12 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-30 11:14:12 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=0 failed=0
+2026-03-30 11:14:12 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=7fdf3911
+2026-03-30 11:14:12 - src.application.use_cases.ingest_source - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:14:12 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:14:12 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=a8e7a74d
+2026-03-30 11:14:12 - src.application.use_cases.ingest_source - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:14:12 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=08e6001c-12d6-45d0-ae43-bcc8371530a0 fetched=30 saved=0 skipped=30
+2026-03-30 11:14:12 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=4f59fb83

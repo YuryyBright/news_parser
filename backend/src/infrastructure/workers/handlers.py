@@ -18,7 +18,19 @@ Handlers НЕ знають про:
   ✗ FastAPI / HTTP / Pydantic
   ✗ механіку черги (register_task — у registry.py)
 """
-from __future__ import annotations
+"""
+Task handlers — async функції що виконуються чергою задач.
+
+Handler — це glue-код між task queue і container:
+  1. Отримує kwargs (прості типи — str, int)
+  2. get_container() → відкриває db_session
+  3. container.{дія}_uc(session) → use case (вся логіка залежностей в container)
+  4. Викликає use case
+  5. Логує результат
+
+Handlers НЕ імпортують use cases напряму — це порушення dependency rule
+(infrastructure не має знати про application шар напряму, тільки через container).
+"""
 
 import logging
 from uuid import UUID
@@ -39,21 +51,11 @@ async def handle_ingest_source(source_id: str) -> dict:
         source_id: str UUID джерела
     """
     from src.config.container import get_container
-    from src.application.use_cases.ingest_source import IngestSourceUseCase
-    from src.infrastructure.parsers.rss_parser import RssFetcher
-    from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
-    from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
-    from src.infrastructure.persistence.repositories.fetch_job_repo import SqlAlchemyFetchJobRepository
 
     container = get_container()
 
     async with container.db_session() as session:
-        result = await IngestSourceUseCase(
-            source_repo=SqlAlchemySourceRepository(session),
-            raw_article_repo=SqlAlchemyRawArticleRepository(session),
-            fetch_job_repo=SqlAlchemyFetchJobRepository(session),
-            fetcher=RssFetcher(),
-        ).execute(UUID(source_id))
+        result = await container.ingest_source_uc(session).execute(UUID(source_id))
 
     logger.info(
         "ingest_source done: source=%s fetched=%d saved=%d skipped=%d",
@@ -83,22 +85,20 @@ async def handle_process_articles() -> dict:
     Запускається після handle_ingest_source або окремо по scheduler.
     """
     from src.config.container import get_container
-    from src.application.use_cases.process_articles import ProcessArticlesUseCase
-    from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
-    from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
 
     container = get_container()
 
-    async with container.db_session() as session:
-        result = await ProcessArticlesUseCase(
-            article_repo=SqlAlchemyArticleRepository(session),
-            raw_article_repo=SqlAlchemyRawArticleRepository(session),
-        ).execute()
+    result = await container.process_articles_uc_standalone().execute()
 
     logger.info(
         "process_articles done: processed=%d failed=%d",
         result.processed, result.failed,
     )
+
+    if result.failed and not result.processed:
+        raise RuntimeError(
+            f"All {result.failed} articles failed. Errors: {result.errors[:3]}"
+        )
 
     return {"processed": result.processed, "failed": result.failed}
 
@@ -110,16 +110,11 @@ async def handle_schedule_all_sources() -> dict:
     Запускається periodically (APScheduler або Celery beat).
     """
     from src.config.container import get_container
-    from src.application.use_cases.startup import StartupUseCase
-    from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
 
     container = get_container()
 
     async with container.db_session() as session:
-        result = await StartupUseCase(
-            source_repo=SqlAlchemySourceRepository(session),
-            task_queue=container.task_queue,
-        ).execute()
+        result = await container.startup_uc(session).execute()
 
     logger.info(
         "schedule_all_sources done: sources=%d enqueued=%d",

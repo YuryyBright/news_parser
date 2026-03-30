@@ -1,26 +1,17 @@
 # domain/knowledge/services.py
 import re
 
-from langdetect import detect, LangDetectException
 from .entities import Article, Tag
-from .value_objects import Language
 
 
 class ArticleClassificationService:
-    """Чиста доменна логіка класифікації — без зовнішніх HTTP-запитів."""
-
-    def detect_language(self, text: str) -> Language:
-        try:
-            code = detect(text[:500])  # достатньо перших 500 символів
-            return Language(code) if code in Language._value2member_map_ else Language.UNKNOWN
-        except LangDetectException:
-            return Language.UNKNOWN
+    """
+    Чиста доменна логіка класифікації.
+    Не знає про HTTP, langdetect, або будь-які зовнішні бібліотеки.
+    Детекція мови — через ILanguageDetector в infrastructure/adapters.
+    """
 
     def extract_auto_tags(self, article: Article) -> list[Tag]:
-        """
-        Спрощена версія — в production замінити на NER або LLM-класифікатор.
-        Тут: keyword matching по заздалегідь визначеному словнику.
-        """
         text = article.full_text.lower()
         TOPIC_KEYWORDS: dict[str, list[str]] = {
             "war_and_weapons": [
@@ -73,13 +64,8 @@ class ArticleClassificationService:
             ],
         }
         tags = []
-    
         for topic, keywords in TOPIC_KEYWORDS.items():
-            # Формуємо регулярний вираз: \b означає межу слова
-            # Це шукатиме слова, які ПОЧИНАЮТЬСЯ з нашого ключового слова/основи
             pattern = re.compile(r'\b(?:' + '|'.join(re.escape(kw) for kw in keywords) + r')')
-            
             if pattern.search(text):
                 tags.append(Tag(name=topic))
-                
         return tags

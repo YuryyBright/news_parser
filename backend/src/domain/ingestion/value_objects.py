@@ -18,11 +18,7 @@ class SourceConfig(ValueObject):
     url: str
     source_type: SourceType
     fetch_interval_seconds: int = 300
-    headers: dict = None  # type: ignore[assignment]
-
-    def _validate(self) -> None:
-        if self.fetch_interval_seconds < 60:
-            raise ValueError("Fetch interval cannot be less than 60s")
+    headers: dict | None = None  # ← було: dict = None
 
 
 @dataclass(frozen=True)

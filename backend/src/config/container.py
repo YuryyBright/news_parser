@@ -57,7 +57,6 @@ class Container:
         self.task_queue: ITaskQueue = build_task_queue(settings.task_queue)
 
         # ── Chroma (lazy async init — не можна await в __init__) ─────────────
-        # Клієнт будується при першому виклику _get_chroma()
         self._chroma_client = None
 
         logger.info("Container initialized")
@@ -102,8 +101,67 @@ class Container:
     # ══════════════════════════════════════════════════════════════════════════
     # ФАБРИЧНІ МЕТОДИ — USE CASES
     # Конвенція: {дія}_uc(session) → UseCase
-    # session передається ззовні — роутер контролює lifecycle транзакції
+    # session передається ззовні — роутер/worker контролює lifecycle транзакції
     # ══════════════════════════════════════════════════════════════════════════
+
+    # ── Ingestion pipeline ────────────────────────────────────────────────────
+
+    def ingest_source_uc(self, session: AsyncSession):
+        """
+        IngestSourceUseCase — завантажити сирі статті для одного джерела.
+        Використовується в handle_ingest_source worker'і.
+        """
+        from src.application.use_cases.ingest_source import IngestSourceUseCase
+        from src.infrastructure.parsers.rss_parser import RssFetcher
+        from src.infrastructure.persistence.repositories.fetch_job_repo import SqlAlchemyFetchJobRepository
+        from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
+        from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
+        return IngestSourceUseCase(
+            source_repo=SqlAlchemySourceRepository(session),
+            raw_article_repo=SqlAlchemyRawArticleRepository(session),
+            fetch_job_repo=SqlAlchemyFetchJobRepository(session),
+            fetcher=RssFetcher(),
+        )
+
+    def process_articles_uc_standalone(self):
+        """
+        Версія для worker'а — кожна стаття обробляється в окремій транзакції.
+        Передаємо session_factory щоб use case сам керував lifecycle сесії.
+        """
+        from src.application.use_cases.process_articles import ProcessArticlesUseCase
+        from src.infrastructure.adapters.lang_detect_adapter import LangDetectAdapter
+        from src.infrastructure.scoring.keyword_scoring_service import KeywordScoringService
+        from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        from src.config.settings import get_settings
+
+        # Замикання (closures) для створення репозиторіїв з переданої сесії
+        def build_raw_repo(session):
+            return SqlAlchemyRawArticleRepository(session)
+            
+        def build_article_repo(session):
+            return SqlAlchemyArticleRepository(session)
+
+        cfg = get_settings()
+        return ProcessArticlesUseCase(
+            session_factory=self._session_factory,
+            raw_repo_factory=build_raw_repo,        
+            article_repo_factory=build_article_repo, 
+            language_detector=LangDetectAdapter(),
+            scoring_service=KeywordScoringService(),
+            threshold=cfg.filtering.default_threshold,
+        )
+    def startup_uc(self, session: AsyncSession):
+        """
+        StartupUseCase — поставити всі активні джерела в чергу.
+        Використовується в lifespan і handle_schedule_all_sources.
+        """
+        from src.application.use_cases.startup import StartupUseCase
+        from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
+        return StartupUseCase(
+            source_repo=SqlAlchemySourceRepository(session),
+            task_queue=self.task_queue,
+        )
 
     # ── Sources ───────────────────────────────────────────────────────────────
 
@@ -153,53 +211,8 @@ class Container:
         return SubmitFeedbackUseCase(
             article_repo=SqlAlchemyArticleRepository(session),
             feedback_repo=SqlAlchemyFeedbackRepository(session),
-            feed_repo=SqlAlchemyFeedRepository(session),   # для інвалідації snapshot
-        )
-
-    # ── Feed ──────────────────────────────────────────────────────────────────
-
-    def build_feed_uc(self, session: AsyncSession):
-        from src.application.use_cases.build_feed import BuildFeedUseCase
-        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
-        from src.infrastructure.persistence.repositories.feed_repo import SqlAlchemyFeedRepository
-        return BuildFeedUseCase(
-            article_repo=SqlAlchemyArticleRepository(session),
             feed_repo=SqlAlchemyFeedRepository(session),
         )
-
-    def mark_article_read_uc(self, session: AsyncSession):
-        from src.application.use_cases.mark_article_read import MarkArticleReadUseCase
-        from src.infrastructure.persistence.repositories.feed_repo import SqlAlchemyFeedRepository
-        return MarkArticleReadUseCase(
-            feed_repo=SqlAlchemyFeedRepository(session),
-        )
-
-    # ── Health ────────────────────────────────────────────────────────────────
-
-    def article_repo(self, session: AsyncSession):
-        """Прямий доступ до репозиторію для healthcheck."""
-        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
-        return SqlAlchemyArticleRepository(session)
-
-    # ── Vector Store (async factory) ──────────────────────────────────────────
-
-    async def article_vector_repo(self):
-        """
-        ArticleVectorRepository — async factory (потребує await).
-
-        Використання:
-            repo = await container.article_vector_repo()
-            await repo.upsert(embedding)
-        """
-        from src.infrastructure.vector_store.article_vector_repo import ArticleVectorRepository
-        client = await self._get_chroma()
-        return ArticleVectorRepository(client)
-
-    async def criteria_vector_repo(self):
-        """CriteriaVectorRepository — async factory."""
-        from src.infrastructure.vector_store.criteria_vector_repo import CriteriaVectorRepository
-        client = await self._get_chroma()
-        return CriteriaVectorRepository(client)
 
     def create_article_uc(self, session: AsyncSession):
         from src.application.use_cases.create_article import CreateArticleUseCase
@@ -237,17 +250,11 @@ class Container:
         )
 
     def filter_article_uc(self, session: AsyncSession, scoring_service=None):
-        """
-        FilterArticleUseCase потребує IScoringService.
-        Якщо scoring_service=None — передати NoOpScoringService або
-        EmbeddingsScoringService з infrastructure.
-        """
         from src.application.use_cases.filter_article import FilterArticleUseCase
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings
 
         if scoring_service is None:
-            # fallback — заглушка поки embedding pipeline не реалізовано
             from src.infrastructure.scoring.noop_scoring import NoOpScoringService
             scoring_service = NoOpScoringService()
 
@@ -258,37 +265,63 @@ class Container:
             threshold=cfg.filtering.default_threshold,
         )
 
-    def _get_minhash_repo(self):
-        """
-        Вибір реалізації IMinHashRepository залежно від середовища.
+    # ── Feed ──────────────────────────────────────────────────────────────────
 
-        dev  → InMemoryMinHashRepository (без Redis)
-        prod → RedisMinHashRepository
-        """
+    def build_feed_uc(self, session: AsyncSession):
+        from src.application.use_cases.build_feed import BuildFeedUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        from src.infrastructure.persistence.repositories.feed_repo import SqlAlchemyFeedRepository
+        return BuildFeedUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+            feed_repo=SqlAlchemyFeedRepository(session),
+        )
+
+    def mark_article_read_uc(self, session: AsyncSession):
+        from src.application.use_cases.mark_article_read import MarkArticleReadUseCase
+        from src.infrastructure.persistence.repositories.feed_repo import SqlAlchemyFeedRepository
+        return MarkArticleReadUseCase(
+            feed_repo=SqlAlchemyFeedRepository(session),
+        )
+
+    # ── Health ────────────────────────────────────────────────────────────────
+
+    def article_repo(self, session: AsyncSession):
+        """Прямий доступ до репозиторію для healthcheck."""
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        return SqlAlchemyArticleRepository(session)
+
+    # ── Vector Store (async factory) ──────────────────────────────────────────
+
+    async def article_vector_repo(self):
+        from src.infrastructure.vector_store.article_vector_repo import ArticleVectorRepository
+        client = await self._get_chroma()
+        return ArticleVectorRepository(client)
+
+    async def criteria_vector_repo(self):
+        from src.infrastructure.vector_store.criteria_vector_repo import CriteriaVectorRepository
+        client = await self._get_chroma()
+        return CriteriaVectorRepository(client)
+
+    # ── Deduplication ─────────────────────────────────────────────────────────
+
+    def _get_minhash_repo(self):
         from src.config.settings import get_settings
         settings = get_settings()
 
         if settings.is_dev:
             from src.infrastructure.dedup.minhash_repo import InMemoryMinHashRepository
-            # Singleton для dev — щоб підписи не губились між запитами
             if not hasattr(self, "_minhash_repo_instance"):
                 self._minhash_repo_instance = InMemoryMinHashRepository()
             return self._minhash_repo_instance
         else:
             from src.infrastructure.dedup.minhash_repo import RedisMinHashRepository
-            # Redis client — потрібно додати в __init__ або lazy init
-            # self._redis = aioredis.from_url(settings.redis_url)
             return RedisMinHashRepository(self._redis)
 
     def deduplicate_uc(self, session: AsyncSession):
         from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
         from src.domain.ingestion.dedup_service import DeduplicationDomainService
-        from src.infrastructure.persistence.repositories.raw_article_repo import (
-            SqlAlchemyRawArticleRepository,
-        )
-        from src.infrastructure.persistence.repositories.article_repo import (
-            SqlAlchemyArticleRepository,
-        )
+        from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings
 
         cfg = get_settings()
@@ -307,6 +340,8 @@ class Container:
         return BatchDeduplicateUseCase(
             single_uc=self.deduplicate_uc(session),
         )
+
+
 # ── Singleton ─────────────────────────────────────────────────────────────────
 
 _container: Container | None = None
