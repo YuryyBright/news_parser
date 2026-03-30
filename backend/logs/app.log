@@ -13089,3 +13089,62 @@ Traceback (most recent call last):
 2026-03-30 14:34:58 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2026-03-30 14:34:58 - src.config.container - INFO - Container closed
 2026-03-30 14:34:58 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-30 14:35:01 - src.presentation.api.main - INFO - Starting up application...
+2026-03-30 14:35:01 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-30 14:35:01 - src.config.container - INFO - Container initialized
+2026-03-30 14:35:01 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-30 14:35:01 - src.presentation.api.main - INFO - Database ready
+2026-03-30 14:35:01 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-30 14:35:01 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=bc48ba8e kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-30 14:35:01 - src.application.use_cases.startup - INFO - Enqueued source string → task bc48ba8e-61da-419b-9cb2-72835a229351
+2026-03-30 14:35:01 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=e41f90ac kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-30 14:35:01 - src.application.use_cases.startup - INFO - Enqueued source string → task e41f90ac-a144-443d-9f1a-5222f7e9a658
+2026-03-30 14:35:01 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-30 14:35:01 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=6fd1847b kwargs={}
+2026-03-30 14:35:01 - src.presentation.api.main - INFO - process_articles enqueued on startup to handle pending raw articles
+2026-03-30 14:35:01 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-30 14:35:01 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-30 14:35:01 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-30 14:35:01 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-30 14:35:01 - src.application.use_cases.process_articles - INFO - process_articles: processing 30 articles
+2026-03-30 14:35:04 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-30 14:35:04 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=ced4fd87-4585-4c97-b4fa-944254c0d3cd → article=59358b72-d54f-4d1d-9c18-44d26bf87fdf status=pending score=0.000 tags=[]
+2026-03-30 14:35:04 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-30 14:35:04 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-30 14:35:04 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=bc48ba8e
+2026-03-30 14:35:04 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=78c95517-1b6c-4c4a-a0bd-d7f4093599ff → article=75285d3b-0d0c-4e87-a856-674df2fda24e status=pending score=0.000 tags=[]
+2026-03-30 14:35:04 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=f938711c-02ad-408c-aebd-f5426ad3ba81 → article=f38b0d01-4d99-406b-b4c3-1563f3e05bdf status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-30 14:35:05 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-30 14:35:05 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-30 14:35:05 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=e41f90ac
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=67df4dd6-de1a-4e09-929a-933123ca74c4 → article=1a3a2c53-8302-4e87-8ed5-c1de5e4b6a7a status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=40d1c925-5908-4514-9c1e-c78d6cba29b0 → article=3feb813a-3f32-47aa-89ca-b8a6990d5eda status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=0acf886c-8fb4-4460-94ab-93a9332550b6 → article=9be5dd32-b35a-44a2-be9b-4ee6ca73e0cc status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=1127b62c-6525-4eee-bae1-c511611ed16e → article=893d0303-70de-4a61-86fd-fc584b110462 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=f7e0b811-feff-4d57-8dac-2faf3e605409 → article=60fc6df6-96c5-4f1d-b472-c06e55f2fb73 status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=5b04b1ce-3684-498b-bbaa-d1db55f871e5 → article=16af6a6b-bb23-459f-a14d-130af982c647 status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=035b9df4-5629-4b0e-8916-428d12511e9f → article=698ca45e-e5fa-4395-aefd-8fd9bf0ba249 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=a3ec6eb6-186c-4e82-b0c0-9f2a84279195 → article=2491e498-6f7d-44c6-8775-15de07ab2b0d status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=073daae9-9ec3-4b08-94a6-375537415dff → article=1007ce8d-1bca-4eb4-a63b-9627bca973cc status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=4e1e1b80-d3ab-4e53-86ce-ad72e26a87b9 → article=5e5121ec-084c-4baf-8c1d-ab5d0f754c5d status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=13edd81b-0c48-4cc1-a82a-7ef4ef7b4caf → article=3a984607-3ecb-4161-a4d5-05c73c924ec8 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=ff4565ec-7e63-4b3e-8751-546ae080663c → article=af785539-3ed4-4b87-aabd-7226194b49a0 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=6df3df2c-9183-4a7a-bb17-09f6ba76ede0 → article=17359d2a-fcce-4c92-b555-9c1e6e9553c2 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=22fc321d-8677-470d-b45e-2ed25eb85ff6 → article=69752175-9a09-4240-bc2e-b31d40259bb7 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=afc12a41-c269-469f-a73f-b99045870a14 → article=a0e073e1-d2ae-4c30-a413-b3acd747c579 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=ccd2a384-098b-4a18-b834-b4328806a96e → article=6cedf859-b736-47b6-afa1-61e92e15cfd6 status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=e3c7e402-884b-4fc3-8065-9e033a436a04 → article=a0a06340-3b3f-4428-a2c5-03eda25a3bbe status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=5a4a771d-b80a-4b15-889f-7dd02e56fb24 → article=4327fce8-5fa5-44c5-9a82-36a308586549 status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=9a9c642a-3e40-4765-a351-148f3eb92c18 → article=74406e69-68c5-492e-9fcd-1de4eca81c4f status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=cdbf1648-06d6-4665-9b8e-a13620517e1b → article=221b81ec-6b59-484e-bf00-cd64a5a26f1c status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=2e54de71-bbe4-4cbb-bd45-3b928dff57af → article=2a4f786a-4601-40cc-a27e-a533f985f720 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=990c9332-55a4-43f6-8995-49ab8d4478da → article=40642840-9ea4-4b0d-904e-06802eaaba36 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=7d962fe9-cb68-4a0e-981c-b813229d6539 → article=ab73c4c4-becc-4406-8335-6630706edb4d status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=a350d8bf-b1b7-4078-95f5-078e699e7f5b → article=bdf9a6cf-8ba5-4225-91e8-a3b5ef28dd5b status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=a0d34398-198d-402a-ba18-13a0b46931c6 → article=d01ece94-120e-4f06-b4b0-038df6258b29 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=464fba58-a76b-44ef-947b-acd27208ae3e → article=52abdae5-d81d-453d-a6c1-271af1e6b973 status=pending score=0.000 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - Processed raw_article_id=d182366f-3b4f-41d3-9355-f511e695fc55 → article=a4b10cc9-cd74-4e30-b343-7687b7e0c6d1 status=pending score=0.250 tags=[]
+2026-03-30 14:35:05 - src.application.use_cases.process_articles - INFO - process_articles done: processed=30 failed=0
+2026-03-30 14:35:05 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=30 failed=0
+2026-03-30 14:35:05 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=6fd1847b
