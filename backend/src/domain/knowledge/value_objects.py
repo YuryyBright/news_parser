@@ -32,3 +32,21 @@ class PublishedAt(ValueObject):
 
     def age_hours(self, now: datetime) -> float:
         return (now - self.value).total_seconds() / 3600
+    
+    # domain/knowledge/value_objects.py  (додати)
+@dataclass(frozen=True)
+class ArticleFilter:
+    """Query object — параметри вибірки статей."""
+    status: ArticleStatus | None = None
+    min_score: float = 0.0
+    language: str | None = None
+    limit: int = 50
+    offset: int = 0
+
+    def _validate(self) -> None:
+        if not 0.0 <= self.min_score <= 1.0:
+            raise ValidationError(f"min_score must be in [0,1], got {self.min_score}")
+        if self.limit < 1 or self.limit > 200:
+            raise ValidationError(f"limit must be in [1,200], got {self.limit}")
+        if self.offset < 0:
+            raise ValidationError(f"offset must be a non-negative integer, got {self.offset}")

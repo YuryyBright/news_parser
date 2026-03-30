@@ -17,7 +17,7 @@ from sqlalchemy.orm import selectinload
 
 from src.domain.knowledge.entities import Article, Tag
 from src.domain.knowledge.repositories import IArticleRepository
-from src.domain.knowledge.value_objects import ArticleStatus
+from src.domain.knowledge.value_objects import ArticleFilter, ArticleStatus
 from src.infrastructure.persistence.mappers.article_mapper import ArticleMapper
 from src.infrastructure.persistence.models import ArticleModel, TagModel, ArticleTagModel
 
@@ -155,7 +155,23 @@ class SqlAlchemyArticleRepository(IArticleRepository):
             .group_by(ArticleModel.status)
         )
         return {row[0]: row[1] for row in result.all()}
+    # infrastructure/persistence/repositories/article_repo.py
+    async def find(self, filter: ArticleFilter) -> list[Article]:
+        conditions = [ArticleModel.relevance_score >= filter.min_score]
+        if filter.status:
+            conditions.append(ArticleModel.status == filter.status.value)
+        if filter.language:
+            conditions.append(ArticleModel.language == filter.language)
 
+        result = await self._session.execute(
+            select(ArticleModel)
+            .where(and_(*conditions))
+            .options(selectinload(ArticleModel.tags))
+            .order_by(ArticleModel.relevance_score.desc())
+            .offset(filter.offset)
+            .limit(filter.limit)
+        )
+        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
     # ─── Теги ─────────────────────────────────────────────────────────────────
 
     async def _sync_tags(self, article: Article) -> None:

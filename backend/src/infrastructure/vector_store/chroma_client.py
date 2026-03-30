@@ -22,28 +22,28 @@ logger = logging.getLogger(__name__)
 _client: chromadb.AsyncClientAPI | None = None
 
 
-def build_chroma_client() -> chromadb.AsyncClientAPI:
+def build_chroma_client() -> chromadb.ClientAPI | chromadb.AsyncClientAPI:
     """
     Будує Chroma клієнт відповідно до settings.
-
-    Стратегія вибору:
-      persist_dir + host==localhost → локальний persistent (dev/test)
-      інакше → HTTP клієнт (production)
+    
+    ВАЖЛИВО: Локальний PersistentClient — синхронний. 
+    AsyncHttpClient — асинхронний.
     """
-    # Імпортуємо settings тут — не на рівні модуля
-    from config.settings import get_settings
+    from src.config.settings import get_settings
     cfg = get_settings().chroma
 
     if cfg.persist_dir and cfg.host == "localhost":
         logger.info("Chroma: local persistent client (dir=%s)", cfg.persist_dir)
-        return chromadb.AsyncClient(
+        # Використовуємо PersistentClient для локальної роботи (він синхронний)
+        return chromadb.PersistentClient(
+            path=cfg.persist_dir,
             settings=ChromaSettings(
-                persist_directory=cfg.persist_dir,
                 anonymized_telemetry=False,
             )
         )
 
     logger.info("Chroma: HTTP client (%s:%s)", cfg.host, cfg.port)
+    # Тільки тут ми отримуємо справжній асинхронний клієнт
     return chromadb.AsyncHttpClient(
         host=cfg.host,
         port=cfg.port,

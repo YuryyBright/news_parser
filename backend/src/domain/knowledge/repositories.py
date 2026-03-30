@@ -17,7 +17,7 @@ from uuid import UUID
 
 from src.domain.shared.base_repository import IRepository
 from .entities import Article, ArticleEmbedding, Tag
-from .value_objects import ArticleStatus
+from .value_objects import ArticleStatus, ArticleFilter
 
 
 class IArticleRepository(IRepository[Article]):
@@ -49,6 +49,9 @@ class IArticleRepository(IRepository[Article]):
 
     @abstractmethod
     async def count_by_status(self) -> dict[str, int]: ...
+
+    @abstractmethod
+    async def find(self, filter: ArticleFilter) -> list[Article]: ...
 
 
 class IArticleEmbeddingRepository(IRepository[ArticleEmbedding]):

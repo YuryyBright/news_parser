@@ -34,6 +34,7 @@ from src.application.dtos.article_dto import (
 )
 from src.config.container import Container, get_container
 from src.domain.knowledge.exceptions import ArticleNotFound, DuplicateArticle
+from src.domain.knowledge.value_objects import ArticleFilter, ArticleStatus
 from src.presentation.api.schemas.article import (
     ArticleCreateRequest,
     ArticleDetailResponse,
@@ -51,8 +52,7 @@ router = APIRouter()
 # ═══════════════════════════════════════════════════════════════════════════════
 # READ
 # ═══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/", response_model=list[ArticleResponse], summary="Список статей")
+@router.get("/")
 async def list_articles(
     status_filter: str | None = Query(default=None, alias="status"),
     min_score: float = Query(default=0.0),
@@ -60,13 +60,17 @@ async def list_articles(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     container: Container = Depends(get_container),
-) -> list[ArticleResponse]:
+):
+    # Схема → доменний фільтр (конвертація в роутері)
+    f = ArticleFilter(
+        status=ArticleStatus(status_filter) if status_filter else None,
+        min_score=min_score,
+        language=language,
+        limit=limit,
+        offset=offset,
+    )
     async with container.db_session() as session:
-        views = await container.list_articles_uc(session).execute(
-            status=status_filter,
-            min_score=min_score,
-            limit=limit,
-        )
+        views = await container.list_articles_uc(session).execute(f)
     return [_to_response(v) for v in views]
 
 
@@ -104,6 +108,7 @@ async def create_article(
         url=str(payload.url),
         language=payload.language or "unknown",
         published_at=payload.published_at,
+        
     )
     try:
         async with container.db_session() as session:
@@ -229,7 +234,7 @@ def _to_response(v) -> ArticleResponse:
         language=v.language,
         status=v.status,
         relevance_score=v.relevance_score,
-        published_at=v.published_at,
+        published_at=v.published_at.value if v.published_at else None,
         created_at=v.created_at,
         tags=getattr(v, "tags", []),
     )

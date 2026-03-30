@@ -32,6 +32,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting up application...")
     from src.config.container import init_container
     container = init_container()
+    await container.init_async()
 
     # ── 2. Task registry — handler функції реєструються після container ──────
     #    (handlers.py використовує get_container() всередині)
@@ -64,6 +65,7 @@ async def lifespan(app: FastAPI):
     scheduler = _start_scheduler(container)
 
     yield  # ← FastAPI обробляє запити
+    
     logger.info("Shutting down application...")
     # ── Shutdown ──────────────────────────────────────────────────────────────
     if scheduler:
