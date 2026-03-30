@@ -116,12 +116,12 @@ class ProcessArticlesUseCase:
         # ── 3. Dedup (проти вже збережених Article) ───────────────────────────
         if await article_repo.get_by_url(raw.content.url):
             logger.debug("Duplicate url=%s, skipping", raw.content.url)
-            # await raw_repo.mark_deduplicated(raw.id)
+            await raw_repo.mark_deduplicated(raw.id)
             return
 
         if await article_repo.get_by_hash(raw.content_hash):
             logger.debug("Duplicate hash url=%s, skipping", raw.content.url)
-            # await raw_repo.mark_deduplicated(raw.id)
+            await raw_repo.mark_deduplicated(raw.id)
             return
 
         # ── 4. Відфільтрувати статті з низьким score до збереження ───────────
@@ -140,7 +140,7 @@ class ProcessArticlesUseCase:
                 )
             article.reject(relevance_score)
             await article_repo.save(article)
-            # await raw_repo.mark_processed(raw.id)
+            await raw_repo.mark_processed(raw.id)
             return
 
         # ── 5. Прийняти і тегувати ────────────────────────────────────────────
@@ -153,7 +153,7 @@ class ProcessArticlesUseCase:
 
         # ── 6. Зберегти ───────────────────────────────────────────────────────
         await article_repo.save(article)
-        # await raw_repo.mark_processed(raw.id)
+        await raw_repo.mark_processed(raw.id)
 
 
 

@@ -7,9 +7,9 @@ ListSourcesUseCase — read-only query.
 """
 from __future__ import annotations
 
-from application.dtos.source_dto import SourceView
-from domain.ingestion.entities import Source
-from domain.ingestion.repositories import ISourceRepository
+from src.application.dtos.source_dto import SourceView
+from src.domain.ingestion.entities import Source
+from src.domain.ingestion.repositories import ISourceRepository
 
 
 class ListSourcesUseCase:
