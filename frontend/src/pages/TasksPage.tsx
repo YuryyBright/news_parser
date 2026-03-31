@@ -7,7 +7,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useTasks, useCancelTask } from "../hooks/useSources";
-import { cn, formatDateFull } from "../lib/utils";
+import { formatDateFull } from "../lib/utils";
 import type { TaskStatus } from "../api/types";
 
 const STATUS_ICONS: Record<TaskStatus, React.ReactNode> = {
