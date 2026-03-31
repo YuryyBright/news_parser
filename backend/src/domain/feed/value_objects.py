@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
-from domain.shared.base_value_object import ValueObject
+from src.domain.shared.base_value_object import ValueObject
 
 
 class FeedItemStatus(StrEnum):

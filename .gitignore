@@ -36,3 +36,5 @@ archive.zip
 /logs/
 ./logs/
 ./data/
+public/
+node_modules/

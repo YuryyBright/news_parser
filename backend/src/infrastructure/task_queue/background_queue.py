@@ -89,8 +89,8 @@ class InMemoryTaskQueue(ITaskQueue):
     """
 
     def __init__(self) -> None:
-        # task_id → _TaskRecord
         self._tasks: dict[str, _TaskRecord] = {}
+        self._locks: dict[str, asyncio.Lock] = {}  
 
     async def enqueue(self, task_name: str, **kwargs: Any) -> str:
         handler = _REGISTRY.get(task_name)
@@ -104,14 +104,27 @@ class InMemoryTaskQueue(ITaskQueue):
         record = _TaskRecord(task_id=task_id, task_name=task_name, kwargs=kwargs)
         self._tasks[task_id] = record
 
-        # Запускаємо в background — не блокуємо caller
+        # Run via the new lock wrapper
         record._asyncio_task = asyncio.create_task(
-            self._run(record, handler, kwargs),
+            self._run_with_lock(task_name, record, handler, kwargs),
             name=f"{task_name}:{task_id[:8]}",
         )
 
         logger.info("Task enqueued: %s id=%s kwargs=%s", task_name, task_id[:8], kwargs)
         return task_id
+
+    async def _run_with_lock(self, task_name: str, record: _TaskRecord, handler, kwargs: dict) -> None:
+        """Executes the task with a lock to prevent race conditions on identical tasks."""
+        # Create a unique lock key (e.g., "process_articles:{}" or "ingest_source:{'source_id': '...'}")
+        lock_key = f"{task_name}:{kwargs}"
+        
+        if lock_key not in self._locks:
+            self._locks[lock_key] = asyncio.Lock()
+        
+        async with self._locks[lock_key]:
+            # Only run if it wasn't cancelled while waiting for the lock
+            if record.status != "cancelled":
+                await self._run(record, handler, kwargs)
 
     async def _run(self, record: _TaskRecord, handler, kwargs: dict) -> None:
         record.status = "in_progress"

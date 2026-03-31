@@ -8,6 +8,7 @@ from uuid import UUID
 
 @dataclass(frozen=True)
 class FeedItemView:
+    id: UUID
     article_id: UUID
     rank: int
     score: float
@@ -20,7 +21,9 @@ class FeedItemView:
 
 @dataclass(frozen=True)
 class FeedSnapshotView:
+    
     id: UUID
+    user_id: UUID
     generated_at: datetime
     items: list[FeedItemView] = field(default_factory=list)
 

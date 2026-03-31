@@ -4,7 +4,7 @@ import math
 from datetime import datetime, timezone
 from uuid import UUID
 
-from domain.knowledge.entities import Article
+from src.domain.knowledge.entities import Article
 from .entities import FeedItem, FeedSnapshot
 from .value_objects import UserPreference
 

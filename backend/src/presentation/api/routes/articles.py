@@ -226,7 +226,18 @@ async def submit_feedback(
 # Presentation mappers (локальні — не виносити в окремий файл)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# presentation/api/routes/articles.py
+
+# ... (інший код) ...
+
 def _to_response(v) -> ArticleResponse:
+    # Отримуємо список об'єктів тегів
+    raw_tags = getattr(v, "tags", [])
+    
+    # Конвертуємо об'єкти Tag у рядки (їхні імена)
+    # Якщо там вже рядки, залишаємо як є, якщо об'єкти — беремо .name
+    tag_names = [t.name if hasattr(t, "name") else str(t) for t in raw_tags]
+
     return ArticleResponse(
         id=v.id,
         title=v.title,
@@ -234,13 +245,16 @@ def _to_response(v) -> ArticleResponse:
         language=v.language,
         status=v.status,
         relevance_score=v.relevance_score,
-        published_at=v.published_at.value if v.published_at else None,
+        published_at=v.published_at.value if hasattr(v.published_at, 'value') else v.published_at,
         created_at=v.created_at,
-        tags=getattr(v, "tags", []),
+        tags=tag_names,  # Тепер тут список рядків
     )
 
 
 def _to_detail_response(v) -> ArticleDetailResponse:
+    raw_tags = getattr(v, "tags", [])
+    tag_names = [t.name if hasattr(t, "name") else str(t) for t in raw_tags]
+
     return ArticleDetailResponse(
         id=v.id,
         title=v.title,
@@ -251,6 +265,6 @@ def _to_detail_response(v) -> ArticleDetailResponse:
         relevance_score=v.relevance_score,
         published_at=v.published_at,
         created_at=v.created_at,
-        tags=getattr(v, "tags", []),
+        tags=tag_names,  # Тепер тут список рядків
         source_id=getattr(v, "source_id", None),
     )

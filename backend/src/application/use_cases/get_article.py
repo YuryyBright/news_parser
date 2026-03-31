@@ -6,7 +6,6 @@ DDD-правила:
   ✅ залежить від порту (IArticleRepository), не від ORM
   ✅ повертає DTO (ArticleDetailView), не доменну сутність
   ✅ кидає доменний виняток ArticleNotFound — роутер перехоплює його
-  ❌ НЕ містить SQL, HTTP, Pydantic
 """
 from __future__ import annotations
 
@@ -33,7 +32,7 @@ class GetArticleUseCase:
             title=article.title,
             body=article.body,
             url=article.url,
-            language=article.language.value,
+            language=article.language,
             status=article.status.value,
             relevance_score=article.relevance_score,
             published_at=article.published_at.value if article.published_at else None,

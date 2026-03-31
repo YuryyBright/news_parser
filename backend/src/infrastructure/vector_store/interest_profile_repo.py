@@ -118,30 +118,26 @@ class InterestProfileRepository:
     # ─── Читання ──────────────────────────────────────────────────────────────
 
     async def get_centroid(self) -> np.ndarray | None:
-        """
-        Повертає центроїд (середній вектор) всіх збережених статей.
-
-        Returns:
-            None якщо профіль порожній (cold start).
-            np.ndarray shape (dim,) dtype=float32, L2-нормований.
-        """
+        """Повертає центроїд (середній вектор) всіх збережених статей."""
         col = await self._get_collection()
         result = await col.get(include=["embeddings"])
 
-        if not result["embeddings"]:
+        # SAFELY check if embeddings are empty without triggering NumPy's truth value error
+        embeddings = result.get("embeddings")
+        if embeddings is None or len(embeddings) == 0:
             logger.debug("Interest profile: empty (cold start)")
             return None
 
-        matrix = np.array(result["embeddings"], dtype=np.float32)
+        matrix = np.array(embeddings, dtype=np.float32)
         centroid = matrix.mean(axis=0)
 
-        # Нормалізуємо — щоб cosine similarity працювало через dot product
+        # Нормалізуємо
         norm = np.linalg.norm(centroid)
         if norm > 1e-8:
             centroid /= norm
 
         logger.debug(
-            "Interest profile centroid: computed from %d articles", len(result["embeddings"])
+            "Interest profile centroid: computed from %d articles", len(embeddings)
         )
         return centroid
 

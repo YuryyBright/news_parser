@@ -19,283 +19,157 @@ from sqlalchemy import select, update, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from application.dtos.feed_dto import FeedSnapshotView, FeedItemView
-from infrastructure.persistence.models import (
-    FeedSnapshotModel, FeedItemModel, ArticleModel,
-)
 
+from src.infrastructure.persistence.models import (
+    FeedSnapshotModel, FeedItemModel, ArticleModel, UserFeedbackModel
+)
+from src.domain.feed.entities import FeedSnapshot as FeedSnapshot, FeedItem, FeedItemRef
+from src.domain.feed.repositories import IFeedRepository, IFeedbackRepository, UserFeedback
 logger = logging.getLogger(__name__)
 
 
-class SqlAlchemyFeedRepository:
-    """
-    Репозиторій не реалізує domain interface напряму —
-    Feed є application-рівневою концепцією (не окремий bounded context).
-    Повертає DTO напряму, щоб уникнути зайвого шару маппінгу.
-    """
+class SqlAlchemyFeedRepository(IFeedRepository):
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_active_snapshot(self, user_id: UUID) -> FeedSnapshotView | None:
-        """
-        Повертає актуальний snapshot або None якщо немає / всі stale.
-        Snapshot вважається stale якщо is_stale=True.
-        """
-        result = await self._session.execute(
+    async def get_active_snapshot(self, user_id: UUID) -> FeedSnapshot | None:
+
+        # Найновіший snapshot
+        snap_result = await self._session.execute(
             select(FeedSnapshotModel)
-            .where(
-                FeedSnapshotModel.user_id == str(user_id),
-                FeedSnapshotModel.is_stale.is_(False),
-            )
-            .options(
-                selectinload(FeedSnapshotModel.items)
-                .selectinload(FeedItemModel.article)
-            )
+            .where(FeedSnapshotModel.user_id == user_id)
             .order_by(FeedSnapshotModel.generated_at.desc())
             .limit(1)
         )
-        model = result.scalar_one_or_none()
-        return _snapshot_to_view(model) if model else None
+        snap_row = snap_result.scalar_one_or_none()
+        if snap_row is None:
+            return None
 
-    async def save_snapshot(
-        self,
-        user_id: UUID,
-        ranked_items: list[tuple[UUID, float]],  # [(article_id, score), ...]
-    ) -> FeedSnapshotView:
-        """
-        Створює новий snapshot.
-        Попередній snapshot НЕ видаляється — помічається як stale.
-
-        Args:
-            ranked_items: список (article_id, score) вже відсортований за rank.
-        """
-        # Інвалідуємо попередні
-        await self._invalidate_user_snapshots(user_id)
-
-        snapshot = FeedSnapshotModel(
-            id=str(uuid4()),
-            user_id=str(user_id),
-            is_stale=False,
-            generated_at=datetime.now(timezone.utc),
+        # Items з JOIN на articles (article_title, article_url, published_at)
+        items_result = await self._session.execute(
+            select(FeedItemModel, ArticleModel)
+            .join(ArticleModel, FeedItemModel.article_id == ArticleModel.id)
+            .where(FeedItemModel.snapshot_id == snap_row.id)
+            .order_by(FeedItemModel.rank)
         )
-        self._session.add(snapshot)
-        await self._session.flush()  # отримуємо snapshot.id
 
         items = [
-            FeedItemModel(
-                id=str(uuid4()),
-                snapshot_id=snapshot.id,
-                article_id=str(article_id),
-                rank=rank,
-                score=score,
-                status="unread",
+            FeedItem(
+                id=item.id,
+                snapshot_id=item.snapshot_id,
+                article_id=item.article_id,
+                rank=item.rank,
+                score=item.score,
+                status=item.status,
+                article_title=article.title or "",
+                article_url=article.url or "",
+                article_published_at=getattr(article, "published_at", None),
             )
-            for rank, (article_id, score) in enumerate(ranked_items, start=1)
+            for item, article in items_result.all()
         ]
-        self._session.add_all(items)
+
+        return FeedSnapshot(
+            id=snap_row.id,
+            user_id=snap_row.user_id,
+            generated_at=snap_row.generated_at,
+            items=items,
+        )
+
+    async def save_snapshot(self, snapshot: FeedSnapshot) -> None:
+        snap_row = FeedSnapshotModel(
+            id=str(snapshot.id),               # Explicitly cast to string
+            user_id=str(snapshot.user_id),     # Explicitly cast to string
+            generated_at=snapshot.generated_at,
+        )
+        self._session.add(snap_row)
+
+        for item in snapshot.items:
+            self._session.add(FeedItemModel(
+                id=str(item.id),                 # Explicitly cast to string
+                snapshot_id=str(item.snapshot_id), # Explicitly cast to string
+                article_id=str(item.article_id),   # Explicitly cast to string
+                rank=item.rank,
+                score=item.score,
+                status=item.status,
+            ))
+
         await self._session.flush()
+        logger.debug(
+            "Saved snapshot id=%s user=%s items=%d",
+            snapshot.id, snapshot.user_id, len(snapshot.items),
+        )
 
-        # Перечитуємо з eager-loaded articles для формування view
-        return await self._load_snapshot_view(snapshot.id)
+    async def find_active_item(
+        self, user_id: UUID, article_id: UUID
+    ) -> FeedItemRef | None:
 
-    async def mark_item_read(self, user_id: UUID, article_id: UUID) -> bool:
-        """
-        Позначає статтю як прочитану в активному snapshot юзера.
-        Повертає True якщо оновлення відбулось.
-        """
-        # Знаходимо активний snapshot
-        snapshot_result = await self._session.execute(
-            select(FeedSnapshotModel.id)
+        result = await self._session.execute(
+            select(FeedItemModel)
+            .join(FeedSnapshotModel, FeedItemModel.snapshot_id == FeedSnapshotModel.id)
             .where(
-                FeedSnapshotModel.user_id == str(user_id),
-                FeedSnapshotModel.is_stale.is_(False),
+                FeedSnapshotModel.user_id == user_id,
+                FeedItemModel.article_id == article_id,
             )
             .order_by(FeedSnapshotModel.generated_at.desc())
             .limit(1)
         )
-        snapshot_id = snapshot_result.scalar_one_or_none()
-        if not snapshot_id:
-            return False
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return FeedItemRef(id=row.id, status=row.status)
 
-        result = await self._session.execute(
+    async def mark_item_read(self, feed_item_id: UUID) -> None:
+        await self._session.execute(
             update(FeedItemModel)
-            .where(
-                FeedItemModel.snapshot_id == snapshot_id,
-                FeedItemModel.article_id == str(article_id),
-                FeedItemModel.status == "unread",
-            )
+            .where(FeedItemModel.id == str(feed_item_id)) # Cast to string
             .values(status="read")
         )
         await self._session.flush()
-        return result.rowcount > 0
-
-    async def invalidate_for_user(self, user_id: UUID) -> None:
-        """
-        Позначити всі snapshot'и юзера як stale.
-        Викликати після появи нових статей або після feedback.
-        """
-        await self._invalidate_user_snapshots(user_id)
-
-    # ─── Private ─────────────────────────────────────────────────────────────
-
-    async def _invalidate_user_snapshots(self, user_id: UUID) -> None:
-        await self._session.execute(
-            update(FeedSnapshotModel)
-            .where(
-                FeedSnapshotModel.user_id == str(user_id),
-                FeedSnapshotModel.is_stale.is_(False),
-            )
-            .values(is_stale=True)
-        )
-        await self._session.flush()
-
-    async def _load_snapshot_view(self, snapshot_id: str) -> FeedSnapshotView:
-        result = await self._session.execute(
-            select(FeedSnapshotModel)
-            .where(FeedSnapshotModel.id == snapshot_id)
-            .options(
-                selectinload(FeedSnapshotModel.items)
-                .selectinload(FeedItemModel.article)
-            )
-        )
-        model = result.scalar_one()
-        return _snapshot_to_view(model)
 
 
-# ─── Feedback ─────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# Feedback Repository
+# ══════════════════════════════════════════════════════════════════════════════
 
-# infrastructure/persistence/repositories/feedback_repo.py
-# (в одному файлі з feed_repo для простоти — при потребі розбити)
-
-from infrastructure.persistence.models import (
-    RelevanceFeedbackModel, FilterCriteriaModel, UserProfileModel,
-)
-from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-
-class SqlAlchemyFeedbackRepository:
-    """
-    Зберігання feedback та оновлення Bayesian prior у FilterCriteria.
-
-    Bayesian prior = (likes + α) / (total + α + β)
-    де α=1, β=1 (слабкий prior 0.5 при холодному старті).
-    """
+class SqlAlchemyFeedbackRepository(IFeedbackRepository):
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def upsert_feedback(
-        self,
-        user_id: UUID,
-        article_id: UUID,
-        liked: bool,
-        score_at_feedback: float = 0.0,
-    ) -> None:
-        """
-        Зберігає або оновлює feedback.
-        Після збереження перераховує Bayesian prior у criteria.
-        """
-        # Upsert feedback (ON CONFLICT UPDATE для SQLite)
-        stmt = (
-            sqlite_insert(RelevanceFeedbackModel)
-            .values(
-                id=str(uuid4()),
-                user_id=str(user_id),
-                article_id=str(article_id),
-                liked=liked,
-                score_at_feedback=score_at_feedback,
-            )
-            .on_conflict_do_update(
-                index_elements=["user_id", "article_id"],
-                set_={"liked": liked, "score_at_feedback": score_at_feedback},
-            )
-        )
-        await self._session.execute(stmt)
+    async def save(self, feedback: UserFeedback) -> None:
+
+        existing = await self._session.get(UserFeedbackModel, feedback.id)
+        if existing is not None:
+            existing.liked = feedback.liked
+            existing.created_at = feedback.created_at
+        else:
+            self._session.add(UserFeedbackModel(
+                id=str(feedback.id),               
+                user_id=str(feedback.user_id),     
+                article_id=str(feedback.article_id), 
+                liked=feedback.liked,
+                created_at=feedback.created_at,
+            ))
         await self._session.flush()
 
-        # Перерахувати Bayesian prior
-        await self._update_bayesian_prior(user_id)
-
-    async def get_user_feedback(
+    async def get_by_user_article(
         self, user_id: UUID, article_id: UUID
-    ) -> bool | None:
-        """None якщо feedback ще не було."""
+    ) -> UserFeedback | None:
+
         result = await self._session.execute(
-            select(RelevanceFeedbackModel.liked)
-            .where(
-                RelevanceFeedbackModel.user_id == str(user_id),
-                RelevanceFeedbackModel.article_id == str(article_id),
+            select(UserFeedbackModel).where(
+                UserFeedbackModel.user_id == user_id,
+                UserFeedbackModel.article_id == article_id,
             )
         )
         row = result.scalar_one_or_none()
-        return row  # True/False/None
-
-    async def _update_bayesian_prior(self, user_id: UUID) -> None:
-        """
-        Bayesian оновлення: prior = (likes + 1) / (total + 2)
-        Weak prior: α=β=1 → при нулі feedback prior = 0.5
-        """
-        from sqlalchemy import func as sa_func
-
-        # Підраховуємо статистику feedback для юзера
-        stats = await self._session.execute(
-            select(
-                sa_func.count(RelevanceFeedbackModel.id).label("total"),
-                sa_func.sum(
-                    RelevanceFeedbackModel.liked.cast(Integer)
-                ).label("likes"),
-            )
-            .where(RelevanceFeedbackModel.user_id == str(user_id))
+        if row is None:
+            return None
+        return UserFeedback(
+            id=row.id,
+            user_id=row.user_id,
+            article_id=row.article_id,
+            liked=row.liked,
+            created_at=row.created_at,
         )
-        row = stats.one()
-        total: int = row.total or 0
-        likes: int = row.likes or 0
-
-        # α=1, β=1 (Laplace smoothing)
-        new_prior = (likes + 1) / (total + 2)
-
-        # Знаходимо criteria через user_profile
-        profile_result = await self._session.execute(
-            select(UserProfileModel.id)
-            .where(UserProfileModel.user_id == str(user_id))
-        )
-        profile_id = profile_result.scalar_one_or_none()
-        if not profile_id:
-            return
-
-        await self._session.execute(
-            update(FilterCriteriaModel)
-            .where(FilterCriteriaModel.user_profile_id == profile_id)
-            .values(feedback_prior=new_prior, feedback_count=total)
-        )
-        await self._session.flush()
-
-        logger.debug(
-            "Bayesian prior updated: user=%s total=%d likes=%d prior=%.3f",
-            user_id, total, likes, new_prior,
-        )
-
-
-# ─── Mappers (локальні, тільки для feed) ──────────────────────────────────────
-
-def _snapshot_to_view(model: FeedSnapshotModel) -> FeedSnapshotView:
-    return FeedSnapshotView(
-        id=UUID(model.id),
-        generated_at=model.generated_at,
-        items=[_item_to_view(item) for item in (model.items or [])],
-    )
-
-
-def _item_to_view(item: FeedItemModel) -> FeedItemView:
-    article = item.article
-    return FeedItemView(
-        article_id=UUID(item.article_id),
-        rank=item.rank,
-        score=item.score,
-        status=item.status,
-        article_title=article.title if article else "",
-        article_url=article.url if article else "",
-        article_relevance_score=article.relevance_score if article else 0.0,
-        article_published_at=article.published_at if article else None,
-    )

@@ -20,28 +20,48 @@ from src.domain.ingestion.value_objects import ParsedContent
 # але тут вона використовується для scoring, а не тегування)
 _TOPIC_KEYWORDS: dict[str, list[str]] = {
     "war_and_weapons": [
-        "війн", "збро", "ракет", "атак", "удар", "зсу", "армія", "військ",
-        "оборон", "наступ", "дрон", "бпла", "фронт", "снаряд", "ппо",
-        "war", "attack", "missile", "strike", "military", "drone", "artillery",
-        "weapon", "troops", "army", "defense", "offensive", "combat",
+        # UA & EN (Original + Added)
+        "війн", "збро", "ракет", "атак", "удар", "зсу", "армія", "військ", "оборон", "наступ", "дрон", "бпла", "фронт", "снаряд", "ппо", "окупант", "вторгнення",
+        "war", "attack", "missile", "strike", "military", "drone", "artillery", "weapon", "troops", "army", "defense", "offensive", "combat", "invasion", "shelling", "uav",
+        # Romanian (RO)
+        "război", "armă", "muniți", "rachet", "atac", "lovitur", "armat", "militar", "defens", "ofensiv", "front", "obuz", "bombard", "invazi", "soldat", "tanc", "blindat",
+        # Hungarian (HU)
+        "háború", "fegyver", "lőszer", "rakéta", "támadás", "csapás", "katon", "sereg", "védelem", "offenzív", "front", "tüzérség", "drón", "invázió", "bombáz", "páncélos", "honvédelem",
+        # Slovak (SK)
+        "vojn", "zbraň", "muníci", "raket", "útok", "úder", "armád", "vojsk", "obran", "ofenzív", "front", "granát", "delostrelectvo", "invázi", "ostreľovan", "tank", "stíhač",
     ],
     "politics": [
-        "політ", "президент", "парламент", "уряд", "вибор", "депутат",
-        "міністр", "санкці", "дипломат",
-        "election", "president", "parliament", "sanctions", "government",
-        "diplomacy", "minister", "senate",
+        # UA & EN
+        "політ", "президент", "парламент", "уряд", "вибор", "депутат", "міністр", "санкці", "дипломат", "корупці", "закон", "рада",
+        "election", "president", "parliament", "sanctions", "government", "diplomacy", "minister", "senate", "policy", "corruption", "vote", "summit",
+        # Romanian (RO)
+        "politic", "președinte", "parlament", "guvern", "aleger", "deputat", "ministru", "sancțiun", "diplomaț", "corupți", "lege", "vot", "senat", "summit",
+        # Hungarian (HU)
+        "politik", "elnök", "parlament", "kormány", "választás", "képviselő", "miniszter", "szankció", "diplomácia", "korrupció", "törvény", "szavazat", "szenátus", "csúcstalálkozó",
+        # Slovak (SK)
+        "politi", "prezident", "parlament", "vlád", "voľb", "poslanec", "minister", "sankci", "diplomaci", "korupci", "zákon", "hlasovan", "senát", "samit",
     ],
     "economy": [
-        "економік", "інфляці", "ввп", "ринок", "банк", "фінанс", "інвестиц",
-        "бюджет", "валют", "акці",
-        "gdp", "inflation", "market", "trade", "bank", "finance", "investment",
-        "budget", "currency",
+        # UA & EN
+        "економік", "інфляці", "ввп", "ринок", "банк", "фінанс", "інвестиц", "бюджет", "валют", "акці", "кредит", "дефіцит", "експорт", "імпорт",
+        "gdp", "inflation", "market", "trade", "bank", "finance", "investment", "budget", "currency", "stocks", "deficit", "export", "import", "crypto",
+        # Romanian (RO)
+        "economi", "inflați", "pib", "piață", "banc", "finanț", "investiți", "buget", "valut", "acțiun", "credit", "deficit", "export", "import", "curs valutar",
+        # Hungarian (HU)
+        "gazdaság", "infláció", "gdp", "piac", "bank", "pénzügy", "befektetés", "költségvetés", "valuta", "részvény", "hitel", "hiány", "export", "import", "árfolyam",
+        # Slovak (SK)
+        "ekonomika", "infláci", "hdp", "trh", "bank", "financi", "investíci", "rozpočet", "men", "akci", "úver", "deficit", "export", "import", "kurz",
     ],
     "technology": [
-        "технологі", "штучний інтелект", "стартап", "кібер", "айті",
-        "алгоритм", "блокчейн", "цифров",
-        "ai", "startup", "software", "cyber", "tech", "algorithm",
-        "blockchain", "digital", "machine learning",
+        # UA & EN
+        "технологі", "штучний інтелект", "стартап", "кібер", "айті", "алгоритм", "блокчейн", "цифров", "софт", "розробка", "сервер",
+        "ai", "startup", "software", "cyber", "tech", "algorithm", "blockchain", "digital", "machine learning", "hardware", "data", "cloud",
+        # Romanian (RO)
+        "tehnologi", "inteligență artificială", "startup", "ciber", "it", "algoritm", "digital", "software", "dezvoltare", "server", "date", "cloud", "automatiz",
+        # Hungarian (HU)
+        "technológi", "mesterséges intelligencia", "startup", "kiber", "informatika", "algoritmus", "digitális", "szoftver", "fejlesztés", "szerver", "adat", "felhő", "automatizálás",
+        # Slovak (SK)
+        "technológi", "umelá inteligencia", "startup", "kyber", "it", "algoritmus", "digitáln", "softvér", "vývoj", "server", "údaj", "cloud", "automatizáci",
     ],
 }
 

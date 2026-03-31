@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 from src.config.logger import setup_logging
 from fastapi import FastAPI
 
-
+from fastapi.middleware.cors import CORSMiddleware
 
 setup_logging()
 
@@ -58,8 +58,6 @@ async def lifespan(app: FastAPI):
         "Startup: %d sources → %d tasks enqueued",
         result.sources_found, result.tasks_enqueued,
     )
-    await container.task_queue.enqueue("process_articles")
-    logger.info("process_articles enqueued on startup to handle pending raw articles")
 
     # ── 5. Periodic scheduler ─────────────────────────────────────────────────
     scheduler = _start_scheduler(container)
@@ -129,8 +127,17 @@ def create_app() -> FastAPI:
         title="News Parser API",
         version="0.2.0",
         lifespan=lifespan,
+        )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173", # Зверни увагу: без слеша (/) в кінці!
+            "http://127.0.0.1:5173"
+        ],
+        allow_credentials=True,
+        allow_methods=["*"], # Дозволяє всі методи (GET, POST, PUT, DELETE тощо)
+        allow_headers=["*"], # Дозволяє всі заголовки
     )
-
     from src.presentation.api.routes import sources, feed, articles, health
     app.include_router(health.router,   prefix="/api/v1/health",   tags=["health"])
     app.include_router(articles.router, prefix="/api/v1/articles", tags=["articles"])

@@ -21,7 +21,6 @@ from src.application.dtos.article_dto import (
 from src.domain.knowledge.entities import Tag
 from src.domain.knowledge.exceptions import ArticleNotFound
 from src.domain.knowledge.repositories import IArticleRepository
-from src.domain.knowledge.value_objects import Language
 
 
 # ── Update текстових полів ────────────────────────────────────────────────────
@@ -48,10 +47,7 @@ class UpdateArticleUseCase:
         if cmd.body is not None:
             article.body = cmd.body
         if cmd.language is not None:
-            try:
-                article.language = Language(cmd.language)
-            except ValueError:
-                article.language = Language.UNKNOWN
+            article.language = cmd.language
 
         await self._repo.update(article)
 
@@ -60,7 +56,7 @@ class UpdateArticleUseCase:
             title=article.title,
             body=article.body,
             url=article.url,
-            language=article.language.value,
+            language=article.language,
             status=article.status.value,
             relevance_score=article.relevance_score,
             published_at=article.published_at.value if article.published_at else None,

@@ -10,12 +10,6 @@ Endpoints:
   GET    /sources/tasks/        — список задач (з фільтрами)
   GET    /sources/tasks/{id}    — статус конкретної задачі
   DELETE /sources/tasks/{id}    — скасувати задачу
-
-Роутер відповідає ТІЛЬКИ за HTTP:
-  ✓ Валідація вхідних даних (Pydantic)
-  ✓ Виклик одного use case або task_queue
-  ✓ Маппінг DTO → response schema
-  ✓ HTTP статус-коди та помилки
 """
 from __future__ import annotations
 
@@ -26,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from src.application.dtos.source_dto import AddSourceCommand, SourceView
 from src.application.ports.task_queue import TaskInfo
 from src.application.use_cases.add_source import SourceAlreadyExistsError
-# from src.application.use_cases.deactivate_source import SourceNotFoundError
+from src.domain.feed.exceptions import SourceNotFoundError
 from src.config.container import Container, get_container
 from src.presentation.api.schemas.source import SourceCreateRequest, SourceResponse
 from src.presentation.api.schemas.task import TaskListResponse, TaskResponse, TriggerResponse
@@ -65,10 +59,9 @@ async def add_source(
     container: Container = Depends(get_container),
 ) -> SourceResponse:
     """
-    Відповіді:
-      201 — джерело додано
-      409 — URL вже існує
-      422 — невалідні дані
+    201 — джерело додано
+    409 — URL вже існує
+    422 — невалідні дані (невідомий source_type або interval < 60)
     """
     cmd = AddSourceCommand(
         name=body.name,
@@ -82,10 +75,7 @@ async def add_source(
     except SourceAlreadyExistsError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
     except ValueError as exc:
-        # domain validation: невідомий source_type або interval < 60
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
     return _source_to_response(view)
 
 
@@ -101,15 +91,14 @@ async def deactivate_source(
     try:
         async with container.db_session() as session:
             await container.deactivate_source_uc(session).execute(source_id)
-        # except SourceNotFoundError:
-        #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found")
+    except SourceNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source not found")
     except ValueError as exc:
-        # domain validation: невідомий source_id
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# TRIGGER — вручну запустити парсинг
+# TRIGGER
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post(
@@ -125,9 +114,7 @@ async def trigger_ingest(
     """
     Ставить задачу ingest_source в чергу.
     Виконання асинхронне — відповідь 202 Accepted.
-    Статус задачі: GET /sources/tasks/{task_id}
     """
-    # Перевіряємо що джерело існує перед постановкою в чергу
     async with container.db_session() as session:
         views = await container.list_sources_uc(session).execute(active_only=False)
     if not any(v.id == source_id for v in views):
@@ -146,7 +133,7 @@ async def trigger_ingest(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# TASKS — моніторинг фонових задач
+# TASKS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.get(

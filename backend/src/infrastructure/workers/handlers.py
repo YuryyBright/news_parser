@@ -51,7 +51,6 @@ async def handle_ingest_source(source_id: str) -> dict:
         source_id: str UUID джерела
     """
     from src.config.container import get_container
-
     container = get_container()
 
     async with container.db_session() as session:
@@ -64,6 +63,11 @@ async def handle_ingest_source(source_id: str) -> dict:
 
     if result.error:
         raise RuntimeError(result.error)
+
+    # ДОДАНО: Ставимо в чергу обробку, тільки якщо збережено нові статті
+    if result.saved > 0:
+        await container.task_queue.enqueue("process_articles")
+        logger.info("Enqueued process_articles because %d new articles were saved", result.saved)
 
     return {
         "source_id": source_id,
