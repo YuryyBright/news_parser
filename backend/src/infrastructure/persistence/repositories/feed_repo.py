@@ -15,7 +15,7 @@ import logging
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update, Integer
+from sqlalchemy import select, update, Integer, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -133,13 +133,30 @@ class SqlAlchemyFeedRepository(IFeedRepository):
 # ══════════════════════════════════════════════════════════════════════════════
 
 class SqlAlchemyFeedbackRepository(IFeedbackRepository):
-
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def save(self, feedback: UserFeedback) -> None:
+    async def get(self, id: UUID) -> UserFeedback | None:
+        """Fetch a single UserFeedback by its ID."""
+        result = await self._session.execute(
+            select(UserFeedbackModel).where(UserFeedbackModel.id == str(id))
+        )
+        row = result.scalar_one_or_none()
+        if not row:
+            return None
+            
+        return UserFeedback(
+            id=UUID(row.id),
+            user_id=UUID(row.user_id),
+            article_id=UUID(row.article_id),
+            liked=row.liked,
+            created_at=row.created_at,
+        )
 
-        existing = await self._session.get(UserFeedbackModel, feedback.id)
+    async def save(self, feedback: UserFeedback) -> None:
+        # Cast feedback.id to a string here:
+        existing = await self._session.get(UserFeedbackModel, str(feedback.id))
+        
         if existing is not None:
             existing.liked = feedback.liked
             existing.created_at = feedback.created_at
@@ -153,23 +170,61 @@ class SqlAlchemyFeedbackRepository(IFeedbackRepository):
             ))
         await self._session.flush()
 
+    async def update(self, entity: UserFeedback) -> None:
+        """Update an existing UserFeedback (acts same as save in this context)."""
+        await self.save(entity)
+
+    async def delete(self, id: UUID) -> None:
+        """Delete a UserFeedback by its ID."""
+        await self._session.execute(
+            delete(UserFeedbackModel).where(UserFeedbackModel.id == str(id))
+        )
+        await self._session.flush()
+
+    async def list(self) -> list[UserFeedback]:
+        """Retrieve all UserFeedback records."""
+        result = await self._session.execute(select(UserFeedbackModel))
+        rows = result.scalars().all()
+        
+        return [
+            UserFeedback(
+                id=UUID(row.id),
+                user_id=UUID(row.user_id),
+                article_id=UUID(row.article_id),
+                liked=row.liked,
+                created_at=row.created_at,
+            )
+            for row in rows
+        ]
+
+    # --- Custom IFeedbackRepository Methods ---
+
     async def get_by_user_article(
         self, user_id: UUID, article_id: UUID
     ) -> UserFeedback | None:
-
+        """Fetch a specific user's feedback for a specific article."""
         result = await self._session.execute(
             select(UserFeedbackModel).where(
-                UserFeedbackModel.user_id == user_id,
-                UserFeedbackModel.article_id == article_id,
+                UserFeedbackModel.user_id == str(user_id),
+                UserFeedbackModel.article_id == str(article_id),
             )
         )
         row = result.scalar_one_or_none()
+        
         if row is None:
             return None
+            
         return UserFeedback(
-            id=row.id,
-            user_id=row.user_id,
-            article_id=row.article_id,
+            id=UUID(row.id),
+            user_id=UUID(row.user_id),
+            article_id=UUID(row.article_id),
             liked=row.liked,
             created_at=row.created_at,
         )
+
+    async def submit_feedback(self, feedback: UserFeedback) -> None:
+        """
+        Satisfies the abstract 'submit_feedback' requirement. 
+        In standard CRUD, this is identical to 'save()'.
+        """
+        await self.save(feedback)
