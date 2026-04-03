@@ -20,27 +20,28 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
         "group relative bg-white dark:bg-slate-900 rounded-xl border",
         "border-slate-200 dark:border-slate-800",
         "hover:border-blue-300 dark:hover:border-blue-700",
-        "hover:shadow-md dark:hover:shadow-slate-900",
-        "transition-all duration-200 cursor-pointer",
-        isRead && "opacity-60",
+        "hover:shadow-lg dark:hover:shadow-slate-950/50",
+        "transition-all duration-200",
+        onClick && "cursor-pointer",
+        isRead && "opacity-55",
       )}
       onClick={onClick}
     >
-      {/* Unread indicator */}
+      {/* Unread indicator stripe */}
       {!isRead && (
-        <div className="absolute left-0 top-4 bottom-4 w-0.5 bg-blue-500 rounded-full" />
+        <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-full" />
       )}
 
-      <div className="p-4">
-        {/* Top row: badges */}
-        <div className="flex items-center gap-2 flex-wrap mb-2">
+      <div className="p-4 pl-5">
+        {/* Top row: status + score + language + date */}
+        <div className="flex items-center gap-2 flex-wrap mb-2.5">
           <ArticleBadge status={article.status} />
           <ScoreBadge score={article.relevance_score} />
-          <span className="text-sm" title={article.language}>
-            {languageFlag(article.language)} {article.language.toUpperCase()}
+          <span className="text-base leading-none" title={article.language}>
+            {languageFlag(article.language)}
           </span>
-          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
-            <Clock className="w-3 h-3" />
+          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+            <Clock className="w-3 h-3 shrink-0" />
             {formatDate(article.published_at ?? article.created_at)}
           </div>
         </div>
@@ -48,7 +49,7 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
         {/* Title */}
         <h3
           className={cn(
-            "text-sm font-semibold leading-snug mb-2",
+            "text-sm font-semibold leading-snug mb-2.5",
             "text-slate-900 dark:text-white",
             "group-hover:text-blue-600 dark:group-hover:text-blue-400",
             "transition-colors line-clamp-2",
@@ -58,11 +59,13 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
         </h3>
 
         {/* Tags */}
-        <TagsList tags={article.tags} clickable className="mb-3" />
+        {article.tags.length > 0 && (
+          <TagsList tags={article.tags} clickable className="mb-3" />
+        )}
 
-        {/* Bottom: actions */}
+        {/* Bottom actions row */}
         <div
-          className="flex items-center justify-between"
+          className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
         >
           <FeedbackButtons articleId={article.id} compact />
@@ -70,10 +73,14 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-slate-400 hover:text-blue-500 transition-colors p-1"
+            className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              "text-slate-400 hover:text-blue-500",
+              "hover:bg-blue-50 dark:hover:bg-blue-950/50",
+            )}
             title="Відкрити оригінал"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>

@@ -1,22 +1,23 @@
 # presentation/api/routes/articles.py
 """
-Articles router — повний CRUD + feedback.
+Articles router — повний CRUD + feedback + preferences.
 
 Endpoints:
-  GET    /articles/                     — список
-  POST   /articles/                     — створити (адмін)
-  GET    /articles/{id}                 — деталі
-  PATCH  /articles/{id}                 — оновити поля
-  DELETE /articles/{id}                 — видалити
-  POST   /articles/{id}/tags            — додати теги
-  POST   /articles/{id}/expire          — expire
-  POST   /articles/{id}/feedback        — лайк / дизлайк
+  GET    /articles/                          — список (з фільтром по тегу)
+  POST   /articles/                          — створити (адмін)
+  GET    /articles/preferences               — вподобання юзера (liked/disliked)
+  GET    /articles/preferences/stats         — статистика вподобань
+  GET    /articles/{id}                      — деталі
+  PATCH  /articles/{id}                      — оновити поля
+  DELETE /articles/{id}                      — видалити
+  POST   /articles/{id}/tags                 — додати теги
+  POST   /articles/{id}/expire               — expire
+  POST   /articles/{id}/feedback             — лайк / дизлайк
 
 Роутер ТІЛЬКИ:
   1. Валідує HTTP (Pydantic schemas)
-  2. Викликає use case
+  2. Викликає use case або репозиторій
   3. Ловить ДОМЕННІ exceptions → HTTP status
-  Бізнес-логіки тут НЕМАЄ.
 """
 from __future__ import annotations
 
@@ -52,16 +53,17 @@ router = APIRouter()
 # ═══════════════════════════════════════════════════════════════════════════════
 # READ
 # ═══════════════════════════════════════════════════════════════════════════════
+
 @router.get("/")
 async def list_articles(
     status_filter: str | None = Query(default=None, alias="status"),
     min_score: float = Query(default=0.0),
     language: str | None = Query(default=None),
+    tag: str | None = Query(default=None, description="Фільтр по тегу"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     container: Container = Depends(get_container),
 ):
-    # Схема → доменний фільтр (конвертація в роутері)
     f = ArticleFilter(
         status=ArticleStatus(status_filter) if status_filter else None,
         min_score=min_score,
@@ -69,9 +71,58 @@ async def list_articles(
         limit=limit,
         offset=offset,
     )
+
     async with container.db_session() as session:
-        views = await container.list_articles_uc(session).execute(f)
+        if tag:
+            # Використовуємо репозиторій напряму для tag-фільтрації
+            from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+            repo = SqlAlchemyArticleRepository(session)
+            views = await repo.find(f, tag=tag)
+        else:
+            views = await container.list_articles_uc(session).execute(f)
+
     return [_to_response(v) for v in views]
+
+
+@router.get(
+    "/preferences",
+    response_model=list[ArticleResponse],
+    summary="Статті за вподобаннями юзера",
+)
+async def list_by_preferences(
+    user_id: UUID = Query(..., description="ID юзера"),
+    liked: bool = Query(..., description="true = вподобані, false = відхилені"),
+    limit: int = Query(default=100, ge=1, le=200),
+    container: Container = Depends(get_container),
+) -> list[ArticleResponse]:
+    """
+    Повернути список статей, які юзер оцінив.
+    liked=true  → вподобані
+    liked=false → відхилені (не цікаво)
+    """
+    from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+    async with container.db_session() as session:
+        repo = SqlAlchemyArticleRepository(session)
+        articles = await repo.find_by_feedback(user_id=user_id, liked=liked, limit=limit)
+    return [_to_response(a) for a in articles]
+
+
+@router.get(
+    "/preferences/stats",
+    summary="Статистика вподобань юзера",
+)
+async def preferences_stats(
+    user_id: UUID = Query(..., description="ID юзера"),
+    container: Container = Depends(get_container),
+) -> dict:
+    """
+    Повернути кількість вподобаних / відхилених / прихованих статей.
+    """
+    from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+    async with container.db_session() as session:
+        repo = SqlAlchemyArticleRepository(session)
+        counts = await repo.count_feedback(user_id=user_id)
+    return counts
 
 
 @router.get("/{article_id}", response_model=ArticleDetailResponse, summary="Деталі статті")
@@ -108,7 +159,6 @@ async def create_article(
         url=str(payload.url),
         language=payload.language or "unknown",
         published_at=payload.published_at,
-        
     )
     try:
         async with container.db_session() as session:
@@ -159,7 +209,7 @@ async def delete_article(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DOMAIN ACTIONS (state machine transitions)
+# DOMAIN ACTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @router.post(
@@ -184,7 +234,7 @@ async def add_tags(
 @router.post(
     "/{article_id}/expire",
     status_code=status.HTTP_204_NO_CONTENT,
-    summary="Позначити статтю як застарілу",
+    summary="Позначити статтю як застарілу / приховати",
 )
 async def expire_article(
     article_id: UUID,
@@ -223,21 +273,12 @@ async def submit_feedback(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Presentation mappers (локальні — не виносити в окремий файл)
+# Presentation mappers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# presentation/api/routes/articles.py
-
-# ... (інший код) ...
-
 def _to_response(v) -> ArticleResponse:
-    # Отримуємо список об'єктів тегів
     raw_tags = getattr(v, "tags", [])
-    
-    # Конвертуємо об'єкти Tag у рядки (їхні імена)
-    # Якщо там вже рядки, залишаємо як є, якщо об'єкти — беремо .name
     tag_names = [t.name if hasattr(t, "name") else str(t) for t in raw_tags]
-
     return ArticleResponse(
         id=v.id,
         title=v.title,
@@ -245,16 +286,15 @@ def _to_response(v) -> ArticleResponse:
         language=v.language,
         status=v.status,
         relevance_score=v.relevance_score,
-        published_at=v.published_at.value if hasattr(v.published_at, 'value') else v.published_at,
+        published_at=v.published_at.value if hasattr(v.published_at, "value") else v.published_at,
         created_at=v.created_at,
-        tags=tag_names,  # Тепер тут список рядків
+        tags=tag_names,
     )
 
 
 def _to_detail_response(v) -> ArticleDetailResponse:
     raw_tags = getattr(v, "tags", [])
     tag_names = [t.name if hasattr(t, "name") else str(t) for t in raw_tags]
-
     return ArticleDetailResponse(
         id=v.id,
         title=v.title,
@@ -265,6 +305,6 @@ def _to_detail_response(v) -> ArticleDetailResponse:
         relevance_score=v.relevance_score,
         published_at=v.published_at,
         created_at=v.created_at,
-        tags=tag_names,  # Тепер тут список рядків
+        tags=tag_names,
         source_id=getattr(v, "source_id", None),
     )

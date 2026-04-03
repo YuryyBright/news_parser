@@ -24,6 +24,7 @@ class FeedItem(BaseEntity):
     rank: int = 0
     score: float = 0.0
     status: FeedItemStatus = FeedItemStatus.UNREAD
+    language: str = ""
     article_title: str = ""
     article_url: str = ""
     article_published_at: datetime | None = None

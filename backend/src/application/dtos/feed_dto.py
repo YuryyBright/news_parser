@@ -12,6 +12,7 @@ class FeedItemView:
     article_id: UUID
     rank: int
     score: float
+    language: str
     status: str                       # "unread" | "read"
     article_title: str
     article_url: str

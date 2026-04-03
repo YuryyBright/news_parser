@@ -70,3 +70,19 @@ class ProfileLearner(IProfileLearner):
             "ProfileLearner: saved article=%s score=%.3f tags=%s",
             article_id, score, tags,
         )
+
+    async def remove_from_profile(self, article_id: UUID) -> bool:
+        """
+        Видаляє вектор статті з профілю (explicit dislike).
+
+        Викликається з SubmitFeedbackUseCase при liked=False.
+        Idempotent — якщо статті нема у профілі, просто повертає False.
+
+        Returns:
+            True  — вектор видалено.
+            False — вектора не було у профілі.
+        """
+        removed = await self._profile_repo.remove(article_id)
+        if removed:
+            logger.info("ProfileLearner: removed article=%s from profile (dislike)", article_id)
+        return removed

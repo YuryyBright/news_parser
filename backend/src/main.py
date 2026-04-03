@@ -1,3 +1,3 @@
-from presentation.api.main import app  # re-export
+from src.presentation.api.main import app  # re-export
 
 __all__ = ["app"]

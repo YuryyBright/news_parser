@@ -39,6 +39,8 @@ export interface ArticleFilter {
   status?: ArticleStatus | null;
   min_score?: number;
   language?: string | null;
+  /** Фільтр по тегу — передається як ?tag=... */
+  tag?: string | null;
   limit?: number;
   offset?: number;
 }
@@ -68,12 +70,20 @@ export interface FeedbackResponse {
   liked: boolean;
 }
 
+/** Статистика вподобань юзера */
+export interface PreferencesStats {
+  liked: number;
+  disliked: number;
+  expired: number;
+}
+
 // ── Feed ──────────────────────────────────────────────────────────────────────
 
 export interface FeedArticle {
   article_id: string;
   rank: number;
   score: number;
+  language: string;
   status: FeedItemStatus;
   title: string;
   url: string;

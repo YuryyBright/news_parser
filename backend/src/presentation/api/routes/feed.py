@@ -88,6 +88,7 @@ def _feed_item_to_response(item: FeedItemView) -> FeedArticleResponse:
         score=item.score,
         status=item.status,
         title=item.article_title,
+        language=item.language,
         url=item.article_url,
         relevance_score=item.article_relevance_score,
         published_at=item.article_published_at,

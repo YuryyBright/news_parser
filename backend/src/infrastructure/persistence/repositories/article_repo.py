@@ -86,7 +86,6 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         return ArticleMapper.to_domain(model) if model else None
 
     async def get_by_hash(self, content_hash: str) -> Article | None:
-        """Пошук за хешем — для дедуплікації на рівні знань."""
         result = await self._session.execute(
             select(ArticleModel)
             .where(ArticleModel.content_hash == content_hash)
@@ -121,7 +120,6 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         min_score: float = 0.0,
         limit: int = 50,
     ) -> list[Article]:
-        """Для list_articles_uc — загальний фільтр."""
         conditions = [ArticleModel.relevance_score >= min_score]
         if status:
             conditions.append(ArticleModel.status == status)
@@ -149,21 +147,29 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
 
     async def count_by_status(self) -> dict[str, int]:
-        """Для healthcheck endpoint."""
         result = await self._session.execute(
             select(ArticleModel.status, func.count(ArticleModel.id))
             .group_by(ArticleModel.status)
         )
         return {row[0]: row[1] for row in result.all()}
-    # infrastructure/persistence/repositories/article_repo.py
-    async def find(self, filter: ArticleFilter) -> list[Article]:
+
+    async def find(
+        self,
+        filter: ArticleFilter,
+        tag: str | None = None,
+    ) -> list[Article]:
+        """
+        Загальний пошук статей з опціональним фільтром по тегу.
+
+        Якщо tag передано — додає JOIN з таблицею тегів.
+        """
         conditions = [ArticleModel.relevance_score >= filter.min_score]
         if filter.status:
             conditions.append(ArticleModel.status == filter.status.value)
         if filter.language:
             conditions.append(ArticleModel.language == filter.language)
 
-        result = await self._session.execute(
+        stmt = (
             select(ArticleModel)
             .where(and_(*conditions))
             .options(selectinload(ArticleModel.tags))
@@ -171,16 +177,84 @@ class SqlAlchemyArticleRepository(IArticleRepository):
             .offset(filter.offset)
             .limit(filter.limit)
         )
+
+        if tag:
+            stmt = (
+                stmt
+                .join(ArticleTagModel, ArticleTagModel.article_id == ArticleModel.id)
+                .join(TagModel, TagModel.id == ArticleTagModel.tag_id)
+                .where(TagModel.name == tag.lower().strip())
+            )
+
+        result = await self._session.execute(stmt)
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
+
+    async def find_by_feedback(
+        self,
+        user_id: UUID,
+        liked: bool,
+        limit: int = 100,
+    ) -> list[Article]:
+        """
+        Знайти статті за feedback конкретного юзера.
+
+        liked=True  → статті, які юзер лайкнув ("Вподобані")
+        liked=False → статті, які юзер дизлайкнув ("Не подобаються")
+        """
+        from src.infrastructure.persistence.models import UserFeedbackModel
+
+        result = await self._session.execute(
+            select(ArticleModel)
+            .join(
+                UserFeedbackModel,
+                and_(
+                    UserFeedbackModel.article_id == ArticleModel.id,
+                    UserFeedbackModel.user_id == str(user_id),
+                    UserFeedbackModel.liked == liked,
+                ),
+            )
+            .options(selectinload(ArticleModel.tags))
+            .order_by(UserFeedbackModel.created_at.desc())
+            .limit(limit)
+        )
+        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
+
+    async def count_feedback(self, user_id: UUID) -> dict[str, int]:
+        """
+        Статистика feedback для юзера:
+          { "liked": N, "disliked": M, "expired": K }
+        """
+        from src.infrastructure.persistence.models import UserFeedbackModel
+
+        result = await self._session.execute(
+            select(UserFeedbackModel.liked, func.count(UserFeedbackModel.id))
+            .where(UserFeedbackModel.user_id == str(user_id))
+            .group_by(UserFeedbackModel.liked)
+        )
+        rows = result.all()
+        counts = {"liked": 0, "disliked": 0}
+        for liked_val, count in rows:
+            if liked_val:
+                counts["liked"] = count
+            else:
+                counts["disliked"] = count
+
+        # Кількість статей зі статусом "expired" (позначені "не показувати")
+        expired_result = await self._session.execute(
+            select(func.count(ArticleModel.id))
+            .where(ArticleModel.status == "expired")
+        )
+        counts["expired"] = expired_result.scalar_one() or 0
+
+        return counts
+
     # ─── Теги ─────────────────────────────────────────────────────────────────
 
     async def _sync_tags(self, article: Article) -> None:
-        """Синхронізує теги статті: upsert тегів + оновлення зв'язків."""
         if not article.tags:
             return
 
         for tag in article.tags:
-            # get_or_create тегу за іменем
             result = await self._session.execute(
                 select(TagModel).where(TagModel.name == tag.name.lower())
             )
@@ -190,7 +264,6 @@ class SqlAlchemyArticleRepository(IArticleRepository):
                 self._session.add(tag_model)
                 await self._session.flush()
 
-            # Додаємо зв'язок якщо ще немає
             existing_link = await self._session.get(
                 ArticleTagModel,
                 (str(article.id), tag_model.id),

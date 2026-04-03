@@ -12,6 +12,7 @@ class FeedArticleResponse(BaseModel):
     score: float
     status: str
     title: str
+    language: str
     url: str
     relevance_score: float
     published_at: datetime | None

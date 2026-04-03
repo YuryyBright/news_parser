@@ -1,25 +1,50 @@
 # infrastructure/scoring/embeddings_scoring_service.py
 """
-EmbeddingsScoringService — другий шар scoring.
+EmbeddingsScoringService — другий шар scoring у CompositeScoringService.
+
+Місце у пайплайні (див. composite_scoring_service.py):
+  Шар 1: BM25ScoringService      (pre-filter + geo early-penalty)
+  Шар 2: EmbeddingsScoringService ← ЦЕЙ ФАЙЛ
+  Шар 3: geo final multiplier     (у Composite, повторний виклик GeoFilter)
 
 Алгоритм:
-  1. Кодуємо текст статті → вектор (384-dim, multilingual-e5)
-  2. Беремо центроїд профілю інтересів з ChromaDB
-  3. Cosine similarity → score ∈ [0.0, 1.0]
+  1. content.full_text() → кодуємо через Embedder.encode_passage()
+  2. InterestProfileRepository.get_centroid() → вектор "смаку" з ChromaDB
+  3. cosine_similarity(article_vec, centroid) → score ∈ [0.0, 1.0]
 
-Cold start (профіль порожній):
+Cold start (профіль порожній, centroid is None):
   Повертаємо COLD_START_SCORE = 0.55.
-  Трохи вище threshold (0.25) → статті проходять і починають наповнювати профіль.
-  Але не 1.0 → BM25 ще фільтрує явний мусор.
+  Обґрунтування:
+    - Вище threshold (0.25) → статті проходять і наповнюють профіль
+    - Нижче 1.0 → BM25 все ще відсіює явний сміттєвий контент
+    - Після ~20-30 прийнятих статей профіль стає репрезентативним
 
-Важливо:
-  Цей сервіс сам НЕ зберігає вектори у профіль.
-  Це робить ProcessArticlesUseCase після scoring (implicit feedback).
-  Розділення відповідальності: scoring ≠ learning.
+Розподіл відповідальності:
+  ✅ Цей клас: читає профіль, рахує similarity, повертає score
+  ❌ Цей клас НЕ зберігає вектори у профіль
+     Збереження — відповідальність ProfileLearner (implicit feedback),
+     який викликається з ProcessArticlesUseCase ПІСЛЯ scoring.
+
+Залежності (всі передаються через DI у container.py):
+  Embedder              — singleton моделі multilingual-e5-small (384-dim)
+  InterestProfileRepository — ChromaDB колекція з векторами "цікавих" статей
+
+Підключення у container.py:
+    embed_service = EmbeddingsScoringService(
+        embedder=embedder,
+        profile_repo=profile_repo,
+    )
+    composite = CompositeScoringService(
+        bm25=bm25_service,
+        embeddings=embed_service,
+        ...
+    )
 """
 from __future__ import annotations
 
 import logging
+
+import numpy as np
 
 from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.value_objects import ParsedContent
@@ -28,18 +53,23 @@ from src.infrastructure.vector_store.interest_profile_repo import InterestProfil
 
 logger = logging.getLogger(__name__)
 
-# Score при cold start (порожній профіль)
-# Досить щоб пройти threshold але не 1.0
+# Score при cold start (порожній профіль — перші запуски системи)
+# Трохи вище threshold(0.25) але не 1.0 → BM25 ще фільтрує сміттєвий контент.
 COLD_START_SCORE = 0.55
 
 
 class EmbeddingsScoringService(IScoringService):
     """
-    Scoring через порівняння з профілем інтересів.
+    Scoring через семантичне порівняння з профілем інтересів.
 
     Args:
-        embedder:      Embedder.instance() — singleton моделі
-        profile_repo:  InterestProfileRepository — читає центроїд з ChromaDB
+        embedder:     Embedder.instance() — singleton завантаженої моделі.
+        profile_repo: InterestProfileRepository — читає центроїд з ChromaDB.
+
+    Note:
+        ParsedContent.language НЕ використовується цим сервісом —
+        гео-корекція відбувається у BM25 (шар 1) і Composite (шар 3).
+        Цей сервіс повертає чисту семантичну схожість без гео-penalty.
     """
 
     def __init__(
@@ -51,35 +81,50 @@ class EmbeddingsScoringService(IScoringService):
         self._profile_repo = profile_repo
 
     async def score(self, content: ParsedContent) -> float:
+        """
+        Повертає cosine similarity між статтею і профілем інтересів.
+
+        Returns:
+            float ∈ [0.0, 1.0]:
+              - COLD_START_SCORE (0.55) якщо профіль порожній
+              - cosine similarity із центроїдом профілю інакше
+        """
         text = content.full_text()
         if not text or not text.strip():
+            logger.debug("EmbeddingsScoring: empty text → 0.0")
             return 0.0
 
-        # Беремо центроїд профілю
         centroid = await self._profile_repo.get_centroid()
 
         if centroid is None:
-            # Cold start — профіль ще порожній
-            logger.debug("EmbeddingsScoring: cold start, returning %.2f", COLD_START_SCORE)
+            logger.debug(
+                "EmbeddingsScoring: cold start (empty profile) → %.2f", COLD_START_SCORE
+            )
             return COLD_START_SCORE
 
-        # Кодуємо статтю
         article_vec = self._embedder.encode_passage(text)
 
-        # Cosine similarity (обидва вектори L2-нормовані → dot product)
+        # Обидва вектори L2-нормовані (Embedder.encode_passage + InterestProfileRepository.get_centroid)
+        # → cosine similarity = dot product
         similarity = self._embedder.cosine_similarity(article_vec, centroid)
 
-        # Обрізаємо в [0, 1] — теоретично може бути від'ємним
-        score = max(0.0, min(float(similarity), 1.0))
+        # Теоретично cosine може бути від'ємним → обрізаємо знизу
+        score = float(np.clip(similarity, 0.0, 1.0))
 
-        logger.debug("EmbeddingsScoring: similarity=%.3f", score)
+        logger.debug(
+            "EmbeddingsScoring: similarity=%.3f profile_size=?", score
+        )
         return score
 
-    async def encode(self, content: ParsedContent):
+    async def encode(self, content: ParsedContent) -> np.ndarray:
         """
-        Публічний метод для отримання вектора статті.
-        Використовується в ProcessArticlesUseCase для збереження у профіль.
+        Повертає вектор статті (384-dim, float32).
 
-        Returns: np.ndarray shape (384,) dtype=float32
+        Використовується у ProfileLearner для збереження у профіль
+        і у майбутніх use cases для пошуку схожих статей.
+
+        Returns:
+            np.ndarray shape (384,) dtype=float32, L2-нормований.
         """
-        return self._embedder.encode_passage(content.full_text())
+        text = content.full_text()
+        return self._embedder.encode_passage(text)

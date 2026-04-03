@@ -8,19 +8,18 @@ BM25ScoringService — перший шар scoring (pre-filter).
   - Стійкий до "spam" — сотня повторень "армія" не дасть score=1.0
   - Підходить для мультимовного тексту (токенізація по пробілах)
 
+[ОНОВЛЕНО] Geo early-reject:
+  Якщо BM25 score * geo_multiplier < bm25_geo_threshold → reject одразу.
+  Тобто: стаття угорською про NATO (geo_mult=0.40) з BM25=0.10
+    → 0.10 * 0.40 = 0.04 < 0.05 → reject без embeddings.
+  Але стаття угорською про Угорщину в NATO (geo_mult=1.0) з BM25=0.10
+    → 0.10 * 1.0 = 0.10 → проходить на embeddings.
+
+  ParsedContent тепер має поле language (заповнюється ILanguageDetector раніше).
+  Якщо language порожній — geo_multiplier=BASE_MULTIPLIER (не відкидаємо повністю).
+
 Бібліотека: rank_bm25 (pip install rank-bm25)
   Якщо недоступна — fallback на SimpleKeywordScoring (без BM25).
-
-Корпус:
-  Один документ на тему = список ключових слів.
-  BM25 оцінює query (токени статті) відносно цього корпусу.
-  Повертає score для кожного "документу" (теми) — беремо max.
-
-Нормалізація:
-  Raw BM25 score залежить від довжини документів у корпусі.
-  Емпіричний max_score = 8.0 (для нашого корпусу, ~20 ключових слів/тему).
-  min(raw / max_score, 1.0) → [0.0, 1.0].
-  Якщо score занадто маленький — calibrate_max_score() підкаже реальне значення.
 """
 from __future__ import annotations
 
@@ -31,14 +30,11 @@ import numpy as np
 
 from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.value_objects import ParsedContent
+from src.infrastructure.scoring.geo_relevance_filter import GeoRelevanceFilter
 
 logger = logging.getLogger(__name__)
 
 # ─── Корпус тем ───────────────────────────────────────────────────────────────
-# Кожна тема = один "документ" у BM25 корпусі.
-# Ключові слова — основи/стеми, щоб "військов" матчила "військовий"/"військових".
-# Мікс UA + EN — модель BM25 мовонезалежна (просто токени).
-
 _TOPIC_CORPUS_RAW: list[list[str]] = [
     # war_and_weapons
     [
@@ -47,6 +43,13 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "окупац", "мобіліз", "бригад", "батальон", "обстріл",
         "war", "attack", "missile", "strike", "military", "drone", "artillery",
         "weapon", "troops", "army", "defense", "offensive", "combat", "ammo",
+        # HU
+        "háború", "fegyver", "rakéta", "támadás", "katoná", "hadsereg",
+        "védelm", "offenzív", "drón", "invázió",
+        # SK
+        "vojn", "zbraň", "raket", "útok", "armád", "vojsk", "obran", "ofenzív",
+        # RO
+        "război", "armă", "rachet", "atac", "armat", "militar", "defens", "ofensiv",
     ],
     # politics
     [
@@ -55,6 +58,13 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "опозиц", "заяв", "законопроект",
         "election", "president", "parliament", "sanctions", "government",
         "diplomacy", "minister", "senate", "scandal", "resignation",
+        # HU
+        "választás", "elnök", "parlament", "kormány", "képviselő", "miniszter",
+        "szankció", "botrány",
+        # SK
+        "voľby", "prezident", "parlament", "vlád", "poslanec", "minister", "sankci",
+        # RO
+        "aleger", "președinte", "parlament", "guvern", "deputat", "ministru", "sancțiun",
     ],
     # economy
     [
@@ -62,6 +72,15 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "бюджет", "валют", "акці", "торгівл", "кредит", "борг", "податк",
         "gdp", "inflation", "market", "trade", "bank", "finance", "investment",
         "budget", "currency", "stock", "debt", "tax",
+        # HU
+        "gazdaság", "infláció", "piac", "bank", "pénzügy", "befektetés",
+        "költségvetés", "valuta", "részvény", "adó",
+        # SK
+        "ekonomika", "infláci", "trh", "bank", "financi", "investíci",
+        "rozpočet", "mena", "akci", "daň",
+        # RO
+        "economi", "inflați", "piață", "banc", "finanț", "investiți",
+        "buget", "valut", "acțiun", "impozit",
     ],
     # diplomacy/international
     [
@@ -69,6 +88,15 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "нато", "євросоюз", "оон", "міжнародн",
         "negotiations", "summit", "agreement", "ambassador", "nato", "eu", "un",
         "international", "bilateral",
+        # HU
+        "tárgyalás", "csúcstalálkozó", "megállapodás", "nagykövet", "szövetség",
+        "nato", "európai unió", "ensz",
+        # SK
+        "rokovani", "samit", "dohod", "veľvyslanec", "spojenec",
+        "nato", "európska únia", "osn",
+        # RO
+        "negocier", "summit", "acord", "ambasador", "alianță",
+        "nato", "uniunea europeană", "onu",
     ],
     # energy
     [
@@ -76,6 +104,12 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "блекаут", "відключен", "світл", "відновлюван",
         "energy", "gas", "oil", "electricity", "nuclear", "blackout", "power",
         "renewable", "solar", "wind",
+        # HU
+        "energia", "gáz", "olaj", "villamos", "atomerőmű", "nukleáris", "áramszünet",
+        # SK
+        "energetik", "plyn", "ropa", "elektrina", "atómová", "jadrový", "výpadok",
+        # RO
+        "energet", "gaze", "petrol", "electricitat", "nuclear", "întreruper",
     ],
     # technology
     [
@@ -83,6 +117,12 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "алгоритм", "блокчейн", "цифров", "хакер",
         "ai", "startup", "software", "cyber", "tech", "algorithm",
         "blockchain", "digital", "machine learning", "hacker",
+        # HU
+        "technológi", "mesterséges intelligencia", "szoftver", "kiberbiztonság",
+        # SK
+        "technológi", "umelá inteligencia", "softvér", "kybernetick",
+        # RO
+        "tehnologi", "inteligență artificială", "software", "cibernetic",
     ],
     # society/humanitarian
     [
@@ -90,38 +130,32 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "міграц", "гуманітарн", "евакуац", "постраждал", "жертв",
         "society", "protest", "human rights", "refugees", "migration",
         "humanitarian", "evacuation", "victims", "civilian",
+        # HU
+        "társadalom", "tüntetés", "menekült", "migráció", "humanitárius",
+        "evakuáció", "áldozat", "polgári",
+        # SK
+        "spoločnosť", "protest", "utečenec", "migráci", "humanitárn",
+        "evakuáci", "obeť", "civilist",
+        # RO
+        "societat", "protest", "refugiat", "migrați", "umanitar",
+        "evacuare", "victimă", "civil",
     ],
 ]
 
-# Емпіричний максимальний raw BM25 score для нормалізації до [0,1]
-# Підбирається calibrate_max_score() або вручну
 _BM25_MAX_SCORE = 8.0
 
 
 def _tokenize(text: str) -> list[str]:
-    """
-    Простий токенізатор: lowercase + split по non-word chars.
-    Без стемінгу — BM25 матчить підрядки через substring check.
-    """
     text = text.lower()
-    # Розбиваємо по пробілах і знаках пунктуації
     tokens = re.split(r"[\s\W]+", text)
     return [t for t in tokens if len(t) > 2]
 
 
 def _corpus_with_substrings(query_tokens: list[str], corpus: list[list[str]]) -> list[list[str]]:
-    """
-    BM25 потребує exact match токенів.
-    Наш корпус містить основи ("армі"), а стаття — повні форми ("армією").
-    Рішення: для кожного query token перевіряємо чи є він підрядком
-    ключового слова corpus (або навпаки).
-    Повертаємо модифікований корпус де ключові слова замінені на matched tokens.
-    """
     expanded = []
     for doc_keywords in corpus:
         expanded_doc = []
         for kw in doc_keywords:
-            # Якщо хоча б один query token починається з kw або kw — підрядок токену
             matched = [
                 qt for qt in query_tokens
                 if qt.startswith(kw) or kw.startswith(qt[:4]) or kw in qt
@@ -133,14 +167,24 @@ def _corpus_with_substrings(query_tokens: list[str], corpus: list[list[str]]) ->
 
 class BM25ScoringService(IScoringService):
     """
-    IScoringService через BM25.
+    IScoringService через BM25 з geo early-reject.
 
-    При score < 0.05 → стаття точно не по темі.
-    При score >= 0.3 → потрапляє на embedding scoring.
+    [ОНОВЛЕНО] Тепер враховує мову статті для гео-фільтрації.
+    ParsedContent.language має бути заповнений до виклику score().
+    Це робить ProcessArticlesUseCase через _detect_language() перед scoring.
+
+    Якщо language порожній — GeoRelevanceFilter повертає BASE_MULTIPLIER (не reject).
+
+    При score < bm25_geo_threshold після geo_mult → reject без embeddings.
     """
 
-    def __init__(self, max_score: float = _BM25_MAX_SCORE) -> None:
+    def __init__(
+        self,
+        max_score: float = _BM25_MAX_SCORE,
+        geo_filter: GeoRelevanceFilter | None = None,
+    ) -> None:
         self._max_score = max_score
+        self._geo_filter = geo_filter or GeoRelevanceFilter()
         self._bm25 = self._build_bm25()
 
     def _build_bm25(self):
@@ -161,18 +205,33 @@ class BM25ScoringService(IScoringService):
         if not text:
             return 0.0
 
+        # ── BM25 topic score ──────────────────────────────────────────────────
         if self._backend == "simple":
-            return self._simple_score(text)
+            raw_score = self._simple_score(text)
+        else:
+            raw_score = self._bm25_score(text)
 
-        return self._bm25_score(text)
+        # ── Geo multiplier (early signal) ─────────────────────────────────────
+        # BM25 не відкидає — він тільки сигналізує.
+        # Фінальний reject за geo відбувається у CompositeScoringService.
+        # Тут ми повертаємо raw_score * geo_mult щоб composite міг вирішити.
+        language = getattr(content, "language", "") or ""
+        geo_result = self._geo_filter.analyze(text, language)
+
+        adjusted = raw_score * geo_result.multiplier
+
+        logger.debug(
+            "BM25: raw=%.3f geo_mult=%.2f adjusted=%.3f lang=%s reason=%s",
+            raw_score, geo_result.multiplier, adjusted,
+            geo_result.language, geo_result.reason,
+        )
+        return adjusted
 
     def _bm25_score(self, text: str) -> float:
-        """BM25 scoring з rank_bm25."""
         tokens = _tokenize(text)
         if not tokens:
             return 0.0
 
-        # Розширюємо корпус для substring matching
         expanded_corpus = _corpus_with_substrings(tokens, _TOPIC_CORPUS_RAW)
 
         from rank_bm25 import BM25Okapi
@@ -183,13 +242,12 @@ class BM25ScoringService(IScoringService):
         normalized = min(raw / self._max_score, 1.0)
 
         logger.debug(
-            "BM25: raw_max=%.3f normalized=%.3f tokens_count=%d",
+            "BM25_raw: raw_max=%.3f normalized=%.3f tokens_count=%d",
             raw, normalized, len(tokens),
         )
         return normalized
 
     def _simple_score(self, text: str) -> float:
-        """Fallback: стара логіка з KeywordScoringService."""
         text_lower = text.lower()
         matched = 0
         for keywords in _TOPIC_CORPUS_RAW:
@@ -204,11 +262,6 @@ class BM25ScoringService(IScoringService):
         """
         Утиліта для калібрування _BM25_MAX_SCORE.
         Запусти на кількох "ідеально релевантних" статтях щоб знайти реальний max.
-
-        Використання (один раз, у скрипті):
-            svc = BM25ScoringService()
-            max_s = svc.calibrate_max_score(sample_texts)
-            print(f"Set _BM25_MAX_SCORE = {max_s:.1f}")
         """
         if self._backend != "rank_bm25":
             return self._max_score

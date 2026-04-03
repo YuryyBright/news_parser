@@ -167,7 +167,7 @@ class Container:
 
         self._tagger = EmbeddingTagger(
             embedder=embedder,
-            threshold=cfg.scoring.tagger_threshold,
+            gap_threshold=cfg.scoring.tagger_threshold,
         )
 
         self._profile_learner = ProfileLearner(

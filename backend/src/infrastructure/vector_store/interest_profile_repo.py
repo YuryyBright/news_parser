@@ -141,6 +141,30 @@ class InterestProfileRepository:
         )
         return centroid
 
+    async def remove(self, article_id: UUID) -> bool:
+        """
+        Видаляє вектор статті з профілю (explicit dislike).
+
+        Returns:
+            True  — стаття була у профілі і видалена.
+            False — статті не було у профілі (idempotent, не помилка).
+
+        Ефект на центроїд:
+            При наступному get_centroid() цей вектор вже не буде врахований.
+            Dislike поступово "зсуває" профіль від небажаних тем.
+        """
+        col = await self._get_collection()
+        result = await col.get(ids=[str(article_id)], include=[])
+        if not result["ids"]:
+            logger.debug(
+                "Interest profile: remove skip — article_id=%s not in profile", article_id
+            )
+            return False
+
+        await col.delete(ids=[str(article_id)])
+        logger.info("Interest profile: removed article_id=%s (dislike)", article_id)
+        return True
+
     async def count(self) -> int:
         """Кількість статей у профілі (для моніторингу)."""
         col = await self._get_collection()
