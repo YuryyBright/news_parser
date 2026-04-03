@@ -26968,3 +26968,325 @@ Traceback (most recent call last):
 2026-04-03 13:50:32 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2026-04-03 13:50:32 - src.config.container - INFO - Container closed
 2026-04-03 13:50:32 - src.presentation.api.main - INFO - App shutdown complete
+2026-04-03 13:50:37 - src.presentation.api.main - INFO - Starting up application...
+2026-04-03 13:50:37 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-04-03 13:50:37 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-04-03 13:50:37 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-04-03 13:50:38 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-04-03 13:50:38 - src.config.container - INFO - Loading Embedder model...
+2026-04-03 13:50:46 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-04-03 13:50:46 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-04-03 13:50:46 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:47 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/modules.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/README.md "HTTP/1.1 200 OK"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/modules.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:47 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/config.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/config.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:48 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-04-03 13:50:49 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-04-03 13:50:50 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-04-03 13:50:51 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-04-03 13:50:51 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/614241f622f53c4eeff9890bdc4f31cfecc418b3/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-04-03 13:50:51 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-04-03 13:50:51 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-04-03 13:50:52 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, floor=0.45 gap=0.40 max=4
+2026-04-03 13:50:52 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-04-03 13:50:52 - src.config.container - INFO - Container.init_async(): done.
+2026-04-03 13:50:52 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-04-03 13:50:52 - src.presentation.api.main - INFO - Database ready
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Startup: found 12 active sources
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=d5c44bbd kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task d5c44bbd-c6bb-4a36-91e4-ee6adc29f69b
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=259a5636 kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 259a5636-afe8-4e8b-a589-618c6ccfd5fb
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=65402cf8 kwargs={'source_id': 'a8d7f4b2-2f7d-44f6-9414-020b39254345'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 65402cf8-912c-40d3-b781-4f568886bd1a
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=6b108979 kwargs={'source_id': '730a6046-7244-44a7-a2dc-a93d99d4da14'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 6b108979-cb00-4e38-ada6-efd1eaf18c42
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=1e787ff7 kwargs={'source_id': '4327a0e0-05e6-43d1-9d6e-ade79b1a28d7'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 1e787ff7-cf7e-4a77-841d-6d500893188a
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=0b4a60b6 kwargs={'source_id': 'ac867450-2a15-4556-b7c0-55a58b42d448'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 0b4a60b6-fbda-48cc-ba51-0dc4aeb61239
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=ca90d6f1 kwargs={'source_id': '056f631e-7310-43e4-bff0-dfdd0d409469'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task ca90d6f1-6fc6-47eb-9443-78d2421b53a7
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=d867e18f kwargs={'source_id': 'b95547f6-a88d-498e-9a4b-f2e06364f7c7'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task d867e18f-8c36-46dd-b8bf-4edeeff4cc74
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=4241e8d2 kwargs={'source_id': 'a8fd6968-5265-47e8-9438-f8714507ce5b'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 4241e8d2-a79d-4267-ba3c-5dae2a1584ac
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=60807f06 kwargs={'source_id': '08c15052-09a6-48d4-b2ee-b08d090b0e87'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 60807f06-1abf-4438-8303-6fb8e24ec752
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=9bd7772a kwargs={'source_id': 'aa6fb9be-4b47-4516-b5f9-31f6ddb52ef8'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 9bd7772a-72b8-41e7-bffd-9302506b1f57
+2026-04-03 13:50:52 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=35d7b3ad kwargs={'source_id': '251cf596-230c-43e8-b460-9575bbe7ee05'}
+2026-04-03 13:50:52 - src.application.use_cases.startup - INFO - Enqueued source string → task 35d7b3ad-6cb4-4b77-9414-9a833fdbf7d6
+2026-04-03 13:50:52 - src.presentation.api.main - INFO - Startup: 12 sources → 12 tasks enqueued
+2026-04-03 13:50:52 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-04-03 13:50:52 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-04-03 13:50:52 - apscheduler.scheduler - INFO - Scheduler started
+2026-04-03 13:50:52 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - Fetched 5 items from source 056f631e-7310-43e4-bff0-dfdd0d409469
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=056f631e-7310-43e4-bff0-dfdd0d409469 fetched=5 saved=0 skipped=5
+2026-04-03 13:50:53 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=056f631e-7310-43e4-bff0-dfdd0d409469 fetched=5 saved=0 skipped=5
+2026-04-03 13:50:53 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=ca90d6f1
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - Fetched 50 items from source 730a6046-7244-44a7-a2dc-a93d99d4da14
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=730a6046-7244-44a7-a2dc-a93d99d4da14 fetched=50 saved=0 skipped=50
+2026-04-03 13:50:53 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=730a6046-7244-44a7-a2dc-a93d99d4da14 fetched=50 saved=0 skipped=50
+2026-04-03 13:50:53 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=6b108979
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-04-03 13:50:53 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-04-03 13:50:53 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-04-03 13:50:53 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=d5c44bbd
+2026-04-03 13:50:54 - src.application.use_cases.ingest_source - INFO - Fetched 37 items from source b95547f6-a88d-498e-9a4b-f2e06364f7c7
+2026-04-03 13:50:54 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=b95547f6-a88d-498e-9a4b-f2e06364f7c7 fetched=37 saved=1 skipped=36
+2026-04-03 13:50:54 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=b95547f6-a88d-498e-9a4b-f2e06364f7c7 fetched=37 saved=1 skipped=36
+2026-04-03 13:50:54 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=a3d753cd kwargs={}
+2026-04-03 13:50:54 - src.infrastructure.workers.handlers - INFO - Enqueued process_articles because 1 new articles were saved
+2026-04-03 13:50:54 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=d867e18f
+2026-04-03 13:50:54 - src.application.use_cases.process_articles - INFO - process_articles: processing 1 articles
+2026-04-03 13:50:55 - src.application.use_cases.ingest_source - INFO - Fetched 20 items from source aa6fb9be-4b47-4516-b5f9-31f6ddb52ef8
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - Rejected: url=https://index.hu/fomo/2026/04/03/-nem-hiszem-hogy-curtis-narrativajat-lovagolnank-meg---t.-danny-oszinten-beszel-elete-legnehezebb-idoszakarol/ lang=hu score=0.235 (< 0.400)
+2026-04-03 13:50:55 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=aa6fb9be-4b47-4516-b5f9-31f6ddb52ef8 fetched=20 saved=20 skipped=0
+2026-04-03 13:50:55 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=aa6fb9be-4b47-4516-b5f9-31f6ddb52ef8 fetched=20 saved=20 skipped=0
+2026-04-03 13:50:55 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=23214c6b kwargs={}
+2026-04-03 13:50:55 - src.infrastructure.workers.handlers - INFO - Enqueued process_articles because 20 new articles were saved
+2026-04-03 13:50:55 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=9bd7772a
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - process_articles done: processed=1 accepted=0 rejected=1 failed=0
+2026-04-03 13:50:55 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=1 failed=0
+2026-04-03 13:50:55 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=a3d753cd
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - process_articles: processing 20 articles
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/proces-s-exsiskarom-kosikom-v-kauze-vydierania-sa-stale-neuzavrel-pokracovat-bude-v-maji?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/bratislava/c/policia-vysetruje-pripad-vytrznictva-a-vyhrazania-sa-v-bratislave?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:55 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/odbornik-haring-medved-sa-vam-chce-vyhnut-pri-strete-nelezte-na-strom-sprej-je-najucinnejsi-na-odvratenie-utoku?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:55 - src.application.use_cases.ingest_source - INFO - Fetched 100 items from source 4327a0e0-05e6-43d1-9d6e-ade79b1a28d7
+2026-04-03 13:50:56 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=4327a0e0-05e6-43d1-9d6e-ade79b1a28d7 fetched=100 saved=0 skipped=100
+2026-04-03 13:50:56 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=4327a0e0-05e6-43d1-9d6e-ade79b1a28d7 fetched=100 saved=0 skipped=100
+2026-04-03 13:50:56 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=1e787ff7
+2026-04-03 13:50:56 - src.application.use_cases.process_articles - INFO - Accepted: raw_id=0c51621c-1799-4cb9-88fe-827756a6203f article=56eb74da-38c1-4881-a6c2-5f9974a2dab5 lang=sk score=0.418 tags=['diplomacy', 'humanitarian', 'energy', 'society']
+2026-04-03 13:50:56 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/index/c/pri-kontrole-historie-vykazuje-vyse-60-percent-vozidiel-minule-poskodenie?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.221 (< 0.400)
+2026-04-03 13:50:56 - src.application.use_cases.ingest_source - INFO - Fetched 10 items from source 08c15052-09a6-48d4-b2ee-b08d090b0e87
+2026-04-03 13:50:56 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/index/c/rozdiel-v-cene-starsich-a-obnovenych-bytov-sa-zvacsuje-moze-byt-do-30-percent?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:56 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=08c15052-09a6-48d4-b2ee-b08d090b0e87 fetched=10 saved=0 skipped=10
+2026-04-03 13:50:56 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=08c15052-09a6-48d4-b2ee-b08d090b0e87 fetched=10 saved=0 skipped=10
+2026-04-03 13:50:56 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=60807f06
+2026-04-03 13:50:56 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/svet/c/v-dansku-po-225-rokoch-objavili-vojnovu-lod-dannebroge-ktoru-potopil-nelson?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:57 - src.application.use_cases.ingest_source - INFO - Fetched 97 items from source 251cf596-230c-43e8-b460-9575bbe7ee05
+2026-04-03 13:50:57 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/svet/c/papez-lev-xiv-ponesie-kriz-v-rimskom-koloseu-pocas-vecernej-krizovej-procesie?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.224 (< 0.400)
+2026-04-03 13:50:57 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=251cf596-230c-43e8-b460-9575bbe7ee05 fetched=97 saved=0 skipped=97
+2026-04-03 13:50:57 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=251cf596-230c-43e8-b460-9575bbe7ee05 fetched=97 saved=0 skipped=97
+2026-04-03 13:50:57 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=35d7b3ad
+2026-04-03 13:50:57 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-04-03 13:50:57 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-04-03 13:50:57 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-04-03 13:50:57 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=259a5636
+2026-04-03 13:50:58 - src.application.use_cases.ingest_source - INFO - Fetched 20 items from source ac867450-2a15-4556-b7c0-55a58b42d448
+2026-04-03 13:50:58 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=ac867450-2a15-4556-b7c0-55a58b42d448 fetched=20 saved=0 skipped=20
+2026-04-03 13:50:58 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=ac867450-2a15-4556-b7c0-55a58b42d448 fetched=20 saved=0 skipped=20
+2026-04-03 13:50:58 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=0b4a60b6
+2026-04-03 13:50:58 - src.application.use_cases.ingest_source - INFO - Fetched 20 items from source a8d7f4b2-2f7d-44f6-9414-020b39254345
+2026-04-03 13:50:58 - src.infrastructure.task_queue.background_queue - ERROR - Task failed: ingest_source id=4241e8d2 error=(sqlite3.OperationalError) database is locked
+[SQL: INSERT INTO fetch_jobs (id, source_id, status, retries, error_message, last_run_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('8d764256-34fd-4c17-9c96-771381cb55da', 'a8fd6968-5265-47e8-9438-f8714507ce5b', 'pending', 0, None, None, '2026-04-03 10:50:52.791717')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1967[0m, in [35m_exec_single_context[0m
+    [31mself.dialect.do_execute[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mcursor, str_statement, effective_parameters, context[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\default.py"[0m, line [35m952[0m, in [35mdo_execute[0m
+    [31mcursor.execute[0m[1;31m(statement, parameters)[0m
+    [31m~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m182[0m, in [35mexecute[0m
+    [31mself._adapt_connection._handle_exception[0m[1;31m(error)[0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m342[0m, in [35m_handle_exception[0m
+    raise error
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m164[0m, in [35mexecute[0m
+    [31mself.await_[0m[1;31m(_cursor.execute(operation, parameters))[0m
+    [31m~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py"[0m, line [35m132[0m, in [35mawait_only[0m
+    return [31mcurrent.parent.switch[0m[1;31m(awaitable)[0m  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           [31m~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py"[0m, line [35m196[0m, in [35mgreenlet_spawn[0m
+    value = [1;31mawait result[0m
+            [1;31m^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\cursor.py"[0m, line [35m40[0m, in [35mexecute[0m
+    await self._execute(self._cursor.execute, sql, parameters)
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\cursor.py"[0m, line [35m32[0m, in [35m_execute[0m
+    return [1;31mawait self._conn._execute(fn, *args, **kwargs)[0m
+           [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\core.py"[0m, line [35m160[0m, in [35m_execute[0m
+    return [1;31mawait future[0m
+           [1;31m^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\core.py"[0m, line [35m63[0m, in [35m_connection_worker_thread[0m
+    result = function()
+[1;35msqlite3.OperationalError[0m: [35mdatabase is locked[0m
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File [35m"D:\proj\news_parser\backend\src\infrastructure\task_queue\background_queue.py"[0m, line [35m133[0m, in [35m_run[0m
+    record.result = [1;31mawait handler(**kwargs)[0m
+                    [1;31m^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"D:\proj\news_parser\backend\src\infrastructure\workers\handlers.py"[0m, line [35m57[0m, in [35mhandle_ingest_source[0m
+    result = [1;31mawait container.ingest_source_uc(session).execute(UUID(source_id))[0m
+             [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"D:\proj\news_parser\backend\src\application\use_cases\ingest_source.py"[0m, line [35m73[0m, in [35mexecute[0m
+    await self._jobs.save(job)
+  File [35m"D:\proj\news_parser\backend\src\infrastructure\persistence\repositories\fetch_job_repo.py"[0m, line [35m45[0m, in [35msave[0m
+    await self._session.flush()
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\ext\asyncio\session.py"[0m, line [35m787[0m, in [35mflush[0m
+    await greenlet_spawn(self.sync_session.flush, objects=objects)
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py"[0m, line [35m203[0m, in [35mgreenlet_spawn[0m
+    result = context.switch(value)
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\session.py"[0m, line [35m4331[0m, in [35mflush[0m
+    [31mself._flush[0m[1;31m(objects)[0m
+    [31m~~~~~~~~~~~[0m[1;31m^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\session.py"[0m, line [35m4466[0m, in [35m_flush[0m
+    with [31mutil.safe_reraise[0m[1;31m()[0m:
+         [31m~~~~~~~~~~~~~~~~~[0m[1;31m^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\langhelpers.py"[0m, line [35m121[0m, in [35m__exit__[0m
+    raise exc_value.with_traceback(exc_tb)
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\session.py"[0m, line [35m4427[0m, in [35m_flush[0m
+    [31mflush_context.execute[0m[1;31m()[0m
+    [31m~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py"[0m, line [35m466[0m, in [35mexecute[0m
+    [31mrec.execute[0m[1;31m(self)[0m
+    [31m~~~~~~~~~~~[0m[1;31m^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\unitofwork.py"[0m, line [35m642[0m, in [35mexecute[0m
+    [31mutil.preloaded.orm_persistence.save_obj[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mself.mapper,[0m
+        [1;31m^^^^^^^^^^^^[0m
+        [1;31muow.states_for_mapper_hierarchy(self.mapper, False, False),[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+        [1;31muow,[0m
+        [1;31m^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py"[0m, line [35m93[0m, in [35msave_obj[0m
+    [31m_emit_insert_statements[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mbase_mapper,[0m
+        [1;31m^^^^^^^^^^^^[0m
+    ...<3 lines>...
+        [1;31minsert,[0m
+        [1;31m^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\orm\persistence.py"[0m, line [35m1048[0m, in [35m_emit_insert_statements[0m
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1419[0m, in [35mexecute[0m
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\sql\elements.py"[0m, line [35m527[0m, in [35m_execute_on_connection[0m
+    return [31mconnection._execute_clauseelement[0m[1;31m([0m
+           [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mself, distilled_params, execution_options[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1641[0m, in [35m_execute_clauseelement[0m
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1846[0m, in [35m_execute_context[0m
+    return [31mself._exec_single_context[0m[1;31m([0m
+           [31m~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mdialect, context, statement, parameters[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1986[0m, in [35m_exec_single_context[0m
+    [31mself._handle_dbapi_exception[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31me, str_statement, effective_parameters, cursor, context[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m2363[0m, in [35m_handle_dbapi_exception[0m
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\base.py"[0m, line [35m1967[0m, in [35m_exec_single_context[0m
+    [31mself.dialect.do_execute[0m[1;31m([0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^[0m
+        [1;31mcursor, str_statement, effective_parameters, context[0m
+        [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1;31m)[0m
+    [1;31m^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\engine\default.py"[0m, line [35m952[0m, in [35mdo_execute[0m
+    [31mcursor.execute[0m[1;31m(statement, parameters)[0m
+    [31m~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m182[0m, in [35mexecute[0m
+    [31mself._adapt_connection._handle_exception[0m[1;31m(error)[0m
+    [31m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m342[0m, in [35m_handle_exception[0m
+    raise error
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\dialects\sqlite\aiosqlite.py"[0m, line [35m164[0m, in [35mexecute[0m
+    [31mself.await_[0m[1;31m(_cursor.execute(operation, parameters))[0m
+    [31m~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py"[0m, line [35m132[0m, in [35mawait_only[0m
+    return [31mcurrent.parent.switch[0m[1;31m(awaitable)[0m  # type: ignore[no-any-return,attr-defined] # noqa: E501
+           [31m~~~~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\sqlalchemy\util\_concurrency_py3k.py"[0m, line [35m196[0m, in [35mgreenlet_spawn[0m
+    value = [1;31mawait result[0m
+            [1;31m^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\cursor.py"[0m, line [35m40[0m, in [35mexecute[0m
+    await self._execute(self._cursor.execute, sql, parameters)
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\cursor.py"[0m, line [35m32[0m, in [35m_execute[0m
+    return [1;31mawait self._conn._execute(fn, *args, **kwargs)[0m
+           [1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\core.py"[0m, line [35m160[0m, in [35m_execute[0m
+    return [1;31mawait future[0m
+           [1;31m^^^^^^^^^^^^[0m
+  File [35m"d:\proj\news_parser\.venv\Lib\site-packages\aiosqlite\core.py"[0m, line [35m63[0m, in [35m_connection_worker_thread[0m
+    result = function()
+[1;35msqlalchemy.exc.OperationalError[0m: [35m(sqlite3.OperationalError) database is locked
+[SQL: INSERT INTO fetch_jobs (id, source_id, status, retries, error_message, last_run_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('8d764256-34fd-4c17-9c96-771381cb55da', 'a8fd6968-5265-47e8-9438-f8714507ce5b', 'pending', 0, None, None, '2026-04-03 10:50:52.791717')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)[0m
+2026-04-03 13:50:58 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=a8d7f4b2-2f7d-44f6-9414-020b39254345 fetched=20 saved=0 skipped=20
+2026-04-03 13:50:58 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=a8d7f4b2-2f7d-44f6-9414-020b39254345 fetched=20 saved=0 skipped=20
+2026-04-03 13:50:58 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=65402cf8
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/na-velky-piatok-dominuju-na-sviatocnom-stole-slovakov-jednoduche-jedla?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/svet/c/mladistva-vo-francuzsku-sa-priznala-ze-spolu-s-priatelom-dobodala-na-smrt-starych-rodicov?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/sucasne-posolstvo-velkej-noci-je-podla-biskupov-pripomienkou-nadeje-uprostred-neistoty?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/vazni-maju-na-velku-noc-pripravene-duchovne-ci-kulturno-osvetove-aktivity?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/index/c/slovnaft-aj-orlen-vyuzili-situaciu-a-nadstandardne-zarabaju-marze-im-vyleteli-o-desiatky-percent?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Accepted: raw_id=d40ab1de-4ad9-4cbb-ad45-7ecb39132412 article=92eb2664-5355-40ef-9c02-c4068ee653f1 lang=sk score=0.428 tags=['economy', 'technology', 'society', 'politics']
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/index/c/firme-putinovej-dcery-sa-ekonomicky-dari-dosiahla-najvyssi-zisk-za-posledne-tri-roky?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/domov/c/post-magia-aj-povery-entografka-vysvetluje-ako-vyzeral-velky-piatok-v-zivote-nasich-predkov?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.000 (< 0.400)
+2026-04-03 13:50:58 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/bratislava/c/nadvorie-bratislavskeho-hradu-patri-pocas-velkonocnych-sviatkov-stredovekym-remeselnym-trhom?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.213 (< 0.400)
+2026-04-03 13:50:59 - src.application.use_cases.process_articles - INFO - Accepted: raw_id=def723af-a5af-4d8a-a492-2280d9c832cf article=cba01759-9b2c-42c7-8f7b-68be561bcaf1 lang=sk score=0.451 tags=['energy', 'technology', 'war', 'diplomacy']
+2026-04-03 13:50:59 - src.application.use_cases.process_articles - INFO - Rejected: url=https://www.sme.sk/svet/c/mjanmarsky-parlament-zvolil-za-noveho-prezidenta-sefa-vojenskej-junty?utm_source=rss&utm_medium=feed&utm_campaign=www-rss lang=sk score=0.237 (< 0.400)
+2026-04-03 13:50:59 - src.application.use_cases.process_articles - INFO - Accepted: raw_id=bd2feb93-ed43-46c1-abbf-c343880ea502 article=80ade121-c1ca-4bcd-857f-825871684d0d lang=sk score=0.471 tags=['politics', 'diplomacy', 'economy', 'energy']
+2026-04-03 13:50:59 - src.application.use_cases.process_articles - INFO - process_articles done: processed=20 accepted=4 rejected=16 failed=0
+2026-04-03 13:50:59 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=20 failed=0
+2026-04-03 13:50:59 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=23214c6b
+2026-04-03 13:52:16 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=1b0747d4-74ad-4c42-b4cc-832ef14d7966 liked=True
+2026-04-03 13:52:19 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=24d1177c-ba88-46ad-99fc-79b6d5529bd0 liked=True
+2026-04-03 13:52:24 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=fc58b024-1993-4cbf-abdc-a28f8fa328fc liked=True
+2026-04-03 13:53:48 - src.application.use_cases.build_feed - INFO - Building new feed snapshot: user=00000000-0000-0000-0000-000000000001

@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from src.domain.shared.base_entity import AggregateRoot, BaseEntity
 from .value_objects import FeedItemStatus, UserPreference, NotificationChannel
