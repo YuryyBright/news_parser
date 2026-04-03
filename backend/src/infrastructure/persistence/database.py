@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # ✅ Правильний імпорт — ТІЛЬКИ з config.settings, не з container
@@ -26,13 +26,25 @@ async def create_all_tables() -> None:
     В продакшені замінити на Alembic міграції.
     """
     settings = get_settings()
-    # Тимчасовий engine тільки для DDL — не зберігаємо як singleton
-    engine = create_async_engine(settings.database.url, echo=False)
+    
+    # Додаємо timeout і сюди, про всяк випадок, щоб DDL операції не падали одразу
+    engine = create_async_engine(
+        settings.database.url, 
+        echo=False,
+        connect_args={"timeout": 20}
+    )
+    
     try:
         from src.infrastructure.persistence.models import Base
         async with engine.begin() as conn:
+            # Увімкнення WAL режиму для кращої конкурентності (корисно для SQLite)
+            if "sqlite" in settings.database.url:
+                await conn.execute(text("PRAGMA journal_mode=WAL;"))
+                await conn.execute(text("PRAGMA synchronous=NORMAL;"))
+                
             await conn.run_sync(Base.metadata.create_all)
     finally:
+        # Гарантуємо закриття пулу з'єднань
         await engine.dispose()
 
 
@@ -43,13 +55,17 @@ async def get_session_for_scripts(
     Допоміжна функція для CLI-скриптів та Alembic env.py.
     НЕ використовувати в application code — там є Container.db_session().
     """
-    engine = create_async_engine(database_url, echo=False)
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        connect_args={"timeout": 20}  # Чекати до 20 секунд зняття блокування
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with factory() as session:
-        async with session.begin():
-            try:
-                yield session
-            except Exception:
-                await session.rollback()
-                raise
-    await engine.dispose()
+    
+    try:
+        async with factory() as session:
+            # Віддаємо чисту сесію. Скрипт сам має викликати session.commit()
+            yield session
+    finally:
+        # Безпечне закриття з'єднань незалежно від того, як відпрацював скрипт
+        await engine.dispose()

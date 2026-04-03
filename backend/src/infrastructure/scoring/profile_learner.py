@@ -82,7 +82,4 @@ class ProfileLearner(IProfileLearner):
             True  — вектор видалено.
             False — вектора не було у профілі.
         """
-        removed = await self._profile_repo.remove(article_id)
-        if removed:
-            logger.info("ProfileLearner: removed article=%s from profile (dislike)", article_id)
-        return removed
+        return await self._profile_repo.remove(article_id)

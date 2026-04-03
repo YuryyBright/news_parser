@@ -333,6 +333,7 @@ class Container:
             article_repo=SqlAlchemyArticleRepository(session),
             feedback_repo=SqlAlchemyFeedbackRepository(session),
             feed_repo=SqlAlchemyFeedRepository(session),
+            profile_learner=self._profile_learner, 
         )
 
     def create_article_uc(self, session: AsyncSession):

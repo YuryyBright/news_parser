@@ -56,3 +56,16 @@ class IInterestProfileRepository(abc.ABC):
         Перевіряє, чи збережена стаття у профілі.
         """
         pass
+    
+    @abc.abstractmethod
+    async def remove(self, article_id: UUID) -> bool:
+        """
+        Видаляє вектор статті з профілю (explicit dislike).
+        
+        Args:
+            article_id: Унікальний ідентифікатор статті.
+            
+        Returns:
+            bool: True, якщо стаття була і її видалено. False, якщо статті не було.
+        """
+        pass

@@ -59,6 +59,7 @@ class IProfileLearner(ABC):
         score: float,
         tags: list[str],
     ) -> None: ...
+    async def remove_from_profile(self, article_id: UUID) -> None: ...
 
 
 # ─── DTO результату ───────────────────────────────────────────────────────────

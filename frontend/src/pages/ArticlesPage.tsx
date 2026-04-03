@@ -17,7 +17,7 @@ const STATUS_OPTIONS: { value: ArticleStatus | ""; label: string }[] = [
   { value: "expired", label: "Приховані" },
 ];
 
-const LANG_OPTIONS = ["", "uk", "en", "de", "fr", "pl", "es"];
+const LANG_OPTIONS = ["", "uk", "en", "sk", "ro", "hu"];
 
 export const ArticlesPage = () => {
   const { filters, setFilter, resetFilters } = useArticlesStore();
