@@ -21765,3 +21765,396 @@ Traceback (most recent call last):
 2026-03-31 13:57:33 - apscheduler.scheduler - INFO - Scheduler has been shut down
 2026-03-31 13:57:33 - src.config.container - INFO - Container closed
 2026-03-31 13:57:33 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 13:57:36 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 13:57:36 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 13:57:36 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 13:57:36 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 13:57:37 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 13:57:37 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 13:57:47 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 13:57:47 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 13:57:47 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:48 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:48 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:49 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:50 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:50 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:50 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:50 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 13:57:50 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 13:57:52 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:57:53 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:57:53 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 13:57:53 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:57:53 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 13:57:53 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 13:57:53 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 13:57:53 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 13:57:53 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - Database ready
+2026-03-31 13:57:54 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 13:57:54 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=8cc78f6a kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 13:57:54 - src.application.use_cases.startup - INFO - Enqueued source string → task 8cc78f6a-4dac-4a23-87a6-155c3b95c855
+2026-03-31 13:57:54 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=97bd540e kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 13:57:54 - src.application.use_cases.startup - INFO - Enqueued source string → task 97bd540e-c35d-4081-8b8b-b1e6de662357
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 13:57:54 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 13:57:54 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 13:57:54 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 13:57:54 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-31 13:57:54 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-31 13:57:54 - src.config.container - INFO - Container closed
+2026-03-31 13:57:54 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 13:57:58 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 13:57:58 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 13:57:58 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 13:57:58 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 13:58:00 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 13:58:00 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 13:58:10 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 13:58:10 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 13:58:10 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:58:11 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 13:58:13 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 13:58:15 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:58:15 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:58:15 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 13:58:15 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:58:16 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 13:58:16 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 13:58:16 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 13:58:16 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 13:58:16 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 13:58:16 - src.presentation.api.main - INFO - Database ready
+2026-03-31 13:58:16 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 13:58:16 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=e8e26a40 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 13:58:16 - src.application.use_cases.startup - INFO - Enqueued source string → task e8e26a40-f826-43e7-a162-ec518894329c
+2026-03-31 13:58:16 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=1db83d5c kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 13:58:16 - src.application.use_cases.startup - INFO - Enqueued source string → task 1db83d5c-9e00-4b58-a35c-ef286a84459a
+2026-03-31 13:58:16 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 13:58:16 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 13:58:16 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 13:58:16 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 13:58:16 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 13:58:16 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 13:58:16 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 13:58:16 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 13:58:16 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=1db83d5c
+2026-03-31 13:58:17 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 13:58:17 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 13:58:17 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 13:58:17 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=e8e26a40
+2026-03-31 13:58:57 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-31 13:58:57 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-31 13:58:57 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-31 13:58:57 - src.config.container - INFO - Container closed
+2026-03-31 13:58:57 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 13:59:00 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 13:59:00 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 13:59:00 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 13:59:00 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 13:59:01 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 13:59:01 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 13:59:11 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 13:59:11 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 13:59:11 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 13:59:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:59:12 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:12 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:13 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:14 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 13:59:14 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 13:59:16 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:59:16 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 13:59:16 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 13:59:17 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 13:59:17 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 13:59:17 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 13:59:17 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 13:59:17 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 13:59:17 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 13:59:17 - src.presentation.api.main - INFO - Database ready
+2026-03-31 13:59:17 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 13:59:17 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=fad7da22 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 13:59:17 - src.application.use_cases.startup - INFO - Enqueued source string → task fad7da22-af09-43b0-aefd-ea897b926c61
+2026-03-31 13:59:17 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=895fc263 kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 13:59:17 - src.application.use_cases.startup - INFO - Enqueued source string → task 895fc263-cc08-4a02-8d45-e18cf1c0e04b
+2026-03-31 13:59:17 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 13:59:17 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 13:59:17 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 13:59:17 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 13:59:17 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 13:59:18 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 13:59:18 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 13:59:18 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 13:59:18 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=895fc263
+2026-03-31 13:59:18 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 13:59:18 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 13:59:18 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 13:59:18 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=fad7da22
+2026-03-31 14:02:11 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-31 14:02:11 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-31 14:02:11 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-31 14:02:11 - src.config.container - INFO - Container closed
+2026-03-31 14:02:11 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 14:02:14 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 14:02:14 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 14:02:14 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 14:02:14 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 14:02:15 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 14:02:15 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 14:02:24 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 14:02:24 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 14:02:24 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 14:02:27 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:27 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 14:02:27 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:27 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:02:27 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:02:28 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 14:02:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:02:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:31 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:31 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:31 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 14:02:32 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 14:02:34 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:02:35 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:02:35 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 14:02:35 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:02:35 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 14:02:35 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 14:02:35 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 14:02:35 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 14:02:35 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 14:02:36 - src.presentation.api.main - INFO - Database ready
+2026-03-31 14:02:36 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 14:02:36 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=99ae82b4 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 14:02:36 - src.application.use_cases.startup - INFO - Enqueued source string → task 99ae82b4-ca6c-413a-8e94-226489e2a9cb
+2026-03-31 14:02:36 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=4c06f3dc kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 14:02:36 - src.application.use_cases.startup - INFO - Enqueued source string → task 4c06f3dc-5a87-44b3-a682-95a294e34331
+2026-03-31 14:02:36 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 14:02:36 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 14:02:36 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 14:02:36 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 14:02:36 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 14:02:36 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 14:02:36 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:02:36 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:02:36 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=99ae82b4
+2026-03-31 14:02:36 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 14:02:36 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:02:36 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:02:36 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=4c06f3dc
+2026-03-31 14:03:53 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-31 14:03:53 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-31 14:03:53 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-31 14:03:53 - src.config.container - INFO - Container closed
+2026-03-31 14:03:53 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 14:03:56 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 14:03:56 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 14:03:56 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 14:03:56 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 14:03:57 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 14:03:58 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 14:04:06 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 14:04:06 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 14:04:06 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:07 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:08 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:08 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 14:04:09 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 14:04:11 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:04:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:04:11 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 14:04:11 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:04:12 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 14:04:12 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 14:04:12 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 14:04:12 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 14:04:12 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 14:04:12 - src.presentation.api.main - INFO - Database ready
+2026-03-31 14:04:12 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 14:04:12 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=a565b6c6 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 14:04:12 - src.application.use_cases.startup - INFO - Enqueued source string → task a565b6c6-ab3f-4cee-959a-1298e444ebaa
+2026-03-31 14:04:12 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=4a7b6524 kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 14:04:12 - src.application.use_cases.startup - INFO - Enqueued source string → task 4a7b6524-0b81-4453-abf4-bb0bd5bbf754
+2026-03-31 14:04:12 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 14:04:12 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 14:04:12 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 14:04:12 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 14:04:12 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 14:04:14 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 14:04:14 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:04:14 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:04:14 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=a565b6c6
+2026-03-31 14:04:14 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 14:04:14 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:04:14 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:04:14 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=4a7b6524
+2026-03-31 14:05:16 - src.presentation.api.main - INFO - Shutting down application...
+2026-03-31 14:05:16 - src.presentation.api.main - INFO - Scheduler stopped
+2026-03-31 14:05:16 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-03-31 14:05:16 - src.config.container - INFO - Container closed
+2026-03-31 14:05:16 - src.presentation.api.main - INFO - App shutdown complete
+2026-03-31 14:05:18 - src.presentation.api.main - INFO - Starting up application...
+2026-03-31 14:05:18 - src.infrastructure.task_queue.factory - INFO - Task queue: InMemory (asyncio)
+2026-03-31 14:05:18 - src.config.container - INFO - Container initialized (sync). Call init_async() to complete setup.
+2026-03-31 14:05:18 - src.config.container - INFO - Container.init_async(): starting async initialization...
+2026-03-31 14:05:19 - src.infrastructure.vector_store.chroma_client - INFO - Chroma: local persistent client wrapped for async (dir=./data/chroma)
+2026-03-31 14:05:20 - src.config.container - INFO - Loading Embedder model...
+2026-03-31 14:05:28 - src.infrastructure.ml.embedder - INFO - Loading embedding model: intfloat/multilingual-e5-small
+2026-03-31 14:05:28 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-03-31 14:05:28 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: intfloat/multilingual-e5-small
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config_sentence_transformers.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:29 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/README.md "HTTP/1.1 200 OK"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/modules.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:29 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/config.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:30 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:31 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:31 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:31 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-03-31 14:05:31 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-03-31 14:05:33 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:05:33 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/intfloat/multilingual-e5-small/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-03-31 14:05:33 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/intfloat/multilingual-e5-small/c007d7ef6fd86656326059b28395a7a03a7c5846/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-03-31 14:05:33 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/intfloat/multilingual-e5-small "HTTP/1.1 200 OK"
+2026-03-31 14:05:33 - src.infrastructure.ml.embedder - INFO - Embedding model loaded (dim=384)
+2026-03-31 14:05:34 - src.infrastructure.ml.embedding_tagger - INFO - EmbeddingTagger initialized: 9 tags, threshold=0.40
+2026-03-31 14:05:34 - src.config.container - INFO - Scoring pipeline initialized: BM25 + Embeddings composite ready.
+2026-03-31 14:05:34 - src.config.container - INFO - Container.init_async(): done.
+2026-03-31 14:05:34 - src.infrastructure.task_queue.registry - INFO - Tasks registered: ingest_source, process_articles, schedule_all_sources
+2026-03-31 14:05:34 - src.presentation.api.main - INFO - Database ready
+2026-03-31 14:05:34 - src.application.use_cases.startup - INFO - Startup: found 2 active sources
+2026-03-31 14:05:34 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=00bfbbd5 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 14:05:34 - src.application.use_cases.startup - INFO - Enqueued source string → task 00bfbbd5-b9ce-417c-8378-551f18f77a6f
+2026-03-31 14:05:34 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=35a4706e kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 14:05:34 - src.application.use_cases.startup - INFO - Enqueued source string → task 35a4706e-1081-4706-9405-f241a74ec70f
+2026-03-31 14:05:34 - src.presentation.api.main - INFO - Startup: 2 sources → 2 tasks enqueued
+2026-03-31 14:05:34 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-31 14:05:34 - apscheduler.scheduler - INFO - Added job "Re-schedule all active sources" to job store "default"
+2026-03-31 14:05:34 - apscheduler.scheduler - INFO - Scheduler started
+2026-03-31 14:05:34 - src.presentation.api.main - INFO - Scheduler started: re-scheduling sources every 5 minutes
+2026-03-31 14:05:34 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 14:05:34 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:05:34 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=0 skipped=30
+2026-03-31 14:05:34 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=35a4706e
+2026-03-31 14:05:35 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 14:05:35 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:05:35 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:05:35 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=00bfbbd5
+2026-03-31 14:06:13 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=e98dcdaf-794b-4f34-a795-79d25b295d20 liked=True
+2026-03-31 14:06:23 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=1233233e-e2c0-46b7-b4d6-371861cf3f72 liked=True
+2026-03-31 14:06:36 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=e98dcdaf-794b-4f34-a795-79d25b295d20 liked=True
+2026-03-31 14:06:50 - src.application.use_cases.submit_feedback - INFO - Feedback saved: user=00000000-0000-0000-0000-000000000001 article=396d44c6-c7a6-4601-aef8-9d77df36dfb9 liked=False
+2026-03-31 14:08:25 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=3da931f8 kwargs={'source_id': '459c0220-a1c3-440c-beb4-ae7d002f0a8f'}
+2026-03-31 14:08:25 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 459c0220-a1c3-440c-beb4-ae7d002f0a8f
+2026-03-31 14:08:25 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:08:25 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=459c0220-a1c3-440c-beb4-ae7d002f0a8f fetched=30 saved=0 skipped=30
+2026-03-31 14:08:25 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=3da931f8
+2026-03-31 14:08:26 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: ingest_source id=39d427e2 kwargs={'source_id': '1192921e-50a7-4d25-a302-a8166770e573'}
+2026-03-31 14:08:33 - src.application.use_cases.ingest_source - INFO - Fetched 30 items from source 1192921e-50a7-4d25-a302-a8166770e573
+2026-03-31 14:08:33 - src.application.use_cases.ingest_source - INFO - IngestSource done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=1 skipped=29
+2026-03-31 14:08:33 - src.infrastructure.workers.handlers - INFO - ingest_source done: source=1192921e-50a7-4d25-a302-a8166770e573 fetched=30 saved=1 skipped=29
+2026-03-31 14:08:33 - src.infrastructure.task_queue.background_queue - INFO - Task enqueued: process_articles id=d574dc8a kwargs={}
+2026-03-31 14:08:33 - src.infrastructure.workers.handlers - INFO - Enqueued process_articles because 1 new articles were saved
+2026-03-31 14:08:33 - src.infrastructure.task_queue.background_queue - INFO - Task completed: ingest_source id=39d427e2
+2026-03-31 14:08:33 - src.application.use_cases.process_articles - INFO - process_articles: processing 1 articles
+2026-03-31 14:08:33 - src.application.use_cases.process_articles - INFO - Accepted: raw_id=67f5fc96-7833-4c35-80f9-cbf88b1e5352 article=666e2e4a-da92-487b-a548-7837727e0764 score=0.567 tags=['humanitarian', 'diplomacy', 'war', 'energy', 'economy', 'society', 'crime', 'politics', 'technology']
+2026-03-31 14:08:33 - src.application.use_cases.process_articles - INFO - process_articles done: processed=1 accepted=1 rejected=0 failed=0
+2026-03-31 14:08:33 - src.infrastructure.workers.handlers - INFO - process_articles done: processed=1 failed=0
+2026-03-31 14:08:33 - src.infrastructure.task_queue.background_queue - INFO - Task completed: process_articles id=d574dc8a
