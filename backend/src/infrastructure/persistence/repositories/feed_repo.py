@@ -108,7 +108,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
             select(FeedItemModel)
             .join(FeedSnapshotModel, FeedItemModel.snapshot_id == FeedSnapshotModel.id)
             .where(
-                # FeedSnapshotModel.user_id == user_id,
+                FeedSnapshotModel.user_id == user_id,
                 FeedItemModel.article_id == article_id,
             )
             .order_by(FeedSnapshotModel.generated_at.desc())

@@ -16,7 +16,6 @@ class ArticleStatus(StrEnum):
 
 
 
-
 @dataclass(frozen=True)
 class ContentHash(ValueObject):
     value: str  # sha256 від title+body

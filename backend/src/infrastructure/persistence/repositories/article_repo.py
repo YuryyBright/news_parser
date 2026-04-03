@@ -157,27 +157,32 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         self,
         filter: ArticleFilter,
         tag: str | None = None,
+        user_id: UUID | None = None,  # Додаємо user_id як опціональний параметр
     ) -> list[Article]:
         """
-        Загальний пошук статей з опціональним фільтром по тегу.
-
-        Якщо tag передано — додає JOIN з таблицею тегів.
+        Загальний пошук статей. 
+        Якщо передано user_id — виключає статті, які цей юзер дизлайкнув.
         """
+        from src.infrastructure.persistence.models import UserFeedbackModel
+
+        # Базові умови
         conditions = [ArticleModel.relevance_score >= filter.min_score]
+        
         if filter.status:
             conditions.append(ArticleModel.status == filter.status.value)
         if filter.language:
             conditions.append(ArticleModel.language == filter.language)
 
+        # Основний запит
         stmt = (
             select(ArticleModel)
-            .where(and_(*conditions))
             .options(selectinload(ArticleModel.tags))
             .order_by(ArticleModel.relevance_score.desc())
             .offset(filter.offset)
             .limit(filter.limit)
         )
 
+        # 1. Фільтрація по тегу (якщо є)
         if tag:
             stmt = (
                 stmt
@@ -185,6 +190,25 @@ class SqlAlchemyArticleRepository(IArticleRepository):
                 .join(TagModel, TagModel.id == ArticleTagModel.tag_id)
                 .where(TagModel.name == tag.lower().strip())
             )
+
+        # 2. ВИКЛЮЧЕННЯ ДИЗЛАЙКНУТИХ (якщо передано user_id)
+        if user_id:
+            # Створюємо підзапит для ID статей, які юзер дизлайкнув
+            disliked_subquery = (
+                select(UserFeedbackModel.article_id)
+                .where(
+                    and_(
+                        UserFeedbackModel.user_id == str(user_id),
+                        UserFeedbackModel.liked == False
+                    )
+                )
+            ).scalar_subquery()
+            
+            # Додаємо умову: ID статті не має бути в списку дизлайкнутих
+            conditions.append(ArticleModel.id.not_in(disliked_subquery))
+
+        # Приміняємо всі умови
+        stmt = stmt.where(and_(*conditions))
 
         result = await self._session.execute(stmt)
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
