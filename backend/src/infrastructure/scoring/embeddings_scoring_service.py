@@ -97,7 +97,7 @@ class EmbeddingsScoringService(IScoringService):
         centroid = await self._profile_repo.get_centroid()
 
         if centroid is None:
-            logger.debug(
+            logger.info(
                 "EmbeddingsScoring: cold start (empty profile) → %.2f", COLD_START_SCORE
             )
             return COLD_START_SCORE
@@ -111,7 +111,7 @@ class EmbeddingsScoringService(IScoringService):
         # Теоретично cosine може бути від'ємним → обрізаємо знизу
         score = float(np.clip(similarity, 0.0, 1.0))
 
-        logger.debug(
+        logger.info(
             "EmbeddingsScoring: similarity=%.3f profile_size=?", score
         )
         return score

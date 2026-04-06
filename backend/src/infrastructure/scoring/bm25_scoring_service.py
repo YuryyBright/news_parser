@@ -220,7 +220,7 @@ class BM25ScoringService(IScoringService):
 
         adjusted = raw_score * geo_result.multiplier
 
-        logger.debug(
+        logger.info(
             "BM25: raw=%.3f geo_mult=%.2f adjusted=%.3f lang=%s reason=%s",
             raw_score, geo_result.multiplier, adjusted,
             geo_result.language, geo_result.reason,

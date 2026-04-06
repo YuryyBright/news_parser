@@ -378,7 +378,7 @@ class GeoRelevanceFilter:
             reason=reason,
         )
 
-        logger.debug(
+        logger.info(
             "GeoFilter: lang=%s geo_hits=%d geo_score=%.3f mult=%.2f reason=%s",
             lang, geo_hits, geo_score, mult, reason,
         )
