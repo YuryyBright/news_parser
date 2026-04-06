@@ -75,7 +75,7 @@ class BuildFeedUseCase:
         articles = await self._articles.find(
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
-                limit=self._feed_size,
+                limit=self._feed_size * 3,
                 offset=0,
             )
         )

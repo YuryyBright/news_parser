@@ -24,6 +24,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import text
 
 from src.application.ports.task_queue import ITaskQueue
 from src.config.settings import get_settings
@@ -54,6 +55,9 @@ class Container:
             settings.database.url,
             echo=settings.app_debug,
             pool_pre_ping=True,
+            connect_args={
+                "timeout": 30,          
+            },
         )
         self._session_factory = async_sessionmaker(
             self._engine,
@@ -81,31 +85,18 @@ class Container:
     # ══════════════════════════════════════════════════════════════════════════
 
     async def init_async(self) -> None:
-        """
-        Ініціалізує всі async-залежності:
-          - ChromaDB client
-          - Embedder (завантаження моделі ~118MB)
-          - Весь scoring pipeline
+        # WAL mode для SQLite (no-op на PostgreSQL)
+        try:
+            async with self._engine.begin() as conn:
+                await conn.execute(text("PRAGMA journal_mode=WAL"))
+                await conn.execute(text("PRAGMA busy_timeout=30000"))
+            logger.info("SQLite WAL mode enabled")
+        except Exception:
+            pass  # не SQLite — ігноруємо
 
-        Виклик у lifespan (FastAPI):
-
-            @asynccontextmanager
-            async def lifespan(app):
-                container = init_container()
-                await container.init_async()   # ← тут
-                yield
-                await container.close()
-        """
-        logger.info("Container.init_async(): starting async initialization...")
-
-        # 1. ChromaDB (lazy — повторний виклик safe)
         chroma = await self._get_chroma()
-
-        # 2. Scoring pipeline — один раз, результат кешується в self
         await self._init_scoring_pipeline(chroma)
-
         logger.info("Container.init_async(): done.")
-
     async def _get_chroma(self):
         """Lazy init Chroma клієнта."""
         if self._chroma_client is None:
@@ -199,10 +190,19 @@ class Container:
                 result = await container.some_uc(session).execute(...)
             # ← тут commit або rollback
         """
-        async with self._session_factory() as session:
-            async with session.begin():
-                yield session
-
+        async with self._session_factory.begin() as session:
+            yield session
+    @asynccontextmanager
+    async def worker_db_session(self) -> AsyncGenerator[AsyncSession, None]:
+        """
+        Чиста сесія для воркерів (без автоматичного .begin()).
+        Дозволяє робити commit() багато разів без помилок закритого контексту.
+        """
+        session = self._session_factory()
+        try:
+            yield session
+        finally:
+            await session.close()
     # ── Shutdown ──────────────────────────────────────────────────────────────
 
     async def close(self) -> None:
@@ -310,12 +310,45 @@ class Container:
     # ── Articles ──────────────────────────────────────────────────────────────
 
     def list_articles_uc(self, session: AsyncSession):
+        """
+        Замінює попередню версію.
+        Тепер повертає ListArticlesUseCase з методом count(),
+        тому роутер не мусить звертатись до репо напряму для підрахунку.
+        """
         from src.application.use_cases.list_articles import ListArticlesUseCase
-        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+        from src.infrastructure.persistence.repositories.article_repo import (
+            SqlAlchemyArticleRepository,
+        )
         return ListArticlesUseCase(
             article_repo=SqlAlchemyArticleRepository(session),
         )
-
+    def search_articles_uc(self, session: AsyncSession):
+        """Full-text пошук — роутер більше не імпортує SqlAlchemy-репо."""
+        from src.application.use_cases.search_articles import SearchArticlesUseCase
+        from src.infrastructure.persistence.repositories.article_repo import (
+            SqlAlchemyArticleRepository,
+        )
+        return SearchArticlesUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+    def list_by_preferences_uc(self, session: AsyncSession):
+        """Список статей за вподобаннями юзера."""
+        from src.application.use_cases.article_preferences import ListByPreferencesUseCase
+        from src.infrastructure.persistence.repositories.article_repo import (
+            SqlAlchemyArticleRepository,
+        )
+        return ListByPreferencesUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
+    def get_preferences_stats_uc(self, session: AsyncSession):
+        """Статистика liked / disliked для юзера."""
+        from src.application.use_cases.article_preferences import GetPreferencesStatsUseCase
+        from src.infrastructure.persistence.repositories.article_repo import (
+            SqlAlchemyArticleRepository,
+        )
+        return GetPreferencesStatsUseCase(
+            article_repo=SqlAlchemyArticleRepository(session),
+        )
     def get_article_uc(self, session: AsyncSession):
         from src.application.use_cases.get_article import GetArticleUseCase
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository

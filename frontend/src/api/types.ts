@@ -34,15 +34,19 @@ export interface ArticleDetail extends Article {
   body: string;
   source_id: string | null;
 }
-
+export type SortBy = "created_at" | "published_at" | "relevance_score";
+export type SortDir = "asc" | "desc";
 export interface ArticleFilter {
-  status?: ArticleStatus | null;
+  status?: ArticleStatus;
   min_score?: number;
-  language?: string | null;
-  /** Фільтр по тегу — передається як ?tag=... */
-  tag?: string | null;
-  limit?: number;
-  offset?: number;
+  language?: string;
+  tag?: string;
+  date_from?: string; // Add this
+  date_to?: string; // Add this
+  sort_by?: SortBy;
+  sort_dir?: SortDir;
+  page?: number;
+  page_size?: number;
 }
 
 export interface CreateArticlePayload {

@@ -271,7 +271,87 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         counts["expired"] = expired_result.scalar_one() or 0
 
         return counts
+    async def count(self, f, tag: str | None = None) -> int:
+        """Підрахунок загальної кількості статей для пагінації."""
+        from src.infrastructure.persistence.models import ArticleModel  # adjust import
+        from sqlalchemy import func, select
+    
+        stmt = select(func.count()).select_from(ArticleModel)
+        stmt = _apply_filters_to_stmt(stmt, ArticleModel, f, tag)
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+    async def find(self, filter: ArticleFilter) -> list[Article]:
+        from src.infrastructure.persistence.models import ArticleModel
+        from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
 
+        stmt = (
+            select(ArticleModel)
+            .options(selectinload(ArticleModel.tags))
+            .offset(filter.offset)
+            .limit(filter.limit)
+        )
+        
+        # Використовуємо загальну функцію для застосування фільтрів
+        stmt = _apply_filters_to_stmt(stmt, ArticleModel, filter)
+
+        result = await self._session.execute(stmt)
+        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
+    async def full_text_search(
+        self,
+        query: str,
+        limit: int = 50,
+        offset: int = 0,
+        language: str | None = None,
+        status: ArticleStatus | None = None,
+    ) -> list[Article]:
+        from src.infrastructure.persistence.models import ArticleModel
+        from sqlalchemy import func, select, or_
+        
+        # Дізнаємось, який драйвер використовується зараз
+        dialect_name = self._session.bind.dialect.name
+        
+        stmt = select(ArticleModel).options(selectinload(ArticleModel.tags))
+
+        if dialect_name == "sqlite":
+            # ─── Простий пошук для SQLite (Fallback) ───
+            search_term = f"%{query}%"
+            stmt = stmt.where(
+                or_(
+                    ArticleModel.title.ilike(search_term),
+                    ArticleModel.body.ilike(search_term)
+                )
+            )
+            stmt = stmt.order_by(ArticleModel.relevance_score.desc())
+            
+        else:
+            # ─── Full-text пошук для PostgreSQL ───
+            pg_config = _pg_config(language)
+            safe_query = _sanitize_tsquery(query)
+            if not safe_query:
+                return []
+                
+            vector = func.to_tsvector(
+                pg_config, 
+                func.coalesce(ArticleModel.title, "") + " " + func.coalesce(ArticleModel.body, "")
+            )
+            ts_query = func.plainto_tsquery(pg_config, safe_query)
+            
+            stmt = stmt.where(vector.op("@@")(ts_query))
+            
+            rank_expr = func.ts_rank(vector, ts_query)
+            stmt = stmt.order_by(rank_expr.desc(), ArticleModel.relevance_score.desc())
+
+        # ─── Загальні фільтри (спрацюють для обох БД) ───
+        if status is not None:
+            stmt = stmt.where(ArticleModel.status == status.value)
+        if language:
+            stmt = stmt.where(ArticleModel.language == language)
+            
+        stmt = stmt.offset(offset).limit(limit)
+
+        result = await self._session.execute(stmt)
+        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
     # ─── Теги ─────────────────────────────────────────────────────────────────
 
     async def _sync_tags(self, article: Article) -> None:
@@ -299,3 +379,94 @@ class SqlAlchemyArticleRepository(IArticleRepository):
                 ))
 
         await self._session.flush()
+
+
+ 
+ 
+def _apply_filters_to_stmt(stmt, model, f, tag: str | None = None):
+    """
+    Централізована функція застосування фільтрів.
+    Використовується в find() і count().
+    """
+    from sqlalchemy import and_, or_
+ 
+    conditions = []
+ 
+    if f.status is not None:
+        conditions.append(model.status == f.status.value)
+    elif not hasattr(f, '_include_expired') or not f._include_expired:
+        # За замовчуванням приховуємо expired
+        pass  # або: conditions.append(model.status != "expired")
+ 
+    if f.min_score and f.min_score > 0:
+        conditions.append(model.relevance_score >= f.min_score)
+ 
+    if f.language:
+        conditions.append(model.language == f.language)
+ 
+    # Дата додавання (created_at)
+    date_from = getattr(f, 'date_from', None)
+    date_to = getattr(f, 'date_to', None)
+    if date_from:
+        conditions.append(model.created_at >= date_from)
+    if date_to:
+        conditions.append(model.created_at <= date_to)
+ 
+    # Дата публікації
+    published_from = getattr(f, 'published_from', None)
+    published_to = getattr(f, 'published_to', None)
+    if published_from:
+        conditions.append(model.published_at >= published_from)
+    if published_to:
+        conditions.append(model.published_at <= published_to)
+ 
+    # Тег (join)
+    if tag:
+        from src.infrastructure.persistence.models import TagModel, article_tags  # adjust
+        stmt = stmt.join(article_tags).join(TagModel).where(TagModel.name == tag)
+ 
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+ 
+    # Сортування
+    sort_by = getattr(f, 'sort_by', 'created_at')
+    sort_dir = getattr(f, 'sort_dir', 'desc')
+ 
+    sort_col = {
+        'created_at': model.created_at,
+        'published_at': model.published_at,
+        'relevance_score': model.relevance_score,
+    }.get(sort_by, model.created_at)
+ 
+    if sort_dir == 'asc':
+        stmt = stmt.order_by(sort_col.asc().nullslast())
+    else:
+        stmt = stmt.order_by(sort_col.desc().nullsfirst())
+ 
+    return stmt
+ 
+ 
+def _pg_config(language: str | None) -> str:
+    """Вибір PostgreSQL text search конфігурації."""
+    mapping = {
+        "en": "english",
+        "de": "german",
+        "fr": "french",
+        "es": "spanish",
+        "it": "italian",
+        "pt": "portuguese",
+        "nl": "dutch",
+        "ru": "russian",
+    }
+    return mapping.get(language or "", "simple")
+ 
+ 
+def _sanitize_tsquery(query: str) -> str:
+    """
+    Прибираємо символи які ламають tsquery.
+    plainto_tsquery більш толерантний але все одно чистимо.
+    """
+    import re
+    # Залишаємо літери, цифри, пробіли, дефіс
+    cleaned = re.sub(r"[^\w\s\-]", " ", query, flags=re.UNICODE)
+    return " ".join(cleaned.split())  # normalize whitespace

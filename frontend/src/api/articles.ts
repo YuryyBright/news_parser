@@ -10,9 +10,60 @@ import type {
   FeedbackResponse,
 } from "./types";
 
+export interface ArticleListResponse {
+  items: Article[];
+  total: number;
+  page: number;
+  page_size: number;
+  pages: number;
+}
+
+export interface SearchResponse {
+  query: string;
+  total: number;
+  items: Article[];
+}
+
+export interface IngestUrlPayload {
+  url: string;
+  source_id?: string;
+}
+
+export interface IngestUrlResponse {
+  status: string;
+  task_id: string;
+  url: string;
+  message: string;
+}
+
 export const articlesApi = {
-  list: async (filters: ArticleFilter = {}): Promise<Article[]> => {
+  list: async (filters: ArticleFilter = {}): Promise<ArticleListResponse> => {
     const { data } = await client.get("/articles/", { params: filters });
+    // Backwards compat: якщо старий бекенд повертає масив — обгортаємо
+    if (Array.isArray(data)) {
+      return {
+        items: data,
+        total: data.length,
+        page: 1,
+        page_size: data.length,
+        pages: 1,
+      };
+    }
+    return data;
+  },
+
+  search: async (
+    q: string,
+    params?: { language?: string; status?: string; limit?: number },
+  ): Promise<SearchResponse> => {
+    const { data } = await client.get("/articles/search", {
+      params: { q, ...params },
+    });
+    return data;
+  },
+
+  ingestUrl: async (payload: IngestUrlPayload): Promise<IngestUrlResponse> => {
+    const { data } = await client.post("/articles/ingest-url", payload);
     return data;
   },
 

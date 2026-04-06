@@ -1,40 +1,63 @@
-# application/use_cases/list_sources.py
+# application/use_cases/list_articles.py
 """
-ListArticlesUseCase — read-only query.
+ListArticlesUseCase — read-only query (CQRS Query).
 
-У CQRS-стилі це Query, а не Command.
-Не модифікує стан — транзакція на запис не потрібна.
+Зміна відносно попередньої версії:
+  - Фільтр по тегу тепер передається через ArticleFilter.tag,
+    а не окремим аргументом прямо в SqlAlchemy-репо з роутера.
+  - _to_view коректно розгортає PublishedAt VO → datetime.
+  - Повертає ArticleView DTO — не доменну сутність Article.
 """
 from __future__ import annotations
 
-from src.domain.knowledge.value_objects import ArticleFilter
+from datetime import datetime
+
 from src.application.dtos.article_dto import ArticleView
 from src.domain.knowledge.entities import Article
 from src.domain.knowledge.repositories import IArticleRepository
+from src.domain.knowledge.value_objects import ArticleFilter
 
 
 class ListArticlesUseCase:
-    """Повертає перелік джерел новин."""
+    """Повертає перелік статей з підтримкою фільтрів, пагінації та сортування."""
 
     def __init__(self, article_repo: IArticleRepository) -> None:
-        self._articles = article_repo
+        self._repo = article_repo
 
-    async def execute(
-        self, 
-        filter: ArticleFilter
-    ) -> list[ArticleView]:
-        articles = await self._articles.find(filter)
+    async def execute(self, filter: ArticleFilter) -> list[ArticleView]:
+        articles = await self._repo.find(filter)
         return [_to_view(a) for a in articles]
 
-def _to_view(source: Article) -> ArticleView:
+    async def count(self, filter: ArticleFilter) -> int:
+        return await self._repo.count(filter)
+
+
+# ── Presentation mapper ────────────────────────────────────────────────────────
+
+def _to_view(article: Article) -> ArticleView:
+    """
+    Перетворює Article aggregate → ArticleView DTO.
+
+    PublishedAt — Value Object; розгортаємо .value щоб DTO не тягнув
+    доменні типи у presentation layer.
+    """
+    published_at: datetime | None = None
+    if article.published_at is not None:
+        published_at = (
+            article.published_at.value
+            if hasattr(article.published_at, "value")
+            else article.published_at
+        )
+
     return ArticleView(
-        id=source.id,
-        title=source.title,
-        url=source.url,
-        language=source.language,
-        status=source.status.value,
-        relevance_score=source.relevance_score,
-        published_at=source.published_at,
-        created_at=source.created_at,
-        tags=source.tags,
+        id=article.id,
+        title=article.title,
+        url=article.url,
+        language=article.language,
+        status=article.status.value,
+        relevance_score=article.relevance_score,
+        published_at=published_at,
+        created_at=article.created_at,
+        # Tag — доменна сутність, але DTO очікує список рядків
+        tags=[t.name for t in article.tags],
     )

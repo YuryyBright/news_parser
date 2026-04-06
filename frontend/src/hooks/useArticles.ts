@@ -1,78 +1,106 @@
 // src/hooks/useArticles.ts
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { articlesApi } from "../api";
-import type { ArticleFilter, FeedbackPayload } from "../api/types";
+import { articlesApi } from "../api/articles";
+import type { ArticleFilter } from "../api/types";
 
-// ── Queries ───────────────────────────────────────────────────────────────────
+// ── Keys ──────────────────────────────────────────────────────────────────────
 
-export const useArticles = (filters: ArticleFilter) =>
-  useQuery({
-    queryKey: ["articles", filters],
+export const articleKeys = {
+  all: ["articles"] as const,
+  lists: () => [...articleKeys.all, "list"] as const,
+  list: (filters: ArticleFilter) => [...articleKeys.lists(), filters] as const,
+  search: (q: string, params?: object) =>
+    [...articleKeys.all, "search", q, params] as const,
+  detail: (id: string) => [...articleKeys.all, "detail", id] as const,
+};
+
+// ── LIST with pagination ──────────────────────────────────────────────────────
+
+export const useArticles = (filters: ArticleFilter = {}) => {
+  return useQuery({
+    queryKey: articleKeys.list(filters),
     queryFn: () => articlesApi.list(filters),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+};
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+
+export const useArticleSearch = (
+  q: string,
+  params?: { language?: string; status?: string },
+) => {
+  return useQuery({
+    queryKey: articleKeys.search(q, params),
+    queryFn: () => articlesApi.search(q, params),
+    enabled: q.trim().length >= 2,
     staleTime: 60_000,
   });
+};
 
-export const useArticle = (id: string | null) =>
-  useQuery({
-    queryKey: ["article", id],
+// ── DETAIL ────────────────────────────────────────────────────────────────────
+
+export const useArticle = (id: string | null) => {
+  return useQuery({
+    queryKey: articleKeys.detail(id!),
     queryFn: () => articlesApi.get(id!),
     enabled: !!id,
-    staleTime: 30_000,
+    staleTime: 60_000,
   });
+};
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
+// ── FEEDBACK ──────────────────────────────────────────────────────────────────
 
 export const useFeedback = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, liked }: { id: string; liked: boolean }) =>
       articlesApi.feedback(id, {
-        user_id:
-          import.meta.env.VITE_DEFAULT_USER_ID ??
-          "00000000-0000-0000-0000-000000000001",
+        user_id: "00000000-0000-0000-0000-000000000001",
         liked,
       }),
     onSuccess: (_, { liked }) => {
       toast.success(
-        liked ? "👍 Цікаво — враховано!" : "👎 Нецікаво — враховано!",
+        liked ? "👍 Відмічено як цікаве" : "👎 Відмічено як нецікаве",
       );
-      qc.invalidateQueries({ queryKey: ["articles"] });
+      qc.invalidateQueries({ queryKey: articleKeys.lists() });
     },
-    onError: () => toast.error("Не вдалося зберегти відгук"),
+    onError: () => toast.error("Не вдалось зберегти оцінку"),
   });
 };
+
+// ── EXPIRE ────────────────────────────────────────────────────────────────────
 
 export const useExpireArticle = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => articlesApi.expire(id),
     onSuccess: () => {
-      toast.success("Статтю позначено як застарілу");
-      qc.invalidateQueries({ queryKey: ["articles"] });
+      toast.success("Статтю приховано");
+      qc.invalidateQueries({ queryKey: articleKeys.lists() });
     },
+    onError: () => toast.error("Не вдалось приховати статтю"),
   });
 };
 
-export const useDeleteArticle = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => articlesApi.delete(id),
-    onSuccess: () => {
-      toast.success("Статтю видалено");
-      qc.invalidateQueries({ queryKey: ["articles"] });
-    },
-  });
-};
+// ── INGEST URL ────────────────────────────────────────────────────────────────
 
-export const useAddTags = () => {
+export const useIngestUrl = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, tags }: { id: string; tags: string[] }) =>
-      articlesApi.addTags(id, tags),
-    onSuccess: (_, { id }) => {
-      toast.success("Теги додано");
-      qc.invalidateQueries({ queryKey: ["article", id] });
+    mutationFn: (url: string) => articlesApi.ingestUrl({ url }),
+    onSuccess: (data) => {
+      toast.success(
+        `Статтю поставлено в чергу (task: ${data.task_id.slice(0, 8)}...)`,
+      );
+      // Через 3с перечитуємо список — стаття може вже з'явитись
+      setTimeout(
+        () => qc.invalidateQueries({ queryKey: articleKeys.lists() }),
+        3000,
+      );
     },
+    onError: () => toast.error("Не вдалось поставити статтю в чергу"),
   });
 };

@@ -53,6 +53,21 @@ class IArticleRepository(IRepository[Article]):
     @abstractmethod
     async def find(self, filter: ArticleFilter) -> list[Article]: ...
 
+    @abstractmethod
+    async def count(self, filter: ArticleFilter) -> int: ... 
+
+    @abstractmethod
+    async def full_text_search(
+        self,
+        query: str,
+        limit: int = 50,
+        offset: int = 0,                  
+        language: str | None = None,
+        status: ArticleStatus | None = None,     
+    ) -> list[Article]: ...
+    
+
+
 
 class IArticleEmbeddingRepository(IRepository[ArticleEmbedding]):
     @abstractmethod

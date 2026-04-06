@@ -42,7 +42,7 @@ class SqlAlchemyFetchJobRepository(IFetchJobRepository):
             existing.last_run_at   = job.last_run_at
         else:
             self._session.add(FetchJobMapper.to_model(job))
-        await self._session.flush()
+        await self._session.commit()
 
     async def update(self, job: FetchJob) -> None:
         await self.save(job)
@@ -51,7 +51,7 @@ class SqlAlchemyFetchJobRepository(IFetchJobRepository):
         model = await self._session.get(FetchJobModel, str(id))
         if model:
             await self._session.delete(model)
-            await self._session.flush()
+            await self._session.commit()
 
     async def list(self) -> list[FetchJob]:
         result = await self._session.execute(select(FetchJobModel))

@@ -34,27 +34,26 @@ Handlers НЕ імпортують use cases напряму — це поруш�
 
 import logging
 from uuid import UUID
-
+import asyncio
 logger = logging.getLogger(__name__)
 
 
+_ingest_semaphore: asyncio.Semaphore | None = None
+
+def _get_ingest_semaphore() -> asyncio.Semaphore:
+    global _ingest_semaphore
+    if _ingest_semaphore is None:
+        _ingest_semaphore = asyncio.Semaphore(1)
+    return _ingest_semaphore
+
+
 async def handle_ingest_source(source_id: str) -> dict:
-    """
-    Завантажити та зберегти сирі статті для одного джерела.
-
-    Викликається:
-      - При старті (для кожного активного джерела)
-      - По scheduler (кожні fetch_interval_seconds)
-      - Вручну через POST /sources/{id}/trigger
-
-    Args:
-        source_id: str UUID джерела
-    """
     from src.config.container import get_container
     container = get_container()
 
-    async with container.db_session() as session:
-        result = await container.ingest_source_uc(session).execute(UUID(source_id))
+    async with _get_ingest_semaphore():  # ← серіалізуємо DB writes
+        async with container.worker_db_session() as session:
+            result = await container.ingest_source_uc(session).execute(UUID(source_id))
 
     logger.info(
         "ingest_source done: source=%s fetched=%d saved=%d skipped=%d",
@@ -64,7 +63,6 @@ async def handle_ingest_source(source_id: str) -> dict:
     if result.error:
         raise RuntimeError(result.error)
 
-    # ДОДАНО: Ставимо в чергу обробку, тільки якщо збережено нові статті
     if result.saved > 0:
         await container.task_queue.enqueue("process_articles")
         logger.info("Enqueued process_articles because %d new articles were saved", result.saved)
@@ -75,7 +73,6 @@ async def handle_ingest_source(source_id: str) -> dict:
         "saved": result.saved,
         "skipped": result.skipped_duplicates,
     }
-
 
 async def handle_process_articles() -> dict:
     """
