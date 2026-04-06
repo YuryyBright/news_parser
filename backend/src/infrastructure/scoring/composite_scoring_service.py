@@ -106,12 +106,12 @@ class CompositeScoringService(IScoringService):
         # BM25ScoringService вже застосовує geo_mult до свого score.
         bm25_adjusted = await self._bm25.score(content)
 
-        if bm25_adjusted < self._bm25_min_threshold:
-            logger.info(
-                "CompositeSC: BM25_adjusted=%.3f < threshold=%.3f → early reject (lang=%s)",
-                bm25_adjusted, self._bm25_min_threshold, language,
-            )
-            return 0.0
+        # if bm25_adjusted < self._bm25_min_threshold:
+        #     logger.info(
+        #         "CompositeSC: BM25_adjusted=%.3f < threshold=%.3f → early reject (lang=%s)",
+        #         bm25_adjusted, self._bm25_min_threshold, language,
+        #     )
+        #     return 0.0
 
         # ── Шар 2: Embeddings (без geo — чиста семантика) ─────────────────────
         embed_score = await self._embeddings.score(content)
