@@ -65,152 +65,153 @@ logger = logging.getLogger(__name__)
 #   - Унікальні географічні об'єкти
 #   - Сусідні країни які часто згадуються у контексті
 
+# ─── Гео-сигнали по мовах ────────────────────────────────────────────────────
+# Формат: {мова_ISO: [сигнали_lowercase]}
+# Сигнали — основи/стеми + повні форми + найважливіші варіації.
+# Порядок важливий: специфічніші сигнали йдуть раніше.
+
 _GEO_SIGNALS: dict[str, list[str]] = {
 
     # ── Українська ──────────────────────────────────────────────────────────
     "uk": [
-        # Країна
-        "україн", "ukrainian",
-        # Столиця і великі міста
-        "київ", "харків", "одес", "дніпр", "запоріж", "львів", "маріупол",
-        "миколаїв", "херсон", "полтав", "суми", "чернігів", "вінниц",
-        "ужгород", "чернівц", "тернопіл", "івано-франківськ", "хмельниц",
-        "кривий ріг", "луцьк", "рівн", "черкас", "кропивниц",
-        "kyiv", "kharkiv", "odesa", "dnipro", "zaporizhzhia", "lviv",
-        "mariupol", "mykolaiv", "kherson", "poltava", "sumy", "chernihiv",
-        "uzhhorod", "chernivtsi",
-        # Окуповані/контрольовані РФ
-        "донецьк", "луганськ", "мелітопол", "бердянськ", "сєвєродонецьк",
-        "donbas", "donbass", "luhansk", "donetsk",
-        # Регіони / ОВА
-        "харківська область", "запорізька область", "херсонська область",
-        "дніпропетровська", "луганська область", "донецька область",
-        "закарпатська", "чернігівська", "сумська",
-        # Інституції / Армія
-        "верховна рада", "зеленськ", "кабмін", "офіс президента",
-        "генеральний штаб", "ЗСУ", "СБУ", "ГУР", "ДСНС",
-        # ЗМІ
-        "укрінформ", "суспільне", "радіо свобода",
-        # Суміжні країни (UA-контекст)
-        "угорщин", "словаччин", "румун", "польщ",
-        "угорськ", "словацьк", "румунськ", "польськ", "молдов",
-        "білорус", "росі",
+        # Країна та всі форми
+        "україна", "україн", "ukraine", "ukrainian", "україни", "україні", "українська",
+        # Столиця і найбільші міста (всі форми)
+        "київ", "харків", "одес", "дніпр", "запоріж", "львів", "маріупол", "миколаїв",
+        "херсон", "полтав", "суми", "чернігів", "вінниц", "ужгород", "чернівц", "тернопіл",
+        "івано-франківськ", "хмельниц", "кривий ріг", "луцьк", "рівн", "черкас", "кропивниц",
+        "kyiv", "kharkiv", "odesa", "dnipro", "zaporizhzhia", "lviv", "mariupol",
+        # Окуповані території та Донбас
+        "донецьк", "луганськ", "мелітопол", "бердянськ", "сєвєродонецьк", "лисичанськ",
+        "донбас", "donbas", "donbass", "luhansk", "donetsk", "крим", "севастополь", "яким",
+        # Регіони / області (повні назви)
+        "київська область", "харківська область", "одеська область", "дніпропетровська",
+        "запорізька область", "львівська область", "херсонська область", "луганська область",
+        "донецька область", "закарпатська", "чернігівська", "сумська", "полтавська",
+        "вінницька", "волинська", "житомирська", "кировоградська", "кропивницька",
+        # Закарпаття (дуже важливо для UA-SK-HU контексту)
+        "закарпаття", "закарпатська область", "ужгород", "мукачево", "берегово", "хуст",
+        # Інституції, армія, влада
+        "верховна рада", "зеленськ", "кабмін", "офіс президента", "генеральний штаб",
+        "зсу", "сбу", "гур", "дснс", "нацгвардія", "азов", "єрмак", "залужний",
+        # ЗМІ та ключові бренди
+        "укрінформ", "суспільне", "радіо свобода", "1+1", "інтер", "ictv",
+        # Сусіди в українському контексті
+        "угорщин", "словаччин", "румун", "польщ", "угорськ", "словацьк", "румунськ",
+        "польськ", "молдов", "білорус", "росі",
     ],
 
     # ── Угорська ─────────────────────────────────────────────────────────────
     "hu": [
         # Країна
-        "magyarország", "magyar", "hungari",
-        # Столиця і міста
-        "budapest", "debrecen", "győr", "miskolc", "pécs", "sopron",
-        "nyíregyháza", "kecskemét", "székesfehérvár", "veszprém",
-        "eger", "szombathely", "zalaegerszeg", "kaposvár",
-        # Регіони / комітати
-        "pannónia", "alföld", "dunántúl", "észak-magyarország",
-        "vas megye", "győr-moson-sopron", "baranya", "borsod",
-        "hajdú-bihar", "szabolcs-szatmár", "békés megye",
-        "heves megye", "csongrád",
-        # Інституції
-        "orbán", "fidesz", "országgyűl", "nemzeti bank", "mnb",
-        "magyar kormány", "parlament", "köztársasági elnök",
-        "novák katalin", "sulyok tamás", "szijjártó",
-        "belügyminisztérium", "külügyminisztérium",
-        "honvédelmi minisztérium", "pénzügyminisztérium",
+        "magyarország", "magyar", "hungari", "magyarországon", "magyarországi",
+        # Столиця і найбільші міста
+        "budapest", "debrecen", "győr", "miskolc", "pécs", "sopron", "nyíregyháza",
+        "kecskemét", "székesfehérvár", "veszprém", "eger", "szombathely", "zalaegerszeg",
+        "kaposvár", "szeged", "szolnok", "tatabánya", "kecskemét",
+        # Регіони / комітати (megye)
+        "pannónia", "alföld", "dunántúl", "észak-magyarország", "dél-alföld",
+        "vas megye", "győr-moson-sopron", "baranya", "borsod", "hajdú-bihar",
+        "szabolcs-szatmár", "békés megye", "heves megye", "csongrád", "komárom-esztergom",
+        "pest megye", "tolna megye", "somogy megye", "zala megye",
+        # Закарпаття / угорська меншина
+        "kárpátalj", "kárpátaljai magyarok", "erdély", "vajdaság", "felvidék", "burgenland",
+        # Інституції та ключові політики (2026)
+        "orbán", "fidesz", "országgyűl", "nemzeti bank", "mnb", "magyar kormány",
+        "parlament", "köztársasági elnök", "sulyok tamás", "szijjártó", "novák katalin",
+        "belügyminisztérium", "külügyminisztérium", "honvédelmi minisztérium",
+        "pénzügyminisztérium", "kormány",
         # Партії / опозиція
-        "momentum", "demokratikus koalíció", "dk", "mszp", "jobbik",
-        "mi hazánk", "tisza párt", "magyar péter",
+        "momentum", "demokratikus koalíció", "dk", "mszp", "jobbik", "mi hazánk",
+        "tisza párt", "magyar péter", "tisza",
         # ЗМІ
-        "hvg", "444", "telex", "index", "rtl klub", "m1", "m2",
-        "duna tv", "mandiner", "válasz online",
-        # Сусіди / Закарпаття
-        "ukrajna", "szlovákia", "románia", "szerbia", "ausztria",
-        "kárpátalj", "kárpátaljai magyarok", "erdély", "vajdaság",
-        "felvidék", "burgenland",
+        "hvg", "444", "telex", "index", "rtl klub", "m1", "m2", "duna tv",
+        "mandiner", "válasz online", "origo", "blikk",
+        # Сусіди
+        "ukrajna", "szlovákia", "románia", "szerbia", "ausztria", "horvátország",
     ],
 
     # ── Словацька ────────────────────────────────────────────────────────────
+    # (СИЛЬНО РОЗШИРЕНО — саме для твоєї проблеми з SK-статтями)
     "sk": [
-        # Країна
-        "slovensko", "slovensk", "slovak",
-        # Столиця і міста
+        # Країна та всі форми
+        "slovensko", "slovensk", "slovak", "slovenskej", "slovenskej republiky",
+        "slovenská republika", "slovenskú",
+        # Столиця і всі важливі міста
         "bratislava", "košice", "prešov", "žilina", "banská bystrica", "nitra",
         "trnava", "trenčín", "poprad", "martin", "zvolen", "michalovce",
         "spišská nová ves", "komárno", "levice", "lučenec", "rimavská sobota",
-        # Regióny / kraje
-        "bratislavský kraj", "trnavský kraj", "trenčínsky kraj",
-        "nitriansky kraj", "žilinský kraj", "banskobystrický kraj",
-        "prešovský kraj", "košický kraj",
-        # Інституції
-        "fico", "pellegrini", "národná rada", "národná banka", "nbs",
-        "slovenská vláda", "ministerstvo zahraničných vecí",
-        "ministerstvo vnútra", "ministerstvo obrany",
-        "ministerstvo financií", "prezidentský palác",
+        "bardejov", "trebišov", "humenné", "liptovský mikuláš", "ružomberok",
+        # Регіони / краї (kraje)
+        "bratislavský kraj", "trnavský kraj", "trenčínsky kraj", "nitriansky kraj",
+        "žilinský kraj", "banskobystrický kraj", "prešovský kraj", "košický kraj",
+        # Інституції та влада (2026)
+        "fico", "pellegrini", "národná rada", "národná banka", "nbs", "slovenská vláda",
+        "ministerstvo zahraničných vecí", "ministerstvo vnútra", "ministerstvo obrany",
+        "ministerstvo financií", "prezidentský palác", "úrad vlády", "prezident",
         # Партії
-        "smer", "hlas", "progresívne slovensko", "ps", "sas", "kdh",
-        "oľano", "sns", "republika", "kresťanská demokracia",
-        "šimečka", "blanár", "taraba", "danko",
+        "smer", "hlas", "progresívne slovensko", "ps", "sas", "kdh", "oľano",
+        "sns", "republika", "kresťanská demokracia", "šimečka", "blanár",
+        "taraba", "danko", "sulík",
         # ЗМІ
-        "sme", "denník n", "aktuality", "pravda", "hospodárske noviny",
-        "ta3", "rtvs", "rádio slovensko", "markíza",
-        # Сусіди у SK-контексті
+        "sme", "denník n", "aktuality", "pravda", "hospodárske noviny", "ta3",
+        "rtvs", "rádio slovensko", "markíza", "joj", "tv lux",
+        # Сусіди та меншини в SK-контексті
         "ukrayna", "ukrayin", "maďarsko", "poľsko", "česko", "rakúsko",
-        "ukraine", "ukrainian minority", "rusíni", "rusínska",
+        "ukraine", "ukrainian minority", "rusíni", "rusínska", "madari", "maďarská menšina",
+        # Додаткові важливі терміни
+        "visegrád", "v4", "eurofondy", "schengen", "nato", "európska únia",
     ],
 
     # ── Румунська ────────────────────────────────────────────────────────────
     "ro": [
         # Країна
-        "românia", "român", "romania",
-        # Столиця і міста
-        "bucurești", "cluj", "timișoara", "iași", "constanța", "craiova",
-        "brașov", "galați", "ploiești", "oradea", "sibiu", "bacău",
-        "pitești", "arad", "târgu mureș", "baia mare", "buzău",
-        "râmnicu vâlcea", "suceava", "drobeta-turnu severin",
-        # Регіони / жудці
-        "transilvania", "moldova", "muntenia", "oltenia", "dobrogea",
-        "bucovina", "maramureș", "banat", "crișana",
-        "cluj-napoca", "ilfov", "bihor", "timiș", "dolj",
+        "românia", "român", "romania", "româniei", "românie",
+        # Столиця і найбільші міста
+        "bucurești", "cluj", "timișoara", "iași", "constanța", "craiova", "brașov",
+        "galați", "ploiești", "oradea", "sibiu", "bacău", "pitești", "arad",
+        "târgu mureș", "baia mare", "buzău", "râmnicu vâlcea", "suceava",
+        "drobeta-turnu severin", "cluj-napoca",
+        # Регіони / жудці (județe)
+        "transilvania", "moldova", "muntenia", "oltenia", "dobrogea", "bucovina",
+        "maramureș", "banat", "crișana", "ilfov", "bihor", "timiș", "dolj",
         "brăila", "tulcea", "caraș-severin", "mehedinți",
-        # Порти / стратегічна інфр.
-        "portul constanța", "sulina", "brăila port", "dunărea",
-        # Інституції
+        # Порти та стратегічна інфраструктура
+        "portul constanța", "sulina", "brăila port", "dunărea", "constanța port",
+        # Інституції та політики (2026)
         "iohannis", "ciolacu", "parlamentul româniei", "banca națională",
-        "guvernul româniei", "ministerul afacerilor externe",
-        "ministerul apărării", "ministerul de interne", "cotroceni",
-        "curtea constituțională", "ccr", "înaltă curte", "parchetul general",
+        "guvernul româniei", "ministerul afacerilor externe", "ministerul apărării",
+        "ministerul de interne", "cotroceni", "curtea constituțională", "ccr",
+        "înaltă curte", "parchetul general",
         # Партії
-        "psd", "pnl", "usr", "aur", "fdgr", "udmr", "forța dreptei",
-        "ciolacu", "ciucă", "geoană", "simion", "năsui",
+        "psd", "pnl", "usr", "aur", "fdgr", "udmr", "forța dreptei", "ciolacu",
+        "ciucă", "geoană", "simion", "năsui",
         # ЗМІ
-        "digi24", "antena 3", "pro tv", "realitatea", "g4media",
-        "hotnews", "ziarul financiar", "jurnalul național",
-        "libertatea", "adevărul",
-        # Сусіди
-        "ucraina", "ungaria", "moldova", "serbia", "bulgaria",
-        "ucraineni din românia", "minorități ucrainene",
+        "digi24", "antena 3", "pro tv", "realitatea", "g4media", "hotnews",
+        "ziarul financiar", "jurnalul național", "libertatea", "adevărul",
+        # Сусіди та меншини
+        "ucraina", "ungaria", "moldova", "serbia", "bulgaria", "ucraineni din românia",
+        "minorități ucrainene", "maghiari", "hungarian minority",
     ],
 
     # ── Англійська ───────────────────────────────────────────────────────────
-    # EN-статті цікаві якщо явно про наші країни.
+    # EN-статті цікаві тільки якщо явно згадують наші країни
     "en": [
         # Країни
-        "ukraine", "ukrainian",
-        "hungary", "hungarian",
-        "slovakia", "slovak",
+        "ukraine", "ukrainian", "hungary", "hungarian", "slovakia", "slovak",
         "romania", "romanian",
-        # Міста (EN форми)
-        "kyiv", "budapest", "bratislava", "bucharest",
-        "kharkiv", "odesa", "lviv", "dnipro", "zaporizhzhia",
-        "debrecen", "kosice", "timisoara", "cluj-napoca",
+        # Міста
+        "kyiv", "budapest", "bratislava", "bucharest", "kharkiv", "odesa", "lviv",
+        "dnipro", "zaporizhzhia", "debrecen", "kosice", "timisoara", "cluj-napoca",
+        "uzhhorod", "mukachevo", "oradea",
         # Регіони
-        "transcarpathia", "transylvania", "donbas", "donbass",
-        "zakarpattia", "carpathian ruthenia", "banat", "transylvania",
-        # Ключові актори (EN-контекст)
-        "zelensky", "orban", "fico", "pellegrini", "iohannis",
-        "szijjarto", "szijjártó",
-        # Інституції і контекст
-        "visegrad", "v4", "nato eastern flank", "eu enlargement",
-        "central europe", "eastern europe",
+        "transcarpathia", "transcarpathian", "zakarpattia", "carpathian ruthenia",
+        "transylvania", "donbas", "donbass", "banat",
+        # Ключові політики
+        "zelensky", "orban", "fico", "pellegrini", "iohannis", "szijjarto", "szijjártó",
+        # Міжнародний контекст
+        "visegrad", "v4", "nato eastern flank", "eu enlargement", "central europe",
+        "eastern europe", "carpathian", "ukrainian minority", "hungarian minority",
     ],
 }
 
@@ -224,21 +225,21 @@ _SECONDARY_LANGUAGES: frozenset[str] = frozenset({"en"})
 
 # Частка гео-токенів від загальної кількості токенів статті
 # >= цього → "стаття про нас" → multiplier=1.0
-GEO_SELF_THRESHOLD: float = 0.12
+GEO_SELF_THRESHOLD: float = 0.08
 
 # >= цього → "є згадки" → multiplier=0.75
-GEO_WEAK_THRESHOLD: float = 0.03
+GEO_WEAK_THRESHOLD: float = 0.025
 
 # Мова є в профілі але гео-сигналів немає
 # Стаття пройде тільки якщо topic_score > threshold / BASE_MULTIPLIER
 # При threshold=0.25 і BASE=0.40 → потрібен topic_score > 0.625
-BASE_MULTIPLIER: float = 0.40
+BASE_MULTIPLIER: float = 0.55
 
 # Мова не в профілі (але є EN або інша)
-FOREIGN_MULTIPLIER: float = 0.15
+FOREIGN_MULTIPLIER: float = 0.20
 
 # Повністю невідома мова
-UNKNOWN_MULTIPLIER: float = 0.10
+UNKNOWN_MULTIPLIER: float = 0.08
 
 
 @dataclass
@@ -345,10 +346,9 @@ class GeoRelevanceFilter:
                 mult = 0.75
                 reason = f"profile_lang+weak_geo (score={geo_score:.3f})"
             else:
-                # Рідна мова але без гео-сигналів:
-                # "Akár kilép Trump a NATO-ból" — HU, але про США/NATO глобально
                 mult = self._base_multiplier
                 reason = f"profile_lang+no_geo → base_multiplier={mult}"
+
         elif lang in _SECONDARY_LANGUAGES:
             if geo_score >= self._geo_weak_threshold:
                 mult = 0.75
@@ -356,9 +356,11 @@ class GeoRelevanceFilter:
             else:
                 mult = self._foreign_multiplier
                 reason = f"secondary_lang+no_geo → foreign_multiplier={mult}"
+
         elif lang == "unknown":
             mult = self._unknown_multiplier
             reason = "unknown_lang"
+
         else:
             # Мова не в профілі і не EN (наприклад, DE, FR, PL...)
             # Єдиний шанс — явні гео-сигнали через EN fallback pattern
@@ -396,6 +398,7 @@ class GeoRelevanceFilter:
         """
         total = 0
         for lang, pattern in self._patterns.items():
+            # Не перевіряємо EN, тому що воно вже враховано вище
             if lang == source_lang or lang == "en":
                 continue  # вже враховано вище
             if lang not in _PROFILE_LANGUAGES:

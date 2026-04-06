@@ -85,7 +85,7 @@ class CompositeScoringService(IScoringService):
         bm25: IScoringService,
         embeddings: IScoringService,
         geo_filter: GeoRelevanceFilter | None = None,
-        bm25_min_threshold: float = 0.05,
+        bm25_min_threshold: float = 0.07,
         bm25_weight: float = 0.35,
         embed_weight: float = 0.65,
     ) -> None:
@@ -107,7 +107,7 @@ class CompositeScoringService(IScoringService):
         bm25_adjusted = await self._bm25.score(content)
 
         if bm25_adjusted < self._bm25_min_threshold:
-            logger.debug(
+            logger.info(
                 "CompositeSC: BM25_adjusted=%.3f < threshold=%.3f → early reject (lang=%s)",
                 bm25_adjusted, self._bm25_min_threshold, language,
             )
@@ -126,7 +126,7 @@ class CompositeScoringService(IScoringService):
         geo_result = self._geo_filter.analyze(text, language)
         final = weighted * geo_result.multiplier
 
-        logger.debug(
+        logger.info(
             "CompositeSC: BM25_adj=%.3f embed=%.3f weighted=%.3f "
             "geo_mult=%.2f final=%.3f lang=%s geo_reason=%s",
             bm25_adjusted, embed_score, weighted,
