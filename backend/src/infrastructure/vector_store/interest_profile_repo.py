@@ -71,6 +71,7 @@ class InterestProfileRepository:
         vector: np.ndarray,
         score: float,
         tags: list[str],
+        feedback_type: str = "positive"
     ) -> None:
         """
         Зберігає вектор статті у профіль.
@@ -86,12 +87,13 @@ class InterestProfileRepository:
 
         # Upsert поточної статті
         await col.upsert(
-            ids=[str(article_id)],
-            embeddings=[vector.tolist()],
+        ids=[str(article_id)],
+        embeddings=[vector.tolist()],
             metadatas=[{
                 "score": float(score),
                 "tags": ",".join(tags) if tags else "",
                 "added_at": datetime.now(timezone.utc).isoformat(),
+                "feedback_type": feedback_type  # <--- Зберігаємо тип
             }],
         )
         logger.debug("Interest profile: added article_id=%s score=%.3f", article_id, score)
@@ -118,28 +120,54 @@ class InterestProfileRepository:
     # ─── Читання ──────────────────────────────────────────────────────────────
 
     async def get_centroid(self) -> np.ndarray | None:
-        """Повертає центроїд (середній вектор) всіх збережених статей."""
         col = await self._get_collection()
-        result = await col.get(include=["embeddings"])
+        # Витягуємо і вектори, і метадані
+        result = await col.get(include=["embeddings", "metadatas"])
 
-        # SAFELY check if embeddings are empty without triggering NumPy's truth value error
+        # 1. ПОВЕРТАЄМО ВАШУ БЕЗПЕЧНУ ПЕРЕВІРКУ
         embeddings = result.get("embeddings")
         if embeddings is None or len(embeddings) == 0:
             logger.debug("Interest profile: empty (cold start)")
             return None
 
-        matrix = np.array(embeddings, dtype=np.float32)
-        centroid = matrix.mean(axis=0)
+        # Захист на випадок, якщо метадані відсутні
+        metadatas = result.get("metadatas") or []
 
-        # Нормалізуємо
+        pos_vecs = []
+        neg_vecs = []
+
+        # 2. Розділяємо вектори
+        for emb, meta in zip(embeddings, metadatas):
+            # meta може бути порожнім словником, тому використовуємо безпечний get
+            if meta and meta.get("feedback_type") == "negative":
+                neg_vecs.append(emb)
+            else:
+                pos_vecs.append(emb)
+
+        # 3. Обчислюємо центроїди
+        # if pos_vecs / neg_vecs повністю безпечні, бо це звичайні Python-списки
+        if pos_vecs:
+            pos_mean = np.mean(pos_vecs, axis=0)
+        else:
+            pos_mean = np.zeros(self._dim, dtype=np.float32)
+
+        if neg_vecs:
+            neg_mean = np.mean(neg_vecs, axis=0)
+        else:
+            neg_mean = np.zeros(self._dim, dtype=np.float32)
+
+        # 4. Rocchio зміщення
+        beta = 0.5 
+        centroid = pos_mean - (beta * neg_mean)
+
+        # 5. Нормалізація
         norm = np.linalg.norm(centroid)
         if norm > 1e-8:
             centroid /= norm
+        else:
+            return None 
 
-        logger.debug(
-            "Interest profile centroid: computed from %d articles", len(embeddings)
-        )
-        return centroid
+        return centroid.astype(np.float32)
 
     async def remove(self, article_id: UUID) -> bool:
         """

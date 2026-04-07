@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
+from dotenv import load_dotenv
 
 class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE__", extra="ignore")
@@ -53,7 +53,7 @@ class FeedbackBoostSettings(BaseSettings):
 
 class FilteringSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FILTERING__", extra="ignore")
-    default_threshold: float        = 0.40
+    default_threshold: float        = 0.55
     cold_start_phrases_count: int   = 8
     weights: FilterWeightsSettings  = Field(default_factory=FilterWeightsSettings)
     feedback: FeedbackBoostSettings = Field(default_factory=FeedbackBoostSettings)
@@ -116,6 +116,19 @@ class ScoringSettings(BaseSettings):
     bm25_weight: float = 0.25
     embed_weight: float = 0.60
     tagger_threshold: float = 0.40
+    embed_confidence_threshold: float = 0.89
+
+class AzureTranslatorSettings(BaseSettings):
+    # Додаємо префікс, щоб він збігався з вашим .env
+    model_config = SettingsConfigDict(env_prefix="AZURE_TRANSLATOR__", extra="ignore")
+    
+    api_key: str = ""
+    region: str = "westeurope"
+    endpoint: str = "https://api.cognitive.microsofttranslator.com"
+    target_language: str = "uk"  # Змінюємо на "uk" за замовчуванням
+    skip_languages: list[str] = ["uk", "unknown"] # Не перекладаємо те, що вже українською
+    enabled: bool = True
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -139,7 +152,7 @@ class Settings(BaseSettings):
     llm:           LLMSettings          = Field(default_factory=LLMSettings)
     logging:       LoggingSettings      = Field(default_factory=LoggingSettings)
     scoring:       ScoringSettings      = Field(default_factory=ScoringSettings)
-
+    azure_translator: AzureTranslatorSettings = Field(default_factory=AzureTranslatorSettings)
     # Shortcut — єдиний рядок для всього коду
     @property
     def vector_dim(self) -> int:
@@ -152,4 +165,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    # Завантажуємо .env у системні змінні до створення об'єкта
+    load_dotenv() 
     return Settings()

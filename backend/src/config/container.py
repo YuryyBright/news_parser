@@ -77,6 +77,7 @@ class Container:
         self._composite_scoring = None   # CompositeScoringService
         self._tagger = None              # EmbeddingTagger
         self._profile_learner = None     # ProfileLearner
+        self._translator = None          # Translator
 
         logger.info("Container initialized (sync). Call init_async() to complete setup.")
 
@@ -96,6 +97,7 @@ class Container:
 
         chroma = await self._get_chroma()
         await self._init_scoring_pipeline(chroma)
+        await self._init_translator()
         logger.info("Container.init_async(): done.")
     async def _get_chroma(self):
         """Lazy init Chroma клієнта."""
@@ -103,6 +105,20 @@ class Container:
             from src.infrastructure.vector_store.chroma_client import build_chroma_client
             self._chroma_client = build_chroma_client()
         return self._chroma_client
+    async def _init_translator(self) -> None:
+        cfg = get_settings()
+        if not cfg.azure_translator.enabled:
+            logger.info("Azure Translator disabled (set azure_translator.enabled=true to enable)")
+            return
+        from src.infrastructure.adapters.azure_translator import AzureTranslatorAdapter
+        self._translator = AzureTranslatorAdapter(
+            api_key=cfg.azure_translator.api_key,
+            region=cfg.azure_translator.region,
+            target_language=cfg.azure_translator.target_language,
+            skip_languages=cfg.azure_translator.skip_languages,
+            endpoint=cfg.azure_translator.endpoint,
+        )
+        logger.info("Azure Translator initialized (target=%s)", cfg.azure_translator.target_language)
 
     async def _init_scoring_pipeline(self, chroma_client=None) -> None:
         """
@@ -154,6 +170,7 @@ class Container:
             bm25_min_threshold=cfg.scoring.bm25_min_threshold,
             bm25_weight=cfg.scoring.bm25_weight,
             embed_weight=cfg.scoring.embed_weight,
+            embed_confidence_threshold=cfg.scoring.embed_confidence_threshold, 
         )
 
         self._tagger = EmbeddingTagger(
@@ -207,6 +224,9 @@ class Container:
 
     async def close(self) -> None:
         """Закрити всі з'єднання при shutdown."""
+
+        if self._translator is not None:
+            await self._translator.close()
         await self._engine.dispose()
         if self._chroma_client is not None:
             from src.infrastructure.vector_store.chroma_client import close_chroma
@@ -270,6 +290,8 @@ class Container:
             tagger=self._tagger,                       # ← EmbeddingTagger
             profile_learner=self._profile_learner,     # ← implicit feedback
             threshold=cfg.filtering.default_threshold,
+            translator=self._translator,                          # ← може бути None
+            target_language=cfg.azure_translator.target_language,
         )
 
     def startup_uc(self, session: AsyncSession):

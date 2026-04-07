@@ -37,6 +37,7 @@ from uuid import uuid4, UUID
 from src.application.ports.language_detector import ILanguageDetector
 from src.application.ports.scoring_service import IScoringService
 from src.application.ports.tagger import ITagger
+from src.application.ports.translator import ITranslator, TranslationError
 from src.domain.ingestion.entities import RawArticle
 from src.domain.ingestion.repositories import IRawArticleRepository
 from src.domain.knowledge.entities import Article, Tag
@@ -59,7 +60,7 @@ class IProfileLearner(ABC):
         score: float,
         tags: list[str],
     ) -> None: ...
-    async def remove_from_profile(self, article_id: UUID) -> None: ...
+    async def remove_from_profile(self, article_id: UUID, content_text: str = None) -> None: ...
 
 
 # ─── DTO результату ───────────────────────────────────────────────────────────
@@ -87,7 +88,9 @@ class ProcessArticlesUseCase:
         tagger: ITagger,
         profile_learner: IProfileLearner,
         batch_size: int = _BATCH_SIZE,
-        threshold: float = 0.25,
+        threshold: float = 0.55,
+        translator: ITranslator | None = None,   
+        target_language: str = "uk",                    
     ) -> None:
         self._session_factory      = session_factory
         self._raw_repo_factory     = raw_repo_factory
@@ -98,6 +101,8 @@ class ProcessArticlesUseCase:
         self._profile_learner      = profile_learner
         self._batch_size           = batch_size
         self._threshold            = threshold
+        self._translator           = translator
+        self._target_language      = target_language
 
     async def execute(self) -> ProcessArticlesResult:
         result = ProcessArticlesResult()
@@ -144,18 +149,13 @@ class ProcessArticlesUseCase:
         # ── 1. Detect language ────────────────────────────────────────────────
         language = await self._detect_language(raw)
 
-        # ── 2. [КЛЮЧОВО] Встановлюємо language в content перед scoring ────────
-        # GeoRelevanceFilter у BM25ScoringService і CompositeScoringService
-        # читає content.language щоб знати яку мову обробляємо.
-        # ParsedContent — VO, але language є mutable field (встановлюється тут).
-        # Якщо ParsedContent frozen — треба створити копію або передати language
-        # окремо через IScoringService.score(content, language).
+        # ── 2. Встановлюємо language в content перед scoring ────────
         _inject_language(raw.content, language)
 
         # ── 3. Score (BM25+geo + Embeddings + geo final) ──────────────────────
         relevance_score = await self._score(raw)
 
-        logger.debug(
+        logger.info(
             "Article scored: url=%s lang=%s score=%.3f threshold=%.3f",
             raw.content.url, language, relevance_score, self._threshold,
         )
@@ -167,7 +167,7 @@ class ProcessArticlesUseCase:
             return False
 
         if await article_repo.get_by_hash(raw.content_hash):
-            logger.debug("Duplicate hash url=%s, skipping", raw.content.url)
+            logger.info("Duplicate hash url=%s, skipping", raw.content.url)
             await raw_repo.mark_deduplicated(raw.id)
             return False
 
@@ -183,9 +183,18 @@ class ProcessArticlesUseCase:
             await raw_repo.mark_processed(raw.id)
             return False
 
+        # ── [НОВЕ] Зберігаємо оригінальний текст ДО перекладу ─────────────────
+        original_full_text = raw.content.full_text()
+
+        # ── 5.5. Переклад (ТІЛЬКИ ДЛЯ ACCEPTED СТАТЕЙ) ────────────────────────
+        if self._translator is not None:
+            language = await self._translate_content(raw, language)
+
         # ── 6. Тегування через EmbeddingTagger (gap-based) ───────────────────
-        full_text = raw.content.full_text()
-        tag_names = self._tagger.tag(full_text)
+        # Тут ми беремо вже перекладений текст (або оригінальний, якщо перекладу не було)
+        # Якщо теггер теж працює краще з оригіналом — змініть на original_full_text
+        translated_full_text = raw.content.full_text()
+        tag_names = self._tagger.tag(translated_full_text)
 
         # ── 7. Прийняти і зберегти ────────────────────────────────────────────
         article = _build_article(raw, language)
@@ -207,7 +216,7 @@ class ProcessArticlesUseCase:
         try:
             await self._profile_learner.add_to_profile(
                 article_id=article.id,
-                content_text=full_text,
+                content_text=original_full_text,  # Використовуємо збережений ОРИГІНАЛ
                 score=relevance_score,
                 tags=tag_names,
             )
@@ -236,7 +245,56 @@ class ProcessArticlesUseCase:
         except Exception as exc:
             logger.warning("Scoring failed for %s: %s", raw.id, exc)
             return 0.0
+    async def _translate_content(self, raw: RawArticle, language: str) -> str:
+        """
+        Перекласти title + body якщо мова відрізняється від target.
+        Повертає оновлений language code (з detected_language якщо був unknown).
+        Мутує raw.content.title / raw.content.body напряму.
+        """
+        if not self._translator.should_translate(language, self._target_language):
+            return language
 
+        full_text = raw.content.full_text()
+        # Перекладаємо title і body окремо щоб зберегти структуру
+        try:
+            title_result = await self._translator.translate(
+                raw.content.title or "",
+                target_language=self._target_language,
+                source_language=language if language != "unknown" else None,
+            )
+            body_result = await self._translator.translate(
+                raw.content.body or "",
+                target_language=self._target_language,
+                source_language=language if language != "unknown" else None,
+            )
+
+            # Inject перекладів у content
+            try:
+                raw.content.title = title_result.text
+            except (AttributeError, TypeError):
+                object.__setattr__(raw.content, "title", title_result.text)
+
+            try:
+                raw.content.body = body_result.text
+            except (AttributeError, TypeError):
+                object.__setattr__(raw.content, "body", body_result.text)
+
+            # Якщо мова була unknown — Azure міг визначити її
+            resolved_language = language
+            if language == "unknown" and body_result.detected_language:
+                resolved_language = body_result.detected_language
+                _inject_language(raw.content, resolved_language)
+
+            logger.info(
+                "Translated: url=%s lang=%s→%s",
+                raw.content.url, language, self._target_language,
+            )
+            return resolved_language
+
+        except TranslationError as exc:
+            # Не критично — scoring отримає оригінальний текст
+            logger.warning("Translation skipped for %s: %s", raw.content.url, exc)
+            return language
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -259,6 +317,8 @@ def _inject_language(content, language: str) -> None:
     except Exception as exc:
         # Не критично — GeoFilter отримає порожній language і поверне BASE_MULTIPLIER
         logger.debug("Could not inject language into content: %s", exc)
+
+# Новий хелпер _translate_content у класі:
 
 
 def _build_article(raw: RawArticle, language: str) -> Article:

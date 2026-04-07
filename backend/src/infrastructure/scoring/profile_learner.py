@@ -71,15 +71,22 @@ class ProfileLearner(IProfileLearner):
             article_id, score, tags,
         )
 
-    async def remove_from_profile(self, article_id: UUID) -> bool:
+    async def remove_from_profile(self, article_id: UUID, content_text: str = None) -> bool:
         """
-        Видаляє вектор статті з профілю (explicit dislike).
-
-        Викликається з SubmitFeedbackUseCase при liked=False.
-        Idempotent — якщо статті нема у профілі, просто повертає False.
-
-        Returns:
-            True  — вектор видалено.
-            False — вектора не було у профілі.
+        Замість видалення — додаємо/оновлюємо статтю як 'negative' feedback.
+        Для цього тепер потрібен content_text, щоб закодувати вектор.
         """
-        return await self._profile_repo.remove(article_id)
+        if not content_text:
+            # Fallback до старого методу, якщо немає тексту
+            return await self._profile_repo.remove(article_id)
+
+        vector = self._embedder.encode_passage(content_text)
+        
+        await self._profile_repo.add(
+            article_id=article_id,
+            vector=vector,
+            score=0.0,
+            tags=["explicit_dislike"],
+            feedback_type="negative"
+        )
+        return True
