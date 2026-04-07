@@ -39,4 +39,5 @@ class GetArticleUseCase:
             created_at=article.created_at,
             tags=[t.name for t in article.tags],
             source_id=article.source_id,
+            user_liked=article.liked,
         )

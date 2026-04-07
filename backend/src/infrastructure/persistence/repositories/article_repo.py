@@ -4,6 +4,14 @@ SqlAlchemyArticleRepository — реалізує IArticleRepository.
 
 Знає про: domain interface, ORM models, mapper.
 НЕ знає про: use cases, FastAPI, Pydantic, Chroma.
+
+Зміни:
+  [НОВЕ] get_feedback_map() — батч-запит liked/disliked для списку статей.
+         Повертає dict[UUID, bool] — ключ = article_id, значення = liked.
+         Використовується в ListArticlesUseCase для збагачення DTO.
+
+  [FIX]  find() — user_id більше не опціональний kwargs, а явний параметр
+         щоб уникнути signature mismatch з інтерфейсом.
 """
 from __future__ import annotations
 
@@ -156,62 +164,79 @@ class SqlAlchemyArticleRepository(IArticleRepository):
     async def find(
         self,
         filter: ArticleFilter,
-        tag: str | None = None,
-        user_id: UUID | None = None,  # Додаємо user_id як опціональний параметр
+        user_id: UUID | None = None,
     ) -> list[Article]:
         """
-        Загальний пошук статей. 
-        Якщо передано user_id — виключає статті, які цей юзер дизлайкнув.
+        Загальний пошук статей.
+
+        Args:
+            filter:  фільтри (включно з filter.tag), пагінація, сортування.
+            user_id: якщо переданий — виключає статті, які цей юзер дизлайкнув.
         """
         from src.infrastructure.persistence.models import UserFeedbackModel
 
-        # Базові умови
-        conditions = [ArticleModel.relevance_score >= filter.min_score]
-        
-        if filter.status:
-            conditions.append(ArticleModel.status == filter.status.value)
-        if filter.language:
-            conditions.append(ArticleModel.language == filter.language)
-
-        # Основний запит
         stmt = (
             select(ArticleModel)
             .options(selectinload(ArticleModel.tags))
-            .order_by(ArticleModel.relevance_score.desc())
             .offset(filter.offset)
             .limit(filter.limit)
         )
 
-        # 1. Фільтрація по тегу (якщо є)
-        if tag:
-            stmt = (
-                stmt
-                .join(ArticleTagModel, ArticleTagModel.article_id == ArticleModel.id)
-                .join(TagModel, TagModel.id == ArticleTagModel.tag_id)
-                .where(TagModel.name == tag.lower().strip())
-            )
+        # Застосовуємо всі фільтри (включно з tag, date, sort) через централізовану функцію
+        tag = getattr(filter, "tag", None)
+        stmt = _apply_filters_to_stmt(stmt, ArticleModel, filter, tag)
 
-        # 2. ВИКЛЮЧЕННЯ ДИЗЛАЙКНУТИХ (якщо передано user_id)
-        if user_id:
-            # Створюємо підзапит для ID статей, які юзер дизлайкнув
+        # ВИКЛЮЧЕННЯ ДИЗЛАЙКНУТИХ — один підзапит
+        if user_id is not None:
             disliked_subquery = (
                 select(UserFeedbackModel.article_id)
                 .where(
                     and_(
                         UserFeedbackModel.user_id == str(user_id),
-                        UserFeedbackModel.liked == False
+                        UserFeedbackModel.liked == False,   # noqa: E712
                     )
                 )
             ).scalar_subquery()
-            
-            # Додаємо умову: ID статті не має бути в списку дизлайкнутих
-            conditions.append(ArticleModel.id.not_in(disliked_subquery))
-
-        # Приміняємо всі умови
-        stmt = stmt.where(and_(*conditions))
+            stmt = stmt.where(ArticleModel.id.not_in(disliked_subquery))
 
         result = await self._session.execute(stmt)
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
+
+    # ─── [НОВЕ] Feedback map ──────────────────────────────────────────────────
+
+    async def get_feedback_map(
+        self,
+        user_id: UUID,
+        article_ids: list[UUID],
+    ) -> dict[UUID, bool]:
+        """
+        Батч-запит: повертає liked/disliked для списку статей.
+
+        Один SQL замість N запитів у циклі.
+
+        Returns:
+            {article_id: liked} — тільки статті, де feedback існує.
+            Статті без feedback — відсутні в словнику (caller обробляє як None).
+
+        Використання в ListArticlesUseCase:
+            feedback_map = await repo.get_feedback_map(user_id, article_ids)
+            liked = feedback_map.get(article.id)   # None якщо не оцінено
+        """
+        if not article_ids:
+            return {}
+
+        from src.infrastructure.persistence.models import UserFeedbackModel
+
+        result = await self._session.execute(
+            select(UserFeedbackModel.article_id, UserFeedbackModel.liked)
+            .where(
+                and_(
+                    UserFeedbackModel.user_id == str(user_id),
+                    UserFeedbackModel.article_id.in_([str(aid) for aid in article_ids]),
+                )
+            )
+        )
+        return {UUID(row.article_id): row.liked for row in result.all()}
 
     async def find_by_feedback(
         self,
@@ -263,40 +288,20 @@ class SqlAlchemyArticleRepository(IArticleRepository):
             else:
                 counts["disliked"] = count
 
-        # Кількість статей зі статусом "expired" (позначені "не показувати")
         expired_result = await self._session.execute(
             select(func.count(ArticleModel.id))
             .where(ArticleModel.status == "expired")
         )
         counts["expired"] = expired_result.scalar_one() or 0
-
         return counts
-    async def count(self, f, tag: str | None = None) -> int:
+
+    async def count(self, f: ArticleFilter, tag: str | None = None) -> int:
         """Підрахунок загальної кількості статей для пагінації."""
-        from src.infrastructure.persistence.models import ArticleModel  # adjust import
-        from sqlalchemy import func, select
-    
         stmt = select(func.count()).select_from(ArticleModel)
         stmt = _apply_filters_to_stmt(stmt, ArticleModel, f, tag)
         result = await self._session.execute(stmt)
         return result.scalar_one()
-    async def find(self, filter: ArticleFilter) -> list[Article]:
-        from src.infrastructure.persistence.models import ArticleModel
-        from sqlalchemy import select
-        from sqlalchemy.orm import selectinload
 
-        stmt = (
-            select(ArticleModel)
-            .options(selectinload(ArticleModel.tags))
-            .offset(filter.offset)
-            .limit(filter.limit)
-        )
-        
-        # Використовуємо загальну функцію для застосування фільтрів
-        stmt = _apply_filters_to_stmt(stmt, ArticleModel, filter)
-
-        result = await self._session.execute(stmt)
-        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
     async def full_text_search(
         self,
         query: str,
@@ -307,51 +312,44 @@ class SqlAlchemyArticleRepository(IArticleRepository):
     ) -> list[Article]:
         from src.infrastructure.persistence.models import ArticleModel
         from sqlalchemy import func, select, or_
-        
-        # Дізнаємось, який драйвер використовується зараз
+
         dialect_name = self._session.bind.dialect.name
-        
+
         stmt = select(ArticleModel).options(selectinload(ArticleModel.tags))
 
         if dialect_name == "sqlite":
-            # ─── Простий пошук для SQLite (Fallback) ───
             search_term = f"%{query}%"
             stmt = stmt.where(
                 or_(
                     ArticleModel.title.ilike(search_term),
-                    ArticleModel.body.ilike(search_term)
+                    ArticleModel.body.ilike(search_term),
                 )
             )
             stmt = stmt.order_by(ArticleModel.relevance_score.desc())
-            
         else:
-            # ─── Full-text пошук для PostgreSQL ───
             pg_config = _pg_config(language)
             safe_query = _sanitize_tsquery(query)
             if not safe_query:
                 return []
-                
+
             vector = func.to_tsvector(
-                pg_config, 
-                func.coalesce(ArticleModel.title, "") + " " + func.coalesce(ArticleModel.body, "")
+                pg_config,
+                func.coalesce(ArticleModel.title, "") + " " + func.coalesce(ArticleModel.body, ""),
             )
             ts_query = func.plainto_tsquery(pg_config, safe_query)
-            
             stmt = stmt.where(vector.op("@@")(ts_query))
-            
             rank_expr = func.ts_rank(vector, ts_query)
             stmt = stmt.order_by(rank_expr.desc(), ArticleModel.relevance_score.desc())
 
-        # ─── Загальні фільтри (спрацюють для обох БД) ───
         if status is not None:
             stmt = stmt.where(ArticleModel.status == status.value)
         if language:
             stmt = stmt.where(ArticleModel.language == language)
-            
-        stmt = stmt.offset(offset).limit(limit)
 
+        stmt = stmt.offset(offset).limit(limit)
         result = await self._session.execute(stmt)
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
+
     # ─── Теги ─────────────────────────────────────────────────────────────────
 
     async def _sync_tags(self, article: Article) -> None:
@@ -381,92 +379,74 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         await self._session.flush()
 
 
- 
- 
-def _apply_filters_to_stmt(stmt, model, f, tag: str | None = None):
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+def _apply_filters_to_stmt(stmt, model, f: ArticleFilter, tag: str | None = None):
     """
     Централізована функція застосування фільтрів.
     Використовується в find() і count().
     """
-    from sqlalchemy import and_, or_
- 
+    from sqlalchemy import and_
+
     conditions = []
- 
+
     if f.status is not None:
         conditions.append(model.status == f.status.value)
-    elif not hasattr(f, '_include_expired') or not f._include_expired:
-        # За замовчуванням приховуємо expired
-        pass  # або: conditions.append(model.status != "expired")
- 
+
     if f.min_score and f.min_score > 0:
         conditions.append(model.relevance_score >= f.min_score)
- 
+
     if f.language:
         conditions.append(model.language == f.language)
- 
-    # Дата додавання (created_at)
-    date_from = getattr(f, 'date_from', None)
-    date_to = getattr(f, 'date_to', None)
+
+    date_from = getattr(f, "date_from", None)
+    date_to   = getattr(f, "date_to", None)
     if date_from:
         conditions.append(model.created_at >= date_from)
     if date_to:
         conditions.append(model.created_at <= date_to)
- 
-    # Дата публікації
-    published_from = getattr(f, 'published_from', None)
-    published_to = getattr(f, 'published_to', None)
+
+    published_from = getattr(f, "published_from", None)
+    published_to   = getattr(f, "published_to", None)
     if published_from:
         conditions.append(model.published_at >= published_from)
     if published_to:
         conditions.append(model.published_at <= published_to)
- 
-    # Тег (join)
+
     if tag:
-        from src.infrastructure.persistence.models import TagModel, article_tags  # adjust
+        from src.infrastructure.persistence.models import TagModel, article_tags
         stmt = stmt.join(article_tags).join(TagModel).where(TagModel.name == tag)
- 
+
     if conditions:
         stmt = stmt.where(and_(*conditions))
- 
-    # Сортування
-    sort_by = getattr(f, 'sort_by', 'created_at')
-    sort_dir = getattr(f, 'sort_dir', 'desc')
- 
+
+    sort_by  = getattr(f, "sort_by",  "created_at")
+    sort_dir = getattr(f, "sort_dir", "desc")
+
     sort_col = {
-        'created_at': model.created_at,
-        'published_at': model.published_at,
-        'relevance_score': model.relevance_score,
+        "created_at":      model.created_at,
+        "published_at":    model.published_at,
+        "relevance_score": model.relevance_score,
     }.get(sort_by, model.created_at)
- 
-    if sort_dir == 'asc':
+
+    if sort_dir == "asc":
         stmt = stmt.order_by(sort_col.asc().nullslast())
     else:
         stmt = stmt.order_by(sort_col.desc().nullsfirst())
- 
+
     return stmt
- 
- 
+
+
 def _pg_config(language: str | None) -> str:
-    """Вибір PostgreSQL text search конфігурації."""
     mapping = {
-        "en": "english",
-        "de": "german",
-        "fr": "french",
-        "es": "spanish",
-        "it": "italian",
-        "pt": "portuguese",
-        "nl": "dutch",
-        "ru": "russian",
+        "en": "english", "de": "german", "fr": "french",
+        "es": "spanish", "it": "italian", "pt": "portuguese",
+        "nl": "dutch", "ru": "russian",
     }
     return mapping.get(language or "", "simple")
- 
- 
+
+
 def _sanitize_tsquery(query: str) -> str:
-    """
-    Прибираємо символи які ламають tsquery.
-    plainto_tsquery більш толерантний але все одно чистимо.
-    """
     import re
-    # Залишаємо літери, цифри, пробіли, дефіс
     cleaned = re.sub(r"[^\w\s\-]", " ", query, flags=re.UNICODE)
-    return " ".join(cleaned.split())  # normalize whitespace
+    return " ".join(cleaned.split())

@@ -9,6 +9,17 @@ ArticleVectorRepository — реалізує IArticleEmbeddingRepository.
 
 Розмір вектора: беремо ТІЛЬКИ з settings.embedding.dimensions.
 Якщо модель зміниться — достатньо оновити settings.
+
+[FIX] Дедуплікація векторів:
+  ChromaDB upsert() є idempotent за визначенням — якщо id вже існує,
+  вектор просто перезаписується. Це правильна поведінка.
+  Але щоб уникнути зайвих write I/O при повторних викликах,
+  додано exists() check перед upsert у методі upsert_if_absent().
+  
+  Основний метод upsert() залишається без перевірки — він завжди
+  перезаписує (використовується при оновленні моделі/рееmbedding).
+  
+  Для першого збереження (ingest pipeline) використовувати upsert_if_absent().
 """
 from __future__ import annotations
 
@@ -34,7 +45,6 @@ class ArticleVectorRepository(IArticleEmbeddingRepository):
 
     def __init__(self, client: chromadb.AsyncClientAPI) -> None:
         self._client = client
-        # Lazy import — settings ще можуть не бути готові при __init__
         from config.settings import get_settings
         cfg = get_settings()
         self._col_name = cfg.chroma.collection_articles
@@ -67,7 +77,6 @@ class ArticleVectorRepository(IArticleEmbeddingRepository):
         logger.debug("Embedding deleted: article_id=%s", id)
 
     async def list(self) -> list[ArticleEmbedding]:
-        # Не підтримується для vector store — занадто великий результат
         raise NotImplementedError("list() not supported for vector store")
 
     # ─── IArticleEmbeddingRepository ──────────────────────────────────────────
@@ -94,8 +103,28 @@ class ArticleVectorRepository(IArticleEmbeddingRepository):
 
     # ─── Специфічні методи ────────────────────────────────────────────────────
 
+    async def exists(self, article_id: UUID) -> bool:
+        """
+        Перевіряє чи вектор для статті вже збережений.
+
+        Дешевший ніж get() — не завантажує embeddings, тільки ids.
+        Використовується в upsert_if_absent() для дедуплікації.
+        """
+        col = await self._get_collection()
+        result = await col.get(ids=[str(article_id)], include=[])
+        return bool(result["ids"])
+
     async def upsert(self, embedding: ArticleEmbedding) -> None:
-        """Зберігає або оновлює embedding статті."""
+        """
+        Зберігає або ПЕРЕЗАПИСУЄ embedding статті.
+
+        Використовувати коли:
+          - потрібно оновити вектор після зміни моделі
+          - explicit feedback (like) → re-embed з новою пріоритизацією
+
+        ChromaDB upsert() є idempotent: якщо id вже існує — перезаписує.
+        Дублікатів у колекції не виникає.
+        """
         if len(embedding.vector) != self._dim:
             raise ValueError(
                 f"Vector dim mismatch: expected {self._dim}, got {len(embedding.vector)}"
@@ -107,6 +136,26 @@ class ArticleVectorRepository(IArticleEmbeddingRepository):
             metadatas=[{"model_version": embedding.model_version}],
         )
         logger.debug("Embedding upserted: article_id=%s", embedding.article_id)
+
+    async def upsert_if_absent(self, embedding: ArticleEmbedding) -> bool:
+        """
+        Зберігає вектор ТІЛЬКИ якщо його ще немає в колекції.
+
+        Використовувати в ingest/process pipeline щоб уникнути
+        повторного запису при ретраях або дублікатах сирих статей.
+
+        Returns:
+            True  — вектор збережено (перший раз).
+            False — вектор вже існував, запис пропущено.
+        """
+        if await self.exists(embedding.article_id):
+            logger.debug(
+                "Embedding already exists, skipping: article_id=%s", embedding.article_id
+            )
+            return False
+
+        await self.upsert(embedding)
+        return True
 
     async def query_similar(
         self,
@@ -136,13 +185,11 @@ class ArticleVectorRepository(IArticleEmbeddingRepository):
             kwargs["where"] = where
 
         results = await col.query(**kwargs)
-
         ids = results["ids"][0]
         distances = results["distances"][0]
 
         # Chroma cosine distance ∈ [0, 2]:
-        #   0 = identical, 2 = opposite
-        # Конвертуємо в similarity ∈ [0, 1]
+        #   0 = identical, 2 = opposite → конвертуємо в similarity ∈ [0, 1]
         return [
             (UUID(id_), max(0.0, 1.0 - dist / 2.0))
             for id_, dist in zip(ids, distances)

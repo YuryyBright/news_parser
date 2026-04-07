@@ -108,15 +108,21 @@ class SqlAlchemyFeedRepository(IFeedRepository):
             select(FeedItemModel)
             .join(FeedSnapshotModel, FeedItemModel.snapshot_id == FeedSnapshotModel.id)
             .where(
-                FeedSnapshotModel.user_id == user_id,
-                FeedItemModel.article_id == article_id,
+                # Explicitly cast UUIDs to strings to match the String(36) column type
+                FeedSnapshotModel.user_id == str(user_id),
+                FeedItemModel.article_id == str(article_id),
+                # Optional: Uncomment if "active" implies a specific status
+                # FeedItemModel.status != "deleted" 
             )
             .order_by(FeedSnapshotModel.generated_at.desc())
             .limit(1)
         )
+        
         row = result.scalar_one_or_none()
+        
         if row is None:
             return None
+            
         return FeedItemRef(id=row.id, status=row.status)
 
     async def mark_item_read(self, feed_item_id: UUID) -> None:

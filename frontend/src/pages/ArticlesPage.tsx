@@ -33,7 +33,7 @@ import { ArticleDrawer } from "../components/articles/ArticleDrawer";
 import { ScoreBadge } from "../components/articles/ScoreBadge";
 import { cn, languageFlag } from "../lib/utils";
 import type { ArticleStatus } from "../api/types";
-
+import { UserID } from "../api/types";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: { value: ArticleStatus | ""; label: string }[] = [
@@ -408,11 +408,14 @@ export const ArticlesPage = () => {
   }, [searchQuery]);
 
   // Запити
+  // user_id з store — виключає дизлайкнуті статті
+  // const userId = useArticlesStore((s) => (s as any).userId ?? null);
+
   const { data: listData, isLoading: listLoading } = useArticles(
     isSearchMode
       ? {}
       : {
-          status: filters.status ?? undefined,
+          status: filters.status ?? "accepted", // дефолт — тільки прийняті
           min_score: filters.min_score,
           language: filters.language ?? undefined,
           tag: filters.tag ?? undefined,
@@ -422,6 +425,7 @@ export const ArticlesPage = () => {
           sort_dir: filters.sort_dir,
           page: filters.page,
           page_size: filters.page_size,
+          ...(UserID ? { user_id: UserID } : {}), // виключаємо дизлайкнуті
         },
   );
 

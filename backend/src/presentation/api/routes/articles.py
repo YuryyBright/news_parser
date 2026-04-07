@@ -82,6 +82,7 @@ async def list_articles(
     sort_dir: SortDir = Query(default="desc"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
+    user_id: UUID | None = Query(default=None, description="UUID юзера — виключає дизлайкнуті статті"),
     container: Container = Depends(get_container),
 ):
     """
@@ -90,12 +91,14 @@ async def list_articles(
     Фільтр по тегу тепер передається через ArticleFilter.tag —
     домен знає про нього, репозиторій його підтримує,
     роутер більше не лізе в інфраструктуру напряму.
+
+    user_id (опціонально): виключає статті, які цей юзер дизлайкнув.
     """
     f = ArticleFilter(
         status=ArticleStatus(status_filter) if status_filter else None,
         min_score=min_score,
         language=language,
-        tag=tag,                         # ← доменний фільтр, не обхід через infra
+        tag=tag,
         limit=page_size,
         offset=(page - 1) * page_size,
         date_from=date_from,
@@ -108,7 +111,7 @@ async def list_articles(
 
     async with container.db_session() as session:
         uc = container.list_articles_uc(session)
-        views = await uc.execute(f)
+        views = await uc.execute(f, user_id=user_id)
         total = await uc.count(f)
 
     return {

@@ -29,6 +29,7 @@ class ArticleView:
     relevance_score: float
     published_at: datetime | None
     created_at: datetime
+    user_liked: bool | None
     tags: list[str] = field(default_factory=list)
 
 

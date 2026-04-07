@@ -35,14 +35,14 @@ class MarkArticleReadUseCase:
         """
         item = await self._feed.find_active_item(user_id, article_id)
         if item is None:
-            logger.debug(
+            logger.info(
                 "mark_read: no active feed item for user=%s article=%s",
                 user_id, article_id,
             )
             return False
 
         if item.status == "read":
-            logger.debug(
+            logger.info(
                 "mark_read: already read item=%s user=%s article=%s",
                 item.id, user_id, article_id,
             )

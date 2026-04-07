@@ -1,6 +1,6 @@
 // src/api/types.ts
 // Типи, похідні від бекенд Pydantic схем (article.py, feed.py, source.py, task.py)
-
+export const UserID = "00000000-0000-0000-0000-000000000001";
 export type ArticleStatus =
   | "new"
   | "accepted"

@@ -48,6 +48,7 @@ class Article(AggregateRoot):
     content_hash: ContentHash = None  # type: ignore[assignment]
     published_at: PublishedAt | None = None
     tags: list[Tag] = field(default_factory=list)
+    liked: bool | None = None
     embedding_id: UUID | None = None
 
     # --- стан-машина ---
