@@ -143,6 +143,8 @@ class ArticleModel(Base):
     title:           Mapped[str]                            = mapped_column(Text, nullable=False)
     body:            Mapped[str]                            = mapped_column(Text, nullable=False)
     url:             Mapped[str]                            = mapped_column(Text, nullable=False)
+    original_title:  Mapped[str | None]                     = mapped_column(Text)              
+    original_body:   Mapped[str | None]                     = mapped_column(Text)              
     language:        Mapped[str]                            = mapped_column(String(10), default="unknown")
     status:          Mapped[str]                            = mapped_column(String(50), default="pending")
     relevance_score: Mapped[float]                          = mapped_column(Float, default=0.0)

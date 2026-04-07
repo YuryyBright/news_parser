@@ -113,30 +113,21 @@ class SubmitFeedbackUseCase:
             return
 
         try:
-            if cmd.liked:
-                # Explicit like: додаємо або оновлюємо вектор з максимальним score.
-                # Текст береться з article entity — він вже є у пам'яті.
-                content_text = _article_text(article)
-                tag_names    = _article_tags(article)
+            content_text = _article_text(article)
+            tag_names    = _article_tags(article)
 
+            if cmd.liked:
                 await self._profile_learner.add_to_profile(
                     article_id=cmd.article_id,
-                    content_text=content_text,
-                    score=1.0,           # explicit like → максимальний вплив
+                    content_text=content_text,   # ← оригінал
+                    score=1.0,
                     tags=tag_names,
                 )
-                logger.info(
-                    "Profile updated (like): article=%s tags=%s",
-                    cmd.article_id, tag_names,
-                )
+                logger.info("Profile updated (like): article=%s tags=%s", cmd.article_id, tag_names)
             else:
-                # Explicit dislike: видаляємо з профілю.
-                # Якщо статті не було (наприклад, rejected при ingest) — нічого не станеться.
-                removed = await self._profile_learner.remove_from_profile(cmd.article_id)
-                logger.info(
-                    "Profile updated (dislike): article=%s removed=%s",
-                    cmd.article_id, removed,
-                )
+                # content_text тепер доступний (був NameError раніше)
+                removed = await self._profile_learner.remove_from_profile(cmd.article_id, content_text)
+                logger.info("Profile updated (dislike): article=%s removed=%s", cmd.article_id, removed)
 
         except Exception as exc:
             # Профіль — не критична операція. Feedback вже збережено.
@@ -148,15 +139,15 @@ class SubmitFeedbackUseCase:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _article_text(article) -> str:
-    """Збирає повний текст статті для re-embedding."""
-    parts = []
-    if getattr(article, "title", None):
-        parts.append(article.title)
-    if getattr(article, "body", None):
-        parts.append(article.body)
-    return "\n\n".join(parts)
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _article_text(article) -> str:
+    """Оригінальний текст для embedding — НЕ переклад."""
+    # Пріоритет: original_* → fallback на перекладений
+    title = getattr(article, "original_title", None) or getattr(article, "title", None)
+    body  = getattr(article, "original_body", None)  or getattr(article, "body", None)
+    parts = [p for p in [title, body] if p]
+    return "\n\n".join(parts)
 
 def _article_tags(article) -> list[str]:
     """Витягує імена тегів зі статті."""

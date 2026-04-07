@@ -48,6 +48,8 @@ class ArticleMapper:
             relevance_score=article.relevance_score,
             content_hash=article.content_hash.value if article.content_hash else "",
             published_at=article.published_at.value if article.published_at else None,
+            original_title=article.original_title,
+            original_body=article.original_body,
         )
 
     @staticmethod
@@ -70,6 +72,8 @@ class ArticleMapper:
             published_at=PublishedAt(value=model.published_at) if model.published_at else None,
             tags=tags,
             created_at=model.created_at,
+            original_title=model.original_title,  
+     
         )
 
 

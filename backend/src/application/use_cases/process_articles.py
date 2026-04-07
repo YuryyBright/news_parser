@@ -187,6 +187,8 @@ class ProcessArticlesUseCase:
         original_full_text = raw.content.full_text()
 
         # ── 5.5. Переклад (ТІЛЬКИ ДЛЯ ACCEPTED СТАТЕЙ) ────────────────────────
+        original_title = raw.content.title
+        original_body  = raw.content.body
         if self._translator is not None:
             language = await self._translate_content(raw, language)
 
@@ -197,7 +199,7 @@ class ProcessArticlesUseCase:
         tag_names = self._tagger.tag(translated_full_text)
 
         # ── 7. Прийняти і зберегти ────────────────────────────────────────────
-        article = _build_article(raw, language)
+        article = _build_article(raw, language, original_title, original_body)
         article.accept(relevance_score)
 
         if tag_names:
@@ -321,14 +323,20 @@ def _inject_language(content, language: str) -> None:
 # Новий хелпер _translate_content у класі:
 
 
-def _build_article(raw: RawArticle, language: str) -> Article:
-    
+def _build_article(
+    raw: RawArticle,
+    language: str,
+    original_title: str | None = None,   # ← НОВЕ
+    original_body: str | None = None,    # ← НОВЕ
+) -> Article:
     return Article(
         id=uuid4(),
         source_id=raw.source_id,
         raw_article_id=str(raw.id),
-        title=raw.content.title,
-        body=raw.content.body,
+        title=raw.content.title,          
+        body=raw.content.body,            
+        original_title=original_title,    
+        original_body=original_body,     
         url=raw.content.url,
         language=language,
         status=ArticleStatus.PENDING,

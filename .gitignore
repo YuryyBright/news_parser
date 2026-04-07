@@ -79,3 +79,5 @@ archive.zip
 /logs/
 ./logs/
 ./data/
+*.db
+__pycache__

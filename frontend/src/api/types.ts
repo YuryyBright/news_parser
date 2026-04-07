@@ -28,6 +28,9 @@ export interface Article {
   published_at: string | null;
   created_at: string;
   tags: string[];
+  original_title: string | null;
+  original_body: string | null;
+  body: string | null;
 }
 
 export interface ArticleDetail extends Article {
@@ -93,6 +96,8 @@ export interface FeedArticle {
   url: string;
   relevance_score: number;
   published_at: string | null;
+  original_title: string | null;
+  original_body: string | null;
 }
 
 export interface FeedResponse {

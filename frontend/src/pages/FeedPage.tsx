@@ -149,6 +149,9 @@ export const FeedPage = () => {
                 published_at: item.published_at,
                 created_at: item.published_at ?? "",
                 tags: [],
+                original_body: item.original_body,
+                original_title: item.original_title,
+                body: null,
               }}
               isRead={isRead(item.article_id)}
               onClick={() => handleOpen(item.article_id)}

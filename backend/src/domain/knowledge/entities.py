@@ -49,6 +49,8 @@ class Article(AggregateRoot):
     published_at: PublishedAt | None = None
     tags: list[Tag] = field(default_factory=list)
     liked: bool | None = None
+    original_title: str = ""
+    original_body: str = ""
     embedding_id: UUID | None = None
 
     # --- стан-машина ---
