@@ -4,27 +4,32 @@ ProcessArticlesUseCase — обробляє pending RawArticle → Article.
 
 Pipeline для кожної статті:
   1. Detect language           (через ILanguageDetector порт)
-  2. [ОНОВЛЕНО] Встановлюємо content.language перед scoring
+  2. Встановлюємо content.language перед scoring
      → BM25 і GeoFilter бачать мову для geo-penalty
   3. Score relevance           (через IScoringService порт)
      - CompositeScoringService: BM25+geo pre-filter + Embeddings + geo final
-  4. Dedup check               (url + content_hash в article repo)
+  4. Dedup check               (через DeduplicateRawArticleUseCase — MinHash + exact)
+     - Exact duplicate (sha256): відкидаємо одразу
+     - Near-duplicate (MinHash Jaccard): відкидаємо якщо similarity >= threshold
+     - Унікальний: зберігаємо підпис для майбутніх перевірок
   5. Build Article aggregate
   6. Accept (score >= threshold) або Reject
   7. Auto-tag якщо accepted    (через ITagger порт → EmbeddingTagger gap-based)
   8. Save Article + mark RawArticle processed
   9. Implicit feedback: якщо accepted → зберегти вектор у профіль
 
-Ключова зміна відносно попередньої версії:
-  _detect_language() тепер ВСТАНОВЛЮЄ content.language ПЕРЕД scoring.
-  Це дозволяє GeoRelevanceFilter у BM25 і Composite знати мову статті.
+Зміни відносно попередньої версії:
+  [НОВЕ] Блок 4 тепер використовує DeduplicateRawArticleUseCase
+         замість примітивного URL/hash check.
+         DeduplicateRawArticleUseCase реалізує повний MinHash pipeline:
+           - валідація контенту
+           - exact hash check (raw_articles + articles)
+           - MinHash near-duplicate (Jaccard similarity)
+           - збереження підпису для нових унікальних статей
+         
+         Якщо dedup_uc=None (зворотна сумісність) — fallback на URL/hash.
 
-  Раніше: language визначалась і використовувалась тільки для Article entity.
-  Тепер:  language → content.language → scoring враховує гео-пенальті.
-
-  ParsedContent є value object але має mutable language field
-  (або ми створюємо новий ParsedContentWithLanguage dataclass).
-  Вибрали простіший шлях: встановлюємо атрибут напряму якщо є.
+  [ЗАЛИШЕНО] _detect_language() встановлює content.language ПЕРЕД scoring.
 """
 from __future__ import annotations
 
@@ -71,6 +76,7 @@ class ProcessArticlesResult:
     accepted:  int = 0
     rejected:  int = 0
     failed:    int = 0
+    dedup_skipped: int = 0   # ← НОВЕ: скільки відфільтровано як дублікати
     errors: list[str] = field(default_factory=list)
 
 
@@ -87,10 +93,11 @@ class ProcessArticlesUseCase:
         scoring_service: IScoringService,
         tagger: ITagger,
         profile_learner: IProfileLearner,
+        dedup_uc=None,                   # ← НОВЕ: DeduplicateRawArticleUseCase | None
         batch_size: int = _BATCH_SIZE,
         threshold: float = 0.55,
-        translator: ITranslator | None = None,   
-        target_language: str = "uk",                    
+        translator: ITranslator | None = None,
+        target_language: str = "uk",
     ) -> None:
         self._session_factory      = session_factory
         self._raw_repo_factory     = raw_repo_factory
@@ -99,6 +106,13 @@ class ProcessArticlesUseCase:
         self._scoring_service      = scoring_service
         self._tagger               = tagger
         self._profile_learner      = profile_learner
+        # dedup_uc може бути або готовим інстансом, або фабрикою (session) → UC
+        # Фабрика потрібна щоб dedup_uc і репозиторії були в одній сесії.
+        if callable(dedup_uc) and not hasattr(dedup_uc, "execute"):
+            self._dedup_uc_factory = dedup_uc
+        else:
+            # Передали готовий інстанс (тести) — обгортаємо в лямбду
+            self._dedup_uc_factory = (lambda uc: lambda _session: uc)(dedup_uc) if dedup_uc else None
         self._batch_size           = batch_size
         self._threshold            = threshold
         self._translator           = translator
@@ -120,10 +134,12 @@ class ProcessArticlesUseCase:
 
         for raw in raw_articles:
             try:
-                accepted = await self._run_one(raw)
+                outcome = await self._run_one(raw)
                 result.processed += 1
-                if accepted:
+                if outcome == "accepted":
                     result.accepted += 1
+                elif outcome == "dedup":
+                    result.dedup_skipped += 1
                 else:
                     result.rejected += 1
             except Exception as exc:
@@ -132,24 +148,27 @@ class ProcessArticlesUseCase:
                 logger.exception("Failed to process raw article %s", raw.id)
 
         logger.info(
-            "process_articles done: processed=%d accepted=%d rejected=%d failed=%d",
-            result.processed, result.accepted, result.rejected, result.failed,
+            "process_articles done: processed=%d accepted=%d rejected=%d "
+            "dedup_skipped=%d failed=%d",
+            result.processed, result.accepted, result.rejected,
+            result.dedup_skipped, result.failed,
         )
         return result
 
-    async def _run_one(self, raw: RawArticle) -> bool:
+    async def _run_one(self, raw: RawArticle) -> str:
+        """Повертає 'accepted' | 'rejected' | 'dedup'."""
         async with self._session_factory() as session:
             async with session.begin():
                 return await self._process_one(session, raw)
 
-    async def _process_one(self, session, raw: RawArticle) -> bool:
+    async def _process_one(self, session, raw: RawArticle) -> str:
         article_repo = self._article_repo_factory(session)
         raw_repo     = self._raw_repo_factory(session)
 
         # ── 1. Detect language ────────────────────────────────────────────────
         language = await self._detect_language(raw)
 
-        # ── 2. Встановлюємо language в content перед scoring ────────
+        # ── 2. Встановлюємо language в content перед scoring ─────────────────
         _inject_language(raw.content, language)
 
         # ── 3. Score (BM25+geo + Embeddings + geo final) ──────────────────────
@@ -161,15 +180,15 @@ class ProcessArticlesUseCase:
         )
 
         # ── 4. Dedup ──────────────────────────────────────────────────────────
-        if await article_repo.get_by_url(raw.content.url):
-            logger.debug("Duplicate url=%s, skipping", raw.content.url)
-            await raw_repo.mark_deduplicated(raw.id)
-            return False
-
-        if await article_repo.get_by_hash(raw.content_hash):
-            logger.info("Duplicate hash url=%s, skipping", raw.content.url)
-            await raw_repo.mark_deduplicated(raw.id)
-            return False
+        dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
+        is_dup, dup_reason = await self._check_dedup(raw, article_repo, raw_repo, dedup_uc)
+        if is_dup:
+            logger.info(
+                "Deduplicated: url=%s lang=%s score=%.3f reason=%s",
+                raw.content.url, language, relevance_score, dup_reason,
+            )
+            await raw_repo.mark_processed(raw.id)
+            return "dedup"
 
         # ── 5. Reject якщо score нижче threshold ──────────────────────────────
         if relevance_score < self._threshold:
@@ -181,9 +200,9 @@ class ProcessArticlesUseCase:
             article.reject(relevance_score)
             await article_repo.save(article)
             await raw_repo.mark_processed(raw.id)
-            return False
+            return "rejected"
 
-        # ── [НОВЕ] Зберігаємо оригінальний текст ДО перекладу ─────────────────
+        # ── Зберігаємо оригінальний текст ДО перекладу ───────────────────────
         original_full_text = raw.content.full_text()
 
         # ── 5.5. Переклад (ТІЛЬКИ ДЛЯ ACCEPTED СТАТЕЙ) ────────────────────────
@@ -193,8 +212,6 @@ class ProcessArticlesUseCase:
             language = await self._translate_content(raw, language)
 
         # ── 6. Тегування через EmbeddingTagger (gap-based) ───────────────────
-        # Тут ми беремо вже перекладений текст (або оригінальний, якщо перекладу не було)
-        # Якщо теггер теж працює краще з оригіналом — змініть на original_full_text
         translated_full_text = raw.content.full_text()
         tag_names = self._tagger.tag(translated_full_text)
 
@@ -215,21 +232,97 @@ class ProcessArticlesUseCase:
         )
 
         # ── 8. Implicit feedback ──────────────────────────────────────────────
+        # try:
+        #     await self._profile_learner.add_to_profile(
+        #         article_id=article.id,
+        #         content_text=original_full_text,
+        #         score=relevance_score,
+        #         tags=tag_names,
+        #     )
+        # except Exception as exc:
+        #     logger.warning("Profile update failed for article=%s: %s", article.id, exc)
+
+        return "accepted"
+
+    # ─── Dedup helper ─────────────────────────────────────────────────────────
+
+    async def _check_dedup(
+        self,
+        raw: RawArticle,
+        article_repo,
+        raw_repo,
+        dedup_uc=None,
+    ) -> tuple[bool, str | None]:
+        if dedup_uc is not None:
+            return await self._check_dedup_minhash(raw, dedup_uc)
+        else:
+            return await self._check_dedup_primitive(raw, article_repo, raw_repo)
+
+    async def _check_dedup_minhash(
+        self,
+        raw: RawArticle,
+        dedup_uc,
+    ) -> tuple[bool, str | None]:
+        """
+        MinHash деduplication через DeduplicateRawArticleUseCase.
+
+        DeduplicateRawArticleUseCase сам:
+          - валідує контент
+          - перевіряє exact hash (raw + articles таблиці)
+          - перевіряє MinHash near-duplicate
+          - зберігає підпис якщо стаття унікальна
+          - викликає mark_deduplicated якщо дублікат
+        """
         try:
-            await self._profile_learner.add_to_profile(
-                article_id=article.id,
-                content_text=original_full_text,  # Використовуємо збережений ОРИГІНАЛ
-                score=relevance_score,
-                tags=tag_names,
-            )
+            result = await dedup_uc.execute(raw.id)
         except Exception as exc:
+            # Dedup не критичний — при помилці пропускаємо статтю далі
             logger.warning(
-                "Profile update failed for article=%s: %s", article.id, exc
+                "Dedup check failed for raw_id=%s, skipping dedup: %s",
+                raw.id, exc,
             )
+            return False, None
 
-        return True
+        if result.is_duplicate:
+            sim_info = (
+                f" similarity={result.similarity:.3f}"
+                if result.similarity is not None
+                else ""
+            )
+            logger.info(
+                "Dedup reject: url=%s reason=%s existing=%s%s",
+                raw.content.url,
+                result.reason,
+                result.existing_id,
+                sim_info,
+            )
+            return True, str(result.reason)
 
-    # ─── Helpers ──────────────────────────────────────────────────────────────
+        return False, None
+
+    async def _check_dedup_primitive(
+        self,
+        raw: RawArticle,
+        article_repo,
+        raw_repo,
+    ) -> tuple[bool, str | None]:
+        """
+        Fallback: примітивна дедуплікація по URL і hash.
+        Використовується тільки якщо dedup_uc не підключений.
+        """
+        if await article_repo.get_by_url(raw.content.url):
+            logger.debug("Duplicate url=%s, skipping", raw.content.url)
+            await raw_repo.mark_deduplicated(raw.id)
+            return True, "exact_url"
+
+        if await article_repo.get_by_hash(raw.content_hash):
+            logger.info("Duplicate hash url=%s, skipping", raw.content.url)
+            await raw_repo.mark_deduplicated(raw.id)
+            return True, "exact_hash"
+
+        return False, None
+
+    # ─── Інші helpers ─────────────────────────────────────────────────────────
 
     async def _detect_language(self, raw: RawArticle) -> str:
         language_str = raw.content.language
@@ -247,17 +340,11 @@ class ProcessArticlesUseCase:
         except Exception as exc:
             logger.warning("Scoring failed for %s: %s", raw.id, exc)
             return 0.0
+
     async def _translate_content(self, raw: RawArticle, language: str) -> str:
-        """
-        Перекласти title + body якщо мова відрізняється від target.
-        Повертає оновлений language code (з detected_language якщо був unknown).
-        Мутує raw.content.title / raw.content.body напряму.
-        """
         if not self._translator.should_translate(language, self._target_language):
             return language
 
-        full_text = raw.content.full_text()
-        # Перекладаємо title і body окремо щоб зберегти структуру
         try:
             title_result = await self._translator.translate(
                 raw.content.title or "",
@@ -270,7 +357,6 @@ class ProcessArticlesUseCase:
                 source_language=language if language != "unknown" else None,
             )
 
-            # Inject перекладів у content
             try:
                 raw.content.title = title_result.text
             except (AttributeError, TypeError):
@@ -281,7 +367,6 @@ class ProcessArticlesUseCase:
             except (AttributeError, TypeError):
                 object.__setattr__(raw.content, "body", body_result.text)
 
-            # Якщо мова була unknown — Azure міг визначити її
             resolved_language = language
             if language == "unknown" and body_result.detected_language:
                 resolved_language = body_result.detected_language
@@ -294,49 +379,38 @@ class ProcessArticlesUseCase:
             return resolved_language
 
         except TranslationError as exc:
-            # Не критично — scoring отримає оригінальний текст
             logger.warning("Translation skipped for %s: %s", raw.content.url, exc)
             return language
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+# ─── Module-level helpers ─────────────────────────────────────────────────────
 
 def _inject_language(content, language: str) -> None:
-    """
-    Встановлює language на content object перед scoring.
-
-    ParsedContent може бути frozen dataclass — тоді використовуємо object.__setattr__.
-    Якщо language вже є і непустий — не перезаписуємо.
-    """
     try:
         existing = getattr(content, "language", None)
         if not existing:
-            # Спроба звичайного setattr
             try:
                 content.language = language
             except (AttributeError, TypeError):
-                # frozen dataclass — обходимо через object.__setattr__
                 object.__setattr__(content, "language", language)
     except Exception as exc:
-        # Не критично — GeoFilter отримає порожній language і поверне BASE_MULTIPLIER
         logger.debug("Could not inject language into content: %s", exc)
-
-# Новий хелпер _translate_content у класі:
 
 
 def _build_article(
     raw: RawArticle,
     language: str,
-    original_title: str | None = None,   # ← НОВЕ
-    original_body: str | None = None,    # ← НОВЕ
+    original_title: str | None = None,
+    original_body: str | None = None,
 ) -> Article:
     return Article(
         id=uuid4(),
         source_id=raw.source_id,
         raw_article_id=str(raw.id),
-        title=raw.content.title,          
-        body=raw.content.body,            
-        original_title=original_title,    
-        original_body=original_body,     
+        title=raw.content.title,
+        body=raw.content.body,
+        original_title=original_title,
+        original_body=original_body,
         url=raw.content.url,
         language=language,
         status=ArticleStatus.PENDING,

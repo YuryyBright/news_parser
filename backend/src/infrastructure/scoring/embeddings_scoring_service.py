@@ -57,6 +57,13 @@ logger = logging.getLogger(__name__)
 # Трохи вище threshold(0.25) але не 1.0 → BM25 ще фільтрує сміттєвий контент.
 COLD_START_SCORE = 0.55
 
+TOP_K = 5
+
+# Ваги для фінального score
+W_CENTROID  = 0.40   # Rocchio-центроїд (вже враховує neg всередині)
+W_POS_NN    = 0.45   # max similarity з позитивними сусідами
+W_NEG_REPEL = 0.15   # штраф за близькість до негативних
+
 
 class EmbeddingsScoringService(IScoringService):
     """
@@ -81,38 +88,47 @@ class EmbeddingsScoringService(IScoringService):
         self._profile_repo = profile_repo
 
     async def score(self, content: ParsedContent) -> float:
-        """
-        Повертає cosine similarity між статтею і профілем інтересів.
-
-        Returns:
-            float ∈ [0.0, 1.0]:
-              - COLD_START_SCORE (0.55) якщо профіль порожній
-              - cosine similarity із центроїдом профілю інакше
-        """
         text = content.full_text()
         if not text or not text.strip():
-            logger.debug("EmbeddingsScoring: empty text → 0.0")
             return 0.0
 
         centroid = await self._profile_repo.get_centroid()
-
         if centroid is None:
-            logger.info(
-                "EmbeddingsScoring: cold start (empty profile) → %.2f", COLD_START_SCORE
-            )
             return COLD_START_SCORE
 
         article_vec = self._embedder.encode_passage(text)
 
-        # Обидва вектори L2-нормовані (Embedder.encode_passage + InterestProfileRepository.get_centroid)
-        # → cosine similarity = dot product
-        similarity = self._embedder.cosine_similarity(article_vec, centroid)
+        # ── 1. Centroid similarity (Rocchio вже зсунутий від негативних) ──────
+        centroid_sim = float(np.clip(
+            self._embedder.cosine_similarity(article_vec, centroid), 0.0, 1.0
+        ))
 
-        # Теоретично cosine може бути від'ємним → обрізаємо знизу
-        score = float(np.clip(similarity, 0.0, 1.0))
+        # ── 2. Positive NN — max similarity з liked статей ────────────────────
+        pos_sims = await self._profile_repo.query_by_feedback_type(
+            article_vec, n_results=TOP_K, feedback_type="positive"
+        )
+        pos_nn = max(pos_sims) if pos_sims else centroid_sim  # fallback
+
+        # ── 3. Negative repulsion — наскільки стаття СХОЖА на disliked ────────
+        neg_sims = await self._profile_repo.query_by_feedback_type(
+            article_vec, n_results=TOP_K, feedback_type="negative"
+        )
+        # Якщо немає негативних — штрафу немає
+        neg_penalty = max(neg_sims) if neg_sims else 0.0
+
+        # ── 4. Фінальний score ────────────────────────────────────────────────
+        # neg_penalty діє як repulsion: чим ближче до disliked — тим менше score
+        raw = (
+            W_CENTROID  * centroid_sim
+            + W_POS_NN  * pos_nn
+            - W_NEG_REPEL * neg_penalty
+        )
+
+        score = float(np.clip(raw, 0.0, 1.0))
 
         logger.info(
-            "EmbeddingsScoring: similarity=%.3f profile_size=?", score
+            "EmbeddingsScoring: centroid=%.3f pos_nn=%.3f neg_penalty=%.3f → %.3f",
+            centroid_sim, pos_nn, neg_penalty, score,
         )
         return score
 

@@ -15,13 +15,14 @@ import logging
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update, Integer, delete
+from sqlalchemy import select, update, Integer, delete, and_
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 
 from src.infrastructure.persistence.models import (
-    FeedSnapshotModel, FeedItemModel, ArticleModel, UserFeedbackModel
+    FeedSnapshotModel, FeedItemModel, ArticleModel, UserFeedbackModel, ReadHistoryModel
 )
 from src.domain.feed.entities import FeedSnapshot as FeedSnapshot, FeedItem, FeedItemRef
 from src.domain.feed.repositories import IFeedRepository, IFeedbackRepository, UserFeedback
@@ -35,10 +36,9 @@ class SqlAlchemyFeedRepository(IFeedRepository):
 
     async def get_active_snapshot(self, user_id: UUID) -> FeedSnapshot | None:
 
-        # Найновіший snapshot
         snap_result = await self._session.execute(
             select(FeedSnapshotModel)
-            .where(FeedSnapshotModel.user_id == user_id)
+            .where(FeedSnapshotModel.user_id == str(user_id))
             .order_by(FeedSnapshotModel.generated_at.desc())
             .limit(1)
         )
@@ -46,28 +46,72 @@ class SqlAlchemyFeedRepository(IFeedRepository):
         if snap_row is None:
             return None
 
-        # Items з JOIN на articles (article_title, article_url, published_at)
+        # Підзапит 1: Чи є стаття в загальній історії прочитаного
+        read_history_exists = (
+            select(1)
+            .select_from(ReadHistoryModel)  # <-- ЯВНО ВКАЗУЄМО ТАБЛИЦЮ
+            .where(
+                and_(
+                    ReadHistoryModel.article_id == FeedItemModel.article_id,
+                    ReadHistoryModel.user_id == str(user_id)
+                )
+            )
+            .correlate(FeedItemModel)
+            .exists()
+        )
+
+        # Підзапит 2: Чи була стаття позначена як "read" у будь-якому з минулих фідів
+        PastFeedItem = aliased(FeedItemModel)
+        PastFeedSnapshot = aliased(FeedSnapshotModel)
+        
+        past_read_exists = (
+            select(1)
+            .select_from(PastFeedItem)  # <-- ЯВНО ВКАЗУЄМО ЛІВУ СТОРОНУ ДЛЯ JOIN
+            .join(PastFeedSnapshot, PastFeedItem.snapshot_id == PastFeedSnapshot.id)
+            .where(
+                and_(
+                    PastFeedSnapshot.user_id == str(user_id),
+                    PastFeedItem.article_id == FeedItemModel.article_id,
+                    PastFeedItem.status == "read"
+                )
+            )
+            .correlate(FeedItemModel)
+            .exists()
+        )
+
+        # Робимо спільний запит
         items_result = await self._session.execute(
-            select(FeedItemModel, ArticleModel)
+            select(
+                FeedItemModel, 
+                ArticleModel, 
+                read_history_exists.label("in_history"), 
+                past_read_exists.label("in_past_feed")
+            )
             .join(ArticleModel, FeedItemModel.article_id == ArticleModel.id)
             .where(FeedItemModel.snapshot_id == snap_row.id)
             .order_by(FeedItemModel.rank)
         )
 
-        items = [
-            FeedItem(
-                id=item.id,
-                snapshot_id=item.snapshot_id,
-                article_id=item.article_id,
-                rank=item.rank,
-                score=item.score,
-                status=item.status,
-                article_title=article.title or "",
-                article_url=article.url or "",
-                article_published_at=getattr(article, "published_at", None),
+        items = []
+        for item, article, in_history, in_past_feed in items_result.all():
+            # Навіть якщо поточний item.status == "unread", але ми знайшли сліди 
+            # прочитання в базі, ми примусово віддаємо "read"
+            is_actually_read = item.status == "read" or in_history or in_past_feed
+            actual_status = "read" if is_actually_read else "unread"
+
+            items.append(
+                FeedItem(
+                    id=item.id,
+                    snapshot_id=item.snapshot_id,
+                    article_id=item.article_id,
+                    rank=item.rank,
+                    score=item.score,
+                    status=actual_status,
+                    article_title=article.title or "",
+                    article_url=article.url or "",
+                    article_published_at=getattr(article, "published_at", None),
+                )
             )
-            for item, article in items_result.all()
-        ]
 
         return FeedSnapshot(
             id=snap_row.id,
@@ -75,7 +119,6 @@ class SqlAlchemyFeedRepository(IFeedRepository):
             generated_at=snap_row.generated_at,
             items=items,
         )
-
     async def save_snapshot(self, snapshot: FeedSnapshot) -> None:
         snap_row = FeedSnapshotModel(
             id=str(snapshot.id),               # Explicitly cast to string

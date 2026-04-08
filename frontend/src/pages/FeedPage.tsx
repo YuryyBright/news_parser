@@ -25,21 +25,26 @@ export const FeedPage = () => {
   const markRead = useMarkRead();
 
   const items = feed?.items ?? [];
+  const checkIsRead = (item: any) => {
+    // Стаття прочитана, якщо вона є в локальному сторі АБО база каже, що вона прочитана
+    return isRead(item.article_id) || item.status === "read";
+  };
   const filtered = items.filter((item) => {
-    if (feedFilter === "unread") return !isRead(item.article_id);
-    if (feedFilter === "read") return isRead(item.article_id);
+    const itemRead = checkIsRead(item);
+    if (feedFilter === "unread") return !itemRead;
+    if (feedFilter === "read") return itemRead;
     return true;
   });
 
-  const unreadCount = items.filter((item) => !isRead(item.article_id)).length;
+  const unreadCount = items.filter((item) => !checkIsRead(item)).length;
 
-  const handleOpen = (articleId: string) => {
-    setActiveArticle(articleId);
-    if (!isRead(articleId)) {
-      markRead.mutate(articleId);
+  const handleOpen = (item: any) => {
+    setActiveArticle(item.article_id);
+    // Перевіряємо через новий хелпер
+    if (!checkIsRead(item)) {
+      markRead.mutate(item.article_id);
     }
   };
-
   return (
     <div>
       {/* Header */}
@@ -153,8 +158,9 @@ export const FeedPage = () => {
                 original_title: item.original_title,
                 body: null,
               }}
-              isRead={isRead(item.article_id)}
-              onClick={() => handleOpen(item.article_id)}
+              // Залишаємо ТІЛЬКИ НОВИЙ варіант:
+              isRead={checkIsRead(item)}
+              onClick={() => handleOpen(item)}
             />
           ))}
         </div>

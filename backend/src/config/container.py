@@ -261,36 +261,62 @@ class Container:
     def process_articles_uc_standalone(self):
         """
         Версія для worker'а — кожна стаття обробляється в окремій транзакції.
-        Передаємо session_factory щоб use case сам керував lifecycle сесії.
-
-        Вимагає попереднього виклику init_async() — використовує
-        composite scoring (BM25 + Embeddings), EmbeddingTagger та ProfileLearner.
+ 
+        [ОНОВЛЕНО] Тепер передає dedup_uc для повноцінної MinHash дедуплікації.
+        DeduplicateRawArticleUseCase замінює примітивний URL/hash check.
+ 
+        Вимагає попереднього виклику init_async().
         """
         self._assert_scoring_ready()
-
+ 
         from src.application.use_cases.process_articles import ProcessArticlesUseCase
         from src.infrastructure.adapters.lang_detect_adapter import LangDetectAdapter
         from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings
-
+ 
+        cfg = get_settings()
+ 
         def build_raw_repo(session):
             return SqlAlchemyRawArticleRepository(session)
-
+ 
         def build_article_repo(session):
             return SqlAlchemyArticleRepository(session)
-
-        cfg = get_settings()
+ 
+        # ── Dedup UC фабрика ──────────────────────────────────────────────────
+        # DeduplicateRawArticleUseCase потребує session → створюємо через closure.
+        # process_articles_uc отримує фабрику щоб створювати dedup_uc
+        # в рамках тієї самої сесії що й article_repo / raw_repo.
+        #
+        # ВАЖЛИВО: dedup_uc і репозиторії мають бути в ОДНІЙ сесії —
+        # інакше mark_deduplicated не побачить щойно збережені записи.
+ 
+        minhash_repo = self._get_minhash_repo()
+ 
+        def build_dedup_uc(session):
+            from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
+            from src.domain.deduplication.services import DeduplicationDomainService
+            return DeduplicateRawArticleUseCase(
+                raw_repo=SqlAlchemyRawArticleRepository(session),
+                article_repo=SqlAlchemyArticleRepository(session),
+                minhash_repo=minhash_repo,   # singleton — shared між сесіями
+                dedup_service=DeduplicationDomainService(
+                    num_perm=cfg.dedup.minhash_num_perm,
+                ),
+                minhash_threshold=cfg.dedup.minhash_threshold,
+            )
+ 
         return ProcessArticlesUseCase(
             session_factory=self._session_factory,
             raw_repo_factory=build_raw_repo,
             article_repo_factory=build_article_repo,
             language_detector=LangDetectAdapter(),
-            scoring_service=self._composite_scoring,   # ← BM25 + Embeddings
-            tagger=self._tagger,                       # ← EmbeddingTagger
-            profile_learner=self._profile_learner,     # ← implicit feedback
+            scoring_service=self._composite_scoring,
+            tagger=self._tagger,
+            profile_learner=self._profile_learner,
+            dedup_uc_factory=build_dedup_uc,   # ← НОВЕ: фабрика замість інстансу
             threshold=cfg.filtering.default_threshold,
-            translator=self._translator,                          # ← може бути None
+            translator=self._translator,
             target_language=cfg.azure_translator.target_language,
         )
 
@@ -501,7 +527,7 @@ class Container:
 
     def deduplicate_uc(self, session: AsyncSession):
         from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
-        from src.domain.ingestion.dedup_service import DeduplicationDomainService
+        from src.domain.deduplication.services import DeduplicationDomainService
         from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings

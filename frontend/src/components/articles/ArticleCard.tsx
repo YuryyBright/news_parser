@@ -10,6 +10,7 @@ import type { Article } from "../../api/types";
 interface Props {
   article: Article;
   onClick?: () => void;
+  onClickOpen?: () => void;
   isRead?: boolean;
 }
 
