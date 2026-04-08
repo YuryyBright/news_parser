@@ -37,7 +37,8 @@ from src.domain.ingestion.exceptions import (
     InvalidContentError,
     NearDuplicateContentError,
 )
-from src.domain.ingestion.repositories import IMinHashRepository, IRawArticleRepository
+from src.domain.ingestion.repositories import IRawArticleRepository
+from src.domain.deduplication.repositories import IMinHashRepository
 from src.domain.knowledge.repositories import IArticleRepository
 
 logger = logging.getLogger(__name__)
@@ -93,8 +94,8 @@ class DeduplicateRawArticleUseCase:
         try:
             self._svc.validate_content(title, body)
         except InvalidContentError as exc:
-            await self._raw_repo.mark_as_invalid(raw_article_id, exc.reason)
-            logger.warning("Invalid content raw=%s: %s", raw_article_id, exc.reason)
+            await self._raw_repo.mark_invalid(raw_article_id)
+            logger.warning("Invalid content raw=%s: %s", raw_article_id)
             return DeduplicationResult(
                 raw_article_id=raw_article_id,
                 is_duplicate=True,
@@ -105,24 +106,23 @@ class DeduplicateRawArticleUseCase:
         # ── 2. Exact duplicate — перевірити в raw_articles ────────────────────
         content_hash = self._svc.compute_hash(title, body)
 
-        existing_raw = await self._raw_repo.get_by_hash(content_hash)
-        if existing_raw is not None and existing_raw.id != raw_article_id:
-            await self._raw_repo.mark_as_deduplicated(raw_article_id, existing_raw.id)
+        exists = await self._raw_repo.exists_by_hash(content_hash.value)
+        if exists:
+            await self._raw_repo.mark_deduplicated(raw_article_id)
             logger.info(
-                "Exact duplicate (raw): raw=%s duplicates=%s hash=%s",
-                raw_article_id, existing_raw.id, content_hash.short(),
+                "Exact duplicate (raw): raw=%s hash=%s",
+                raw_article_id, content_hash.short(),
             )
             return DeduplicationResult(
                 raw_article_id=raw_article_id,
                 is_duplicate=True,
                 reason=DuplicateReason.EXACT_RAW,
-                existing_id=existing_raw.id,
             )
 
         # ── 3. Exact duplicate — перевірити в articles ────────────────────────
         existing_article = await self._art_repo.get_by_hash(content_hash.value)
         if existing_article is not None:
-            await self._raw_repo.mark_as_deduplicated(raw_article_id, existing_article.id)
+            await self._raw_repo.mark_deduplicated(raw_article_id)
             logger.info(
                 "Exact duplicate (article): raw=%s duplicates=%s hash=%s",
                 raw_article_id, existing_article.id, content_hash.short(),
@@ -144,7 +144,7 @@ class DeduplicateRawArticleUseCase:
 
         if similar:
             existing_id, similarity = similar[0]
-            await self._raw_repo.mark_as_deduplicated(raw_article_id, existing_id)
+            await self._raw_repo.mark_deduplicated(raw_article_id)
             logger.info(
                 "Near-duplicate: raw=%s similar_to=%s similarity=%.3f threshold=%.2f",
                 raw_article_id, existing_id, similarity, self._threshold,

@@ -314,7 +314,7 @@ class Container:
             scoring_service=self._composite_scoring,
             tagger=self._tagger,
             profile_learner=self._profile_learner,
-            dedup_uc_factory=build_dedup_uc,   # ← НОВЕ: фабрика замість інстансу
+            dedup_uc=build_dedup_uc,  
             threshold=cfg.filtering.default_threshold,
             translator=self._translator,
             target_language=cfg.azure_translator.target_language,

@@ -48,7 +48,7 @@ from src.domain.ingestion.repositories import IRawArticleRepository
 from src.domain.knowledge.entities import Article, Tag
 from src.domain.knowledge.repositories import IArticleRepository
 from src.domain.knowledge.value_objects import ArticleStatus, ContentHash, PublishedAt
-
+from src.domain.deduplication.services import DeduplicationDomainService
 logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 100
@@ -93,7 +93,7 @@ class ProcessArticlesUseCase:
         scoring_service: IScoringService,
         tagger: ITagger,
         profile_learner: IProfileLearner,
-        dedup_uc=None,                   # ← НОВЕ: DeduplicateRawArticleUseCase | None
+        dedup_uc=DeduplicationDomainService,
         batch_size: int = _BATCH_SIZE,
         threshold: float = 0.55,
         translator: ITranslator | None = None,
@@ -180,7 +180,7 @@ class ProcessArticlesUseCase:
         )
 
         # ── 4. Dedup ──────────────────────────────────────────────────────────
-        dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
+        dedup_uc = self._dedup_uc(session) if self._dedup_uc_factory else None
         is_dup, dup_reason = await self._check_dedup(raw, article_repo, raw_repo, dedup_uc)
         if is_dup:
             logger.info(
@@ -254,6 +254,7 @@ class ProcessArticlesUseCase:
         dedup_uc=None,
     ) -> tuple[bool, str | None]:
         if dedup_uc is not None:
+            logger.warning("dedup_uc is not None")
             return await self._check_dedup_minhash(raw, dedup_uc)
         else:
             return await self._check_dedup_primitive(raw, article_repo, raw_repo)
@@ -315,7 +316,7 @@ class ProcessArticlesUseCase:
             await raw_repo.mark_deduplicated(raw.id)
             return True, "exact_url"
 
-        if await article_repo.get_by_hash(raw.content_hash):
+        if await article_repo.exists_by_hash(raw.content_hash):
             logger.info("Duplicate hash url=%s, skipping", raw.content.url)
             await raw_repo.mark_deduplicated(raw.id)
             return True, "exact_hash"

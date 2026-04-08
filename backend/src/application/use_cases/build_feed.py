@@ -76,7 +76,10 @@ class BuildFeedUseCase:
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
                 limit=self._feed_size * 3,
+                min_score=0.44,
                 offset=0,
+                sort_by="created_at",
+                sort_dir="desc",
             )
         )
 
