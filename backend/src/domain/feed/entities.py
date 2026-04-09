@@ -52,9 +52,18 @@ class FeedSnapshot(AggregateRoot):
     """
     id: UUID
     user_id: UUID
+    generated_at: datetime
     items: list[FeedItem] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    is_stale: bool = False
+ 
+    def with_items(self, items: list[FeedItem]) -> "FeedSnapshot":
+        """Повертає копію snapshot з новим списком items (immutable update)."""
+        return FeedSnapshot(
+            id=self.id,
+            user_id=self.user_id,
+            generated_at=self.generated_at,
+            items=items,
+        )
+ 
 
     def mark_stale(self) -> None:
         """Позначає знімок як неактуальний (наприклад, з'явились нові статті)."""

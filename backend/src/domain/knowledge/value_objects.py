@@ -61,7 +61,7 @@ class ArticleFilter(ValueObject):
     def _validate(self) -> None:
         if not 0.0 <= self.min_score <= 1.0:
             raise ValidationError(f"min_score must be in [0,1], got {self.min_score}")
-        if self.limit < 1 or self.limit > 200:
+        if self.limit < 1 or self.limit > 301:
             raise ValidationError(f"limit must be in [1,200], got {self.limit}")
         if self.offset < 0:
             raise ValidationError(f"offset must be >= 0, got {self.offset}")

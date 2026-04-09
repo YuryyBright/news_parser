@@ -8,15 +8,26 @@ BM25ScoringService — перший шар scoring (pre-filter).
   - Стійкий до "spam" — сотня повторень "армія" не дасть score=1.0
   - Підходить для мультимовного тексту (токенізація по пробілах)
 
-[ОНОВЛЕНО] Geo early-reject:
-  Якщо BM25 score * geo_multiplier < bm25_geo_threshold → reject одразу.
-  Тобто: стаття угорською про NATO (geo_mult=0.40) з BM25=0.10
-    → 0.10 * 0.40 = 0.04 < 0.05 → reject без embeddings.
-  Але стаття угорською про Угорщину в NATO (geo_mult=1.0) з BM25=0.10
-    → 0.10 * 1.0 = 0.10 → проходить на embeddings.
+[СПРОЩЕНО] Geo early-reject повністю видалено.
+  BM25 повертає чистий тематичний score без будь-яких гео-множників.
+  Фільтрація виключно за тематичною релевантністю — geo не є нашою
+  відповідальністю на цьому рівні.
 
-  ParsedContent тепер має поле language (заповнюється ILanguageDetector раніше).
-  Якщо language порожній — geo_multiplier=BASE_MULTIPLIER (не відкидаємо повністю).
+[РОЗШИРЕНО] Корпус тем:
+  war_and_weapons        — армія, фронт, зброя (UA/EN/HU/SK/RO)
+  politics               — вибори, уряд, президент
+  economy                — ВВП, ринки, санкції, торгівля
+  diplomacy              — НАТО, ООН, саміти, договори
+  energy                 — газ, нафта, АЕС, відновлювані
+  technology             — ШІ, кібер, стартапи
+  society                — права, біженці, протести
+  geopolitics            — NEW: сфери впливу, великі держави, альянси
+  security_intelligence  — NEW: спецслужби, шпигунство, гібридна війна
+  nuclear_wmd            — NEW: ядерна загроза, МАГАТЕ, нерозповсюдження
+  disinformation_info    — NEW: дезінформація, пропаганда, кібератаки
+  sanctions_finance      — NEW: санкції, заморожені активи, SWIFT
+  humanitarian_crisis    — NEW: МГП, гуманітарні коридори, військові злочини
+  elections_democracy    — NEW: демократія, авторитаризм, вибори під тиском
 
 Бібліотека: rank_bm25 (pip install rank-bm25)
   Якщо недоступна — fallback на SimpleKeywordScoring (без BM25).
@@ -30,115 +41,332 @@ import numpy as np
 
 from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.value_objects import ParsedContent
-from src.infrastructure.scoring.geo_relevance_filter import GeoRelevanceFilter
 
 logger = logging.getLogger(__name__)
 
 # ─── Корпус тем ───────────────────────────────────────────────────────────────
 _TOPIC_CORPUS_RAW: list[list[str]] = [
-    # war_and_weapons
+
+    # ── 0. war_and_weapons ────────────────────────────────────────────────────
     [
+        # UA
         "війн", "збро", "ракет", "атак", "удар", "зсу", "армі", "військ",
         "оборон", "наступ", "дрон", "бпла", "фронт", "снаряд", "ппо",
-        "окупац", "мобіліз", "бригад", "батальон", "обстріл",
+        "окупац", "мобіліз", "бригад", "батальон", "обстріл", "загибл",
+        "втрат", "полонен", "контрнаступ", "укріплен", "позиці", "штурм",
+        "засідк", "мінн", "артилері", "танк", "броньован",
+        # EN
         "war", "attack", "missile", "strike", "military", "drone", "artillery",
         "weapon", "troops", "army", "defense", "offensive", "combat", "ammo",
+        "front line", "frontline", "counteroffensive", "siege", "shelling",
+        "occupation", "mobilization", "casualties", "prisoner of war", "pow",
+        "armored", "tank", "fortification", "minefield",
         # HU
         "háború", "fegyver", "rakéta", "támadás", "katoná", "hadsereg",
-        "védelm", "offenzív", "drón", "invázió",
+        "védelm", "offenzív", "drón", "invázió", "lövöldöz", "ostrom",
+        "hadifogoly", "veszteség",
         # SK
         "vojn", "zbraň", "raket", "útok", "armád", "vojsk", "obran", "ofenzív",
+        "dron", "invázia", "ostreľovani", "straty", "zajatec",
         # RO
-        "război", "armă", "rachet", "atac", "armat", "militar", "defens", "ofensiv",
+        "război", "armă", "rachet", "atac", "armat", "militar", "defens",
+        "ofensiv", "dronă", "invazie", "bombardament", "pierderi",
     ],
-    # politics
+
+    # ── 1. politics ───────────────────────────────────────────────────────────
     [
+        # UA
         "політ", "президент", "парламент", "уряд", "вибор", "депутат",
         "міністр", "санкці", "дипломат", "скандал", "відставк", "коаліц",
-        "опозиц", "заяв", "законопроект",
+        "опозиц", "заяв", "законопроект", "реформ", "корупці", "олігарх",
+        "партіj", "конституці", "референдум", "вето", "указ",
+        # EN
         "election", "president", "parliament", "sanctions", "government",
         "diplomacy", "minister", "senate", "scandal", "resignation",
+        "coalition", "opposition", "legislation", "reform", "corruption",
+        "referendum", "decree", "veto", "political crisis",
         # HU
         "választás", "elnök", "parlament", "kormány", "képviselő", "miniszter",
-        "szankció", "botrány",
+        "szankció", "botrány", "korrupció", "reform", "koalíció",
         # SK
-        "voľby", "prezident", "parlament", "vlád", "poslanec", "minister", "sankci",
+        "voľby", "prezident", "parlament", "vlád", "poslanec", "minister",
+        "sankci", "korupci", "reforma", "koalíci", "škandál",
         # RO
-        "aleger", "președinte", "parlament", "guvern", "deputat", "ministru", "sancțiun",
+        "aleger", "președinte", "parlament", "guvern", "deputat", "ministru",
+        "sancțiun", "corupți", "reformă", "coaliți", "scandal",
     ],
-    # economy
+
+    # ── 2. economy ────────────────────────────────────────────────────────────
     [
+        # UA
         "економік", "інфляці", "ввп", "ринок", "банк", "фінанс", "інвестиц",
         "бюджет", "валют", "акці", "торгівл", "кредит", "борг", "податк",
+        "рецесі", "девальвац", "дефолт", "мвф", "відбудов", "ембарго",
+        # EN
         "gdp", "inflation", "market", "trade", "bank", "finance", "investment",
-        "budget", "currency", "stock", "debt", "tax",
+        "budget", "currency", "stock", "debt", "tax", "recession", "devaluation",
+        "default", "imf", "reconstruction", "embargo", "tariff", "export",
+        "import", "supply chain",
         # HU
         "gazdaság", "infláció", "piac", "bank", "pénzügy", "befektetés",
-        "költségvetés", "valuta", "részvény", "adó",
+        "költségvetés", "valuta", "részvény", "adó", "recesszió",
         # SK
         "ekonomika", "infláci", "trh", "bank", "financi", "investíci",
-        "rozpočet", "mena", "akci", "daň",
+        "rozpočet", "mena", "daň", "recesia",
         # RO
         "economi", "inflați", "piață", "banc", "finanț", "investiți",
-        "buget", "valut", "acțiun", "impozit",
+        "buget", "valut", "impozit", "recesiune",
     ],
-    # diplomacy/international
+
+    # ── 3. diplomacy_international ────────────────────────────────────────────
     [
+        # UA
         "переговор", "саміт", "угод", "договір", "посол", "союзник",
-        "нато", "євросоюз", "оон", "міжнародн",
+        "нато", "євросоюз", "оон", "міжнародн", "двосторонн", "мирн план",
+        "перемир", "припинен вогню", "мирні переговори",
+        # EN
         "negotiations", "summit", "agreement", "ambassador", "nato", "eu", "un",
-        "international", "bilateral",
+        "international", "bilateral", "ceasefire", "peace talks", "treaty",
+        "alliance", "foreign policy", "g7", "g20", "security council",
+        "un security council", "european council", "peacekeeping",
         # HU
         "tárgyalás", "csúcstalálkozó", "megállapodás", "nagykövet", "szövetség",
-        "nato", "európai unió", "ensz",
+        "tűzszünet", "béketárgyalás", "külpolitika",
         # SK
         "rokovani", "samit", "dohod", "veľvyslanec", "spojenec",
-        "nato", "európska únia", "osn",
+        "prímeri", "mierové rokovani", "zahraničná politika",
         # RO
         "negocier", "summit", "acord", "ambasador", "alianță",
-        "nato", "uniunea europeană", "onu",
+        "încetarea focului", "politică externă",
     ],
-    # energy
+
+    # ── 4. energy ────────────────────────────────────────────────────────────
     [
+        # UA
         "енергетик", "газ", "нафт", "електроенерг", "аес", "ядерн",
-        "блекаут", "відключен", "світл", "відновлюван",
+        "блекаут", "відключен", "світл", "відновлюван", "трубопровід",
+        "газопровід", "nord stream", "lng", "спг",
+        # EN
         "energy", "gas", "oil", "electricity", "nuclear", "blackout", "power",
-        "renewable", "solar", "wind",
+        "renewable", "solar", "wind", "pipeline", "lng", "natural gas",
+        "energy crisis", "power grid", "hydroelectric",
         # HU
-        "energia", "gáz", "olaj", "villamos", "atomerőmű", "nukleáris", "áramszünet",
+        "energia", "gáz", "olaj", "villamos", "atomerőmű", "nukleáris",
+        "áramszünet", "megújuló", "csővezeték",
         # SK
-        "energetik", "plyn", "ropa", "elektrina", "atómová", "jadrový", "výpadok",
+        "energetik", "plyn", "ropa", "elektrina", "atómová", "jadrový",
+        "výpadok", "obnoviteľn", "plynovod",
         # RO
         "energet", "gaze", "petrol", "electricitat", "nuclear", "întreruper",
+        "regenerabil", "conductă",
     ],
-    # technology
+
+    # ── 5. technology ────────────────────────────────────────────────────────
     [
+        # UA
         "технологі", "штучний інтелект", "стартап", "кібер", "айті",
-        "алгоритм", "блокчейн", "цифров", "хакер",
-        "ai", "startup", "software", "cyber", "tech", "algorithm",
-        "blockchain", "digital", "machine learning", "hacker",
+        "алгоритм", "блокчейн", "цифров", "хакер", "програмн",
+        # EN
+        "ai", "artificial intelligence", "startup", "software", "cyber", "tech",
+        "algorithm", "blockchain", "digital", "machine learning", "hacker",
+        "semiconductor", "chip", "quantum", "data breach",
         # HU
         "technológi", "mesterséges intelligencia", "szoftver", "kiberbiztonság",
+        "hacker", "adatlopás",
         # SK
         "technológi", "umelá inteligencia", "softvér", "kybernetick",
+        "hacker", "únik dát",
         # RO
         "tehnologi", "inteligență artificială", "software", "cibernetic",
+        "hacker", "breșă de date",
     ],
-    # society/humanitarian
+
+    # ── 6. society_humanitarian ──────────────────────────────────────────────
     [
-        "суспільств", "протест", "демонстрац", "права людини", "біженц",
-        "міграц", "гуманітарн", "евакуац", "постраждал", "жертв",
+        # UA
+        "суспільств", "протест", "права людини", "біженц",
+        "міграц", "гуманітарн", "евакуац", "постраждал", "жертв", "цивільн",
+        "демонстрац", "страйк", "соціальн",
+        # EN
         "society", "protest", "human rights", "refugees", "migration",
-        "humanitarian", "evacuation", "victims", "civilian",
+        "humanitarian", "evacuation", "victims", "civilian", "demonstration",
+        "strike", "social", "ngo", "aid",
         # HU
         "társadalom", "tüntetés", "menekült", "migráció", "humanitárius",
-        "evakuáció", "áldozat", "polgári",
+        "evakuáció", "áldozat", "polgári", "sztrájk",
         # SK
         "spoločnosť", "protest", "utečenec", "migráci", "humanitárn",
-        "evakuáci", "obeť", "civilist",
+        "evakuáci", "obeť", "civilist", "štrajk",
         # RO
         "societat", "protest", "refugiat", "migrați", "umanitar",
-        "evacuare", "victimă", "civil",
+        "evacuare", "victimă", "civil", "grevă",
+    ],
+
+    # ── 7. geopolitics [NEW] ──────────────────────────────────────────────────
+    # Велика геополітика: сфери впливу, стратегічне суперництво, блоки
+    [
+        # UA
+        "геополітик", "сфера впливу", "стратегічн", "наддержав", "многополярн",
+        "розширенн нато", "вступ до єс", "кандидатств", "членств",
+        "безпековий порядок", "ядерне стримуванн",
+        # EN
+        "geopolitics", "sphere of influence", "strategic", "superpower",
+        "multipolar", "nato expansion", "eu accession", "eu membership",
+        "security order", "deterrence", "containment", "proxy war",
+        "great power", "cold war", "iron curtain", "buffer state",
+        "geostrategic", "hegemony", "power projection", "military alliance",
+        "transatlantic", "indo-pacific", "brics", "global south",
+        # HU
+        "geopolitika", "befolyási övezet", "stratégiai", "nagyhatalom",
+        "nato-bővítés", "eu-csatlakozás", "nukleáris elrettentés",
+        # SK
+        "geopolitika", "sféra vplyvu", "strategick", "superveľmoc",
+        "rozšírenie nato", "vstup do eú", "odstrašovanie",
+        # RO
+        "geopolitic", "sferă de influență", "strategic", "superputere",
+        "extinderea nato", "aderarea la ue", "descurajare nucleară",
+    ],
+
+    # ── 8. security_intelligence [NEW] ────────────────────────────────────────
+    # Спецслужби, гібридна війна, тероризм, шпигунство
+    [
+        # UA
+        "спецслужб", "розвідк", "контррозвідк", "гібридн", "диверсі",
+        "саботаж", "шпигун", "терорист", "вербуванн", "агент", "ффсб", "гру",
+        "ціа", "мі6", "нсо", "пегас", "кібератак", "інфраструктур",
+        # EN
+        "intelligence", "counterintelligence", "hybrid war", "hybrid warfare",
+        "sabotage", "espionage", "spy", "terrorism", "terrorist", "recruit",
+        "fsb", "gru", "cia", "mi6", "mossad", "nso group", "pegasus",
+        "cyberattack", "critical infrastructure", "false flag",
+        "asymmetric warfare", "psychological operations", "psyops",
+        "information warfare", "covert operation",
+        # HU
+        "titkosszolgálat", "hírszerzés", "kémkedés", "hibrid háború",
+        "szabotázs", "terrorista", "kibertámadás", "kritikus infrastruktúra",
+        # SK
+        "spravodajsk", "kontrarozviedka", "hybridná vojna", "sabotáž",
+        "špionáž", "terorizmus", "kyberútok", "kritická infraštruktúra",
+        # RO
+        "servicii de informați", "contrainformații", "război hibrid",
+        "sabotaj", "spionaj", "terorism", "atac cibernetic",
+    ],
+
+    # ── 9. nuclear_wmd [NEW] ──────────────────────────────────────────────────
+    # Ядерна зброя, МАГАТЕ, нерозповсюдження, хімічна/біологічна зброя
+    [
+        # UA
+        "ядерн", "атомн", "аес", "запорізька аес", "заяес", "магате",
+        "нерозповсюдженн", "ядерна зброя", "радіоактивн", "бруднa бомб",
+        "хімічна зброя", "біологічна зброя", "хімічна атак",
+        # EN
+        "nuclear", "atomic", "iaea", "non-proliferation", "nuclear weapon",
+        "radioactive", "dirty bomb", "chemical weapon", "biological weapon",
+        "wmd", "weapons of mass destruction", "nuclear plant", "nuclear power",
+        "enrichment", "warhead", "icbm", "ballistic missile",
+        "nuclear deterrence", "nuclear threat", "radiation leak",
+        # HU
+        "nukleáris", "atomerőmű", "atomfegyver", "sugárzás", "vegyifegyver",
+        "biológiai fegyver", "nukleáris fenyegetés",
+        # SK
+        "nukleárn", "atómová elektráreň", "jadrová zbraň", "žiareni",
+        "chemická zbraň", "biologická zbraň",
+        # RO
+        "nuclear", "centrală nucleară", "armă nucleară", "radiații",
+        "armă chimică", "armă biologică",
+    ],
+
+    # ── 10. disinformation_information_war [NEW] ──────────────────────────────
+    # Дезінформація, пропаганда, медіа-маніпуляції, цензура
+    [
+        # UA
+        "дезінформац", "пропаганд", "фейк", "маніпуляці", "цензур",
+        "інформаційн війн", "медіа маніпуляці", "fake news", "deepfake",
+        "тролі", "ботоферм", "наратив", "когнітивн", "медіаграмотн",
+        # EN
+        "disinformation", "propaganda", "fake news", "deepfake", "manipulation",
+        "censorship", "information war", "troll farm", "bot network",
+        "narrative", "cognitive warfare", "media literacy", "fact-check",
+        "misinformation", "influence operation", "psyops",
+        # HU
+        "dezinformáció", "propaganda", "álhír", "manipuláció", "cenzúra",
+        "információs háború", "trollfarm",
+        # SK
+        "dezinformáci", "propaganda", "falošné správy", "manipuláci",
+        "cenzúra", "informačná vojna", "trollfarma",
+        # RO
+        "dezinformare", "propagandă", "știri false", "manipulare",
+        "cenzură", "război informațional",
+    ],
+
+    # ── 11. sanctions_finance_war [NEW] ───────────────────────────────────────
+    # Санкційна економіка, заморожені активи, обхід санкцій, SWIFT
+    [
+        # UA
+        "санкці", "заморожен актив", "конфіскац", "репарац",
+        "обхід санкцій", "swift", "свіфт", "вторинні санкці",
+        "олігарх", "яхт", "активи рф", "замороженн резерв",
+        # EN
+        "sanctions", "frozen assets", "confiscation", "reparations",
+        "sanctions evasion", "swift", "secondary sanctions", "oligarch",
+        "asset freeze", "russian assets", "war reparations",
+        "financial warfare", "export control", "dual use",
+        # HU
+        "szankciók", "befagyasztott eszközök", "elkobzás", "jóvátétel",
+        "szankciók kijátszása", "oligarcha",
+        # SK
+        "sankcie", "zmrazené aktíva", "konfiškáci", "reparáci",
+        "obchádzanie sankcií", "oligarcha",
+        # RO
+        "sancțiun", "active înghețate", "confiscare", "reparații",
+        "eludarea sancțiunilor", "oligarh",
+    ],
+
+    # ── 12. war_crimes_accountability [NEW] ──────────────────────────────────
+    # Воєнні злочини, МКС, трибунали, геноцид, відповідальність
+    [
+        # UA
+        "воєнн злочин", "злочин проти людяності", "геноцид", "мкс",
+        "міжнародний кримінальний суд", "трибунал", "депортаці",
+        "фільтраційн табір", "катуванн", "страт", "масов вбивств",
+        "буча", "маріупол", "ізюм",
+        # EN
+        "war crimes", "crimes against humanity", "genocide", "icc",
+        "international criminal court", "tribunal", "deportation",
+        "filtration camp", "torture", "execution", "mass killing",
+        "accountability", "justice", "atrocity", "massacre",
+        # HU
+        "háborús bűnök", "emberiesség elleni bűnök", "népirtás", "nbn",
+        "deportálás", "kínzás", "tömeges gyilkosság",
+        # SK
+        "vojnové zločiny", "zločiny proti ľudskosti", "genocída",
+        "deportáci", "mučeni", "masová vražda",
+        # RO
+        "crime de război", "crime împotriva umanității", "genocid",
+        "deportare", "tortură", "masacru",
+    ],
+
+    # ── 13. elections_democracy [NEW] ────────────────────────────────────────
+    # Демократія під тиском, автократія, виборчі маніпуляції
+    [
+        # UA
+        "демократі", "автократі", "авторитаризм", "виборч маніпуляці",
+        "фальсифікац", "виборч комісі", "міжнародн спостерігач",
+        "свобод преси", "незалежн суд", "верховенств прав",
+        # EN
+        "democracy", "autocracy", "authoritarianism", "election fraud",
+        "electoral manipulation", "election commission", "international observer",
+        "press freedom", "judicial independence", "rule of law",
+        "democratic backsliding", "hybrid regime", "competitive authoritarianism",
+        # HU
+        "demokrácia", "autokrácia", "tekintélyelvűség", "választási csalás",
+        "sajtószabadság", "bírói függetlenség", "jogállamiság",
+        # SK
+        "demokraci", "autokraci", "autoritarizmus", "volebný podvod",
+        "sloboda tlače", "nezávislosť súdnictva", "právny štát",
+        # RO
+        "democrație", "autocrație", "autoritarism", "fraudă electorală",
+        "libertatea presei", "independența justiției", "statul de drept",
     ],
 ]
 
@@ -167,24 +395,21 @@ def _corpus_with_substrings(query_tokens: list[str], corpus: list[list[str]]) ->
 
 class BM25ScoringService(IScoringService):
     """
-    IScoringService через BM25 з geo early-reject.
+    IScoringService через BM25 без geo-фільтрації.
 
-    [ОНОВЛЕНО] Тепер враховує мову статті для гео-фільтрації.
-    ParsedContent.language має бути заповнений до виклику score().
-    Це робить ProcessArticlesUseCase через _detect_language() перед scoring.
+    [СПРОЩЕНО] Повністю видалено GeoRelevanceFilter — BM25 повертає
+    чистий тематичний score ∈ [0.0, 1.0]. Geo-логіка більше не є
+    відповідальністю цього сервісу.
 
-    Якщо language порожній — GeoRelevanceFilter повертає BASE_MULTIPLIER (не reject).
+    [РОЗШИРЕНО] Корпус тем: 14 категорій замість 7, акцент на геополітику,
+    безпеку, ядерку, дезінформацію, санкції, воєнні злочини.
 
-    При score < bm25_geo_threshold після geo_mult → reject без embeddings.
+    ParsedContent.language більше НЕ потрібен для scoring —
+    corpus сам містить ключові слова всіх мов (UA/EN/HU/SK/RO).
     """
 
-    def __init__(
-        self,
-        max_score: float = _BM25_MAX_SCORE,
-        geo_filter: GeoRelevanceFilter | None = None,
-    ) -> None:
+    def __init__(self, max_score: float = _BM25_MAX_SCORE) -> None:
         self._max_score = max_score
-        self._geo_filter = geo_filter or GeoRelevanceFilter()
         self._bm25 = self._build_bm25()
 
     def _build_bm25(self):
@@ -205,27 +430,13 @@ class BM25ScoringService(IScoringService):
         if not text:
             return 0.0
 
-        # ── BM25 topic score ──────────────────────────────────────────────────
         if self._backend == "simple":
             raw_score = self._simple_score(text)
         else:
             raw_score = self._bm25_score(text)
 
-        # ── Geo multiplier (early signal) ─────────────────────────────────────
-        # BM25 не відкидає — він тільки сигналізує.
-        # Фінальний reject за geo відбувається у CompositeScoringService.
-        # Тут ми повертаємо raw_score * geo_mult щоб composite міг вирішити.
-        language = getattr(content, "language", "") or ""
-        geo_result = self._geo_filter.analyze(text, language)
-
-        adjusted = raw_score * geo_result.multiplier
-
-        logger.info(
-            "BM25: raw=%.3f geo_mult=%.2f adjusted=%.3f lang=%s reason=%s",
-            raw_score, geo_result.multiplier, adjusted,
-            geo_result.language, geo_result.reason,
-        )
-        return adjusted
+        logger.info("BM25: score=%.3f", raw_score)
+        return raw_score
 
     def _bm25_score(self, text: str) -> float:
         tokens = _tokenize(text)

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.ingestion.entities import RawArticle, RawArticleStatus
@@ -58,10 +58,24 @@ class SqlAlchemyRawArticleRepository(IRawArticleRepository):
         )
         return result.scalar_one_or_none() is not None
 
-    async def exists_by_hash(self, content_hash: str) -> bool:
+    async def exists_by_hash(
+        self,
+        content_hash: str,
+        exclude_id: UUID | None = None,
+    ) -> bool:
+        """
+        Повертає True якщо в raw_articles вже є інша стаття з таким самим хешем.
+
+        exclude_id: UUID поточної статті — виключаємо її зі збігу,
+                    щоб стаття не вважалась дублікатом самої себе.
+        """
+        conditions = [RawArticleModel.content_hash == content_hash]
+        if exclude_id is not None:
+            conditions.append(RawArticleModel.id != str(exclude_id))
+
         result = await self._session.execute(
             select(RawArticleModel.id)
-            .where(RawArticleModel.content_hash == content_hash)
+            .where(and_(*conditions))
             .limit(1)
         )
         return result.scalar_one_or_none() is not None
@@ -108,7 +122,7 @@ def _to_model(entity: RawArticle) -> RawArticleModel:
         url=entity.content.url,
         language=entity.content.language,
         published_at=entity.content.published_at,
-        content_hash=entity.content_hash,     # із ParsedContent.content_hash
+        content_hash=entity.content_hash,
         status=entity.processing_status.value,
     )
 

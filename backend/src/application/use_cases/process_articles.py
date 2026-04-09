@@ -12,24 +12,13 @@ Pipeline для кожної статті:
      - Exact duplicate (sha256): відкидаємо одразу
      - Near-duplicate (MinHash Jaccard): відкидаємо якщо similarity >= threshold
      - Унікальний: зберігаємо підпис для майбутніх перевірок
-  5. Build Article aggregate
-  6. Accept (score >= threshold) або Reject
+  5. Reject якщо score нижче threshold
+  6. Build Article aggregate
   7. Auto-tag якщо accepted    (через ITagger порт → EmbeddingTagger gap-based)
   8. Save Article + mark RawArticle processed
   9. Implicit feedback: якщо accepted → зберегти вектор у профіль
 
-Зміни відносно попередньої версії:
-  [НОВЕ] Блок 4 тепер використовує DeduplicateRawArticleUseCase
-         замість примітивного URL/hash check.
-         DeduplicateRawArticleUseCase реалізує повний MinHash pipeline:
-           - валідація контенту
-           - exact hash check (raw_articles + articles)
-           - MinHash near-duplicate (Jaccard similarity)
-           - збереження підпису для нових унікальних статей
-         
-         Якщо dedup_uc=None (зворотна сумісність) — fallback на URL/hash.
-
-  [ЗАЛИШЕНО] _detect_language() встановлює content.language ПЕРЕД scoring.
+Fallback: якщо dedup_uc=None — примітивна перевірка по URL/hash.
 """
 from __future__ import annotations
 
@@ -38,6 +27,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable, Any
 from uuid import uuid4, UUID
+
+from sqlalchemy.exc import IntegrityError
 
 from src.application.ports.language_detector import ILanguageDetector
 from src.application.ports.scoring_service import IScoringService
@@ -49,6 +40,7 @@ from src.domain.knowledge.entities import Article, Tag
 from src.domain.knowledge.repositories import IArticleRepository
 from src.domain.knowledge.value_objects import ArticleStatus, ContentHash, PublishedAt
 from src.domain.deduplication.services import DeduplicationDomainService
+
 logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 100
@@ -76,7 +68,7 @@ class ProcessArticlesResult:
     accepted:  int = 0
     rejected:  int = 0
     failed:    int = 0
-    dedup_skipped: int = 0   # ← НОВЕ: скільки відфільтровано як дублікати
+    dedup_skipped: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -106,12 +98,9 @@ class ProcessArticlesUseCase:
         self._scoring_service      = scoring_service
         self._tagger               = tagger
         self._profile_learner      = profile_learner
-        # dedup_uc може бути або готовим інстансом, або фабрикою (session) → UC
-        # Фабрика потрібна щоб dedup_uc і репозиторії були в одній сесії.
         if callable(dedup_uc) and not hasattr(dedup_uc, "execute"):
             self._dedup_uc_factory = dedup_uc
         else:
-            # Передали готовий інстанс (тести) — обгортаємо в лямбду
             self._dedup_uc_factory = (lambda uc: lambda _session: uc)(dedup_uc) if dedup_uc else None
         self._batch_size           = batch_size
         self._threshold            = threshold
@@ -180,7 +169,7 @@ class ProcessArticlesUseCase:
         )
 
         # ── 4. Dedup ──────────────────────────────────────────────────────────
-        dedup_uc = self._dedup_uc(session) if self._dedup_uc_factory else None
+        dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
         is_dup, dup_reason = await self._check_dedup(raw, article_repo, raw_repo, dedup_uc)
         if is_dup:
             logger.info(
@@ -205,7 +194,7 @@ class ProcessArticlesUseCase:
         # ── Зберігаємо оригінальний текст ДО перекладу ───────────────────────
         original_full_text = raw.content.full_text()
 
-        # ── 5.5. Переклад (ТІЛЬКИ ДЛЯ ACCEPTED СТАТЕЙ) ────────────────────────
+        # ── 5.5. Переклад (тільки для accepted статей) ────────────────────────
         original_title = raw.content.title
         original_body  = raw.content.body
         if self._translator is not None:
@@ -223,7 +212,18 @@ class ProcessArticlesUseCase:
             tags = [Tag(name=name, source="auto") for name in tag_names]
             article.add_tags(tags)
 
-        await article_repo.save(article)
+        try:
+            await article_repo.save(article)
+        except IntegrityError:
+            # Race condition: інший конкурентний таск вже зберіг цю статтю
+            # між нашим dedup-check і save. Трактуємо як дублікат.
+            logger.info(
+                "Race condition dedup: url=%s content_hash already exists",
+                raw.content.url,
+            )
+            await raw_repo.mark_processed(raw.id)
+            return "dedup"
+
         await raw_repo.mark_processed(raw.id)
 
         logger.info(
@@ -231,20 +231,9 @@ class ProcessArticlesUseCase:
             raw.id, article.id, language, relevance_score, tag_names,
         )
 
-        # ── 8. Implicit feedback ──────────────────────────────────────────────
-        # try:
-        #     await self._profile_learner.add_to_profile(
-        #         article_id=article.id,
-        #         content_text=original_full_text,
-        #         score=relevance_score,
-        #         tags=tag_names,
-        #     )
-        # except Exception as exc:
-        #     logger.warning("Profile update failed for article=%s: %s", article.id, exc)
-
         return "accepted"
 
-    # ─── Dedup helper ─────────────────────────────────────────────────────────
+    # ─── Dedup helpers ────────────────────────────────────────────────────────
 
     async def _check_dedup(
         self,
@@ -254,30 +243,18 @@ class ProcessArticlesUseCase:
         dedup_uc=None,
     ) -> tuple[bool, str | None]:
         if dedup_uc is not None:
-            logger.warning("dedup_uc is not None")
             return await self._check_dedup_minhash(raw, dedup_uc)
-        else:
-            return await self._check_dedup_primitive(raw, article_repo, raw_repo)
+        return await self._check_dedup_primitive(raw, article_repo, raw_repo)
 
     async def _check_dedup_minhash(
         self,
         raw: RawArticle,
         dedup_uc,
     ) -> tuple[bool, str | None]:
-        """
-        MinHash деduplication через DeduplicateRawArticleUseCase.
-
-        DeduplicateRawArticleUseCase сам:
-          - валідує контент
-          - перевіряє exact hash (raw + articles таблиці)
-          - перевіряє MinHash near-duplicate
-          - зберігає підпис якщо стаття унікальна
-          - викликає mark_deduplicated якщо дублікат
-        """
+        """MinHash деduplication через DeduplicateRawArticleUseCase."""
         try:
             result = await dedup_uc.execute(raw.id)
         except Exception as exc:
-            # Dedup не критичний — при помилці пропускаємо статтю далі
             logger.warning(
                 "Dedup check failed for raw_id=%s, skipping dedup: %s",
                 raw.id, exc,
@@ -292,10 +269,7 @@ class ProcessArticlesUseCase:
             )
             logger.info(
                 "Dedup reject: url=%s reason=%s existing=%s%s",
-                raw.content.url,
-                result.reason,
-                result.existing_id,
-                sim_info,
+                raw.content.url, result.reason, result.existing_id, sim_info,
             )
             return True, str(result.reason)
 

@@ -1,10 +1,13 @@
 // src/api/feed.ts
 import { client } from "./client";
-import type { FeedResponse } from "./types";
+import type { FeedPageResponse, FeedFilter } from "./types";
 
 export const feedApi = {
-  get: async (userId: string): Promise<FeedResponse> => {
-    const { data } = await client.get(`/feed/${userId}`);
+  get: async (
+    userId: string,
+    params: { offset: number; limit: number; filter: FeedFilter },
+  ): Promise<FeedPageResponse> => {
+    const { data } = await client.get(`/feed/${userId}`, { params });
     return data;
   },
 

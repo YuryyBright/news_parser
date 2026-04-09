@@ -5,9 +5,10 @@ DeduplicateRawArticleUseCase — перевіряє чи є raw article дубл
 Два рівні перевірки (в порядку виконання):
 
   1. EXACT duplicate (sha256)
-     - Перевіряємо hash в raw_articles (раніше отриманий той самий URL)
+     - Перевіряємо hash в raw_articles (раніше отриманий той самий URL),
+       ВИКЛЮЧАЮЧИ поточну статтю — щоб вона не збіглась сама з собою.
      - Перевіряємо hash в articles (вже пройшов pipeline)
-     → DuplicateContentError → raw.status = "deduplicated"
+     → raw.status = "deduplicated"
 
   2. NEAR-DUPLICATE (MinHash Jaccard)
      - Шукаємо схожі підписи в IMinHashRepository
@@ -32,11 +33,7 @@ from enum import StrEnum
 from uuid import UUID
 
 from src.domain.deduplication.services import DeduplicationDomainService
-from src.domain.ingestion.exceptions import (
-    DuplicateContentError,
-    InvalidContentError,
-    NearDuplicateContentError,
-)
+from src.domain.ingestion.exceptions import InvalidContentError
 from src.domain.ingestion.repositories import IRawArticleRepository
 from src.domain.deduplication.repositories import IMinHashRepository
 from src.domain.knowledge.repositories import IArticleRepository
@@ -47,7 +44,7 @@ logger = logging.getLogger(__name__)
 # ── Result ────────────────────────────────────────────────────────────────────
 
 class DuplicateReason(StrEnum):
-    EXACT_RAW     = "exact_raw"      # вже є в raw_articles
+    EXACT_RAW     = "exact_raw"      # вже є в raw_articles (інша стаття)
     EXACT_ARTICLE = "exact_article"  # вже є в articles
     NEAR_SIMILAR  = "near_similar"   # MinHash similarity > threshold
     INVALID       = "invalid"        # не пройшов валідацію
@@ -75,11 +72,11 @@ class DeduplicateRawArticleUseCase:
         dedup_service: DeduplicationDomainService,
         minhash_threshold: float = 0.85,
     ) -> None:
-        self._raw_repo    = raw_repo
-        self._art_repo    = article_repo
+        self._raw_repo     = raw_repo
+        self._art_repo     = article_repo
         self._minhash_repo = minhash_repo
-        self._svc         = dedup_service
-        self._threshold   = minhash_threshold
+        self._svc          = dedup_service
+        self._threshold    = minhash_threshold
 
     async def execute(self, raw_article_id: UUID) -> DeduplicationResult:
         # ── 0. Завантажити raw article ────────────────────────────────────────
@@ -95,7 +92,7 @@ class DeduplicateRawArticleUseCase:
             self._svc.validate_content(title, body)
         except InvalidContentError as exc:
             await self._raw_repo.mark_invalid(raw_article_id)
-            logger.warning("Invalid content raw=%s: %s", raw_article_id)
+            logger.warning("Invalid content raw=%s: %s", raw_article_id, exc)
             return DeduplicationResult(
                 raw_article_id=raw_article_id,
                 is_duplicate=True,
@@ -103,11 +100,14 @@ class DeduplicateRawArticleUseCase:
                 error_message=exc.reason,
             )
 
-        # ── 2. Exact duplicate — перевірити в raw_articles ────────────────────
+        # ── 2. Exact duplicate — raw_articles (виключаємо саму себе) ─────────
         content_hash = self._svc.compute_hash(title, body)
 
-        exists = await self._raw_repo.exists_by_hash(content_hash.value)
-        if exists:
+        exists_in_raw = await self._raw_repo.exists_by_hash(
+            content_hash.value,
+            exclude_id=raw_article_id,   # ← не знаходити саму себе
+        )
+        if exists_in_raw:
             await self._raw_repo.mark_deduplicated(raw_article_id)
             logger.info(
                 "Exact duplicate (raw): raw=%s hash=%s",
@@ -119,7 +119,7 @@ class DeduplicateRawArticleUseCase:
                 reason=DuplicateReason.EXACT_RAW,
             )
 
-        # ── 3. Exact duplicate — перевірити в articles ────────────────────────
+        # ── 3. Exact duplicate — articles ─────────────────────────────────────
         existing_article = await self._art_repo.get_by_hash(content_hash.value)
         if existing_article is not None:
             await self._raw_repo.mark_deduplicated(raw_article_id)
@@ -141,7 +141,6 @@ class DeduplicateRawArticleUseCase:
             threshold=self._threshold,
             limit=1,
         )
-
         if similar:
             existing_id, similarity = similar[0]
             await self._raw_repo.mark_deduplicated(raw_article_id)

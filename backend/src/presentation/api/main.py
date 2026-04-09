@@ -129,11 +129,14 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         )
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[
-            "http://localhost:5173", # Зверни увагу: без слеша (/) в кінці!
-            "http://127.0.0.1:5173",
-            "http://192.168.0.199:5173"
+            CORSMiddleware,
+            allow_origins=[
+            "http://localhost",
+            "http://localhost:80",
+            "http://127.0.0.1",
+            "http://127.0.0.1:80",
+            "http://192.168.0.199",
+            "http://192.168.0.199:80",
         ],
         allow_credentials=True,
         allow_methods=["*"], # Дозволяє всі методи (GET, POST, PUT, DELETE тощо)

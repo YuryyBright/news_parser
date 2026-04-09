@@ -1,6 +1,9 @@
 // src/api/types.ts
 // Типи, похідні від бекенд Pydantic схем (article.py, feed.py, source.py, task.py)
 export const UserID = "00000000-0000-0000-0000-000000000001";
+
+export type FeedFilter = "all" | "unread" | "read";
+
 export type ArticleStatus =
   | "new"
   | "accepted"
@@ -99,13 +102,17 @@ export interface FeedArticle {
   original_title: string | null;
   original_body: string | null;
 }
-
-export interface FeedResponse {
+export interface FeedPageResponse {
   snapshot_id: string;
   generated_at: string;
+  total: number;
+  offset: number;
+  limit: number;
+  has_more: boolean;
   items: FeedArticle[];
 }
 
+export type FeedResponse = FeedPageResponse;
 // ── Sources ───────────────────────────────────────────────────────────────────
 
 export interface Source {

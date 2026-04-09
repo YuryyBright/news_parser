@@ -3,12 +3,12 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 interface FeedStore {
-  // В реальному проді — береться з auth, поки хардкод
   userId: string;
-  readIds: string[]; // persist як масив (Set не серіалізується)
+  readIds: string[];
   feedFilter: "all" | "unread" | "read";
   setFeedFilter: (f: "all" | "unread" | "read") => void;
   markRead: (articleId: string) => void;
+  markAllRead: (articleIds: string[]) => void;
   isRead: (articleId: string) => boolean;
 }
 
@@ -29,6 +29,12 @@ export const useFeedStore = create<FeedStore>()(
             ? s.readIds
             : [...s.readIds, articleId],
         })),
+
+      markAllRead: (articleIds) =>
+        set((s) => {
+          const newIds = articleIds.filter((id) => !s.readIds.includes(id));
+          return newIds.length > 0 ? { readIds: [...s.readIds, ...newIds] } : s;
+        }),
 
       isRead: (articleId) => get().readIds.includes(articleId),
     }),

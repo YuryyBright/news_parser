@@ -1,57 +1,108 @@
 // src/pages/FeedPage.tsx
-import { RefreshCw, CheckCheck, Sparkles } from "lucide-react";
-import { useFeed, useMarkRead } from "../hooks/useFeed";
+import { useEffect, useRef } from "react";
+import { RefreshCw, CheckCheck, Sparkles, Loader2 } from "lucide-react";
+import { useFeed, useMarkRead, useMarkAllRead } from "../hooks/useFeed";
 import { useFeedStore } from "../store/useFeedStore";
 import { useArticlesStore } from "../store/useArticlesStore";
 import { ArticleCard } from "../components/articles/ArticleCard";
 import { ArticleDrawer } from "../components/articles/ArticleDrawer";
 import { cn } from "../lib/utils";
+import type { FeedFilter } from "../api/types";
 
-const FILTER_TABS = [
+const FILTER_TABS: { key: FeedFilter; label: string }[] = [
   { key: "all", label: "Всі" },
   { key: "unread", label: "Непрочитані" },
   { key: "read", label: "Прочитані" },
-] as const;
+];
 
 export const FeedPage = () => {
   const feedFilter = useFeedStore((s) => s.feedFilter);
   const setFeedFilter = useFeedStore((s) => s.setFeedFilter);
   const isRead = useFeedStore((s) => s.isRead);
+  const markReadStore = useFeedStore((s) => s.markRead);
 
   const activeArticleId = useArticlesStore((s) => s.activeArticleId);
   const setActiveArticle = useArticlesStore((s) => s.setActiveArticle);
 
-  const { data: feed, isLoading, refetch, isFetching } = useFeed();
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useFeed(feedFilter);
+
   const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
 
-  const items = feed?.items ?? [];
-  const checkIsRead = (item: any) => {
-    // Стаття прочитана, якщо вона є в локальному сторі АБО база каже, що вона прочитана
-    return isRead(item.article_id) || item.status === "read";
-  };
-  const filtered = items.filter((item) => {
-    const itemRead = checkIsRead(item);
-    if (feedFilter === "unread") return !itemRead;
-    if (feedFilter === "read") return itemRead;
-    return true;
-  });
+  const items = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
 
-  const unreadCount = items.filter((item) => !checkIsRead(item)).length;
+  const checkIsRead = (item: any) =>
+    isRead(item.article_id) || item.status === "read";
+
+  const unreadCount =
+    feedFilter === "all"
+      ? items.filter((item) => !checkIsRead(item)).length
+      : feedFilter === "unread"
+        ? total
+        : 0;
+
+  // ─── Intersection Observer ────────────────────────────────────────────────
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleOpen = (item: any) => {
     setActiveArticle(item.article_id);
-    // Перевіряємо через новий хелпер
     if (!checkIsRead(item)) {
       markRead.mutate(item.article_id);
+      markReadStore(item.article_id);
     }
   };
+
+  const handleMarkArticleRead = (e: React.MouseEvent, item: any) => {
+    e.stopPropagation();
+    if (!checkIsRead(item)) {
+      markRead.mutate(item.article_id);
+      markReadStore(item.article_id);
+    }
+  };
+
+  const handleMarkAllRead = () => {
+    const unreadIds = items
+      .filter((item) => !checkIsRead(item))
+      .map((item) => item.article_id);
+    if (unreadIds.length === 0) return;
+    markAllRead.mutate(unreadIds);
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            Фід
+            Стрічка
             {unreadCount > 0 && (
               <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white">
                 {unreadCount}
@@ -59,25 +110,47 @@ export const FeedPage = () => {
             )}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            {feed?.generated_at
-              ? `Оновлено ${new Date(feed.generated_at).toLocaleTimeString("uk")}`
+            {data?.pages[0]?.generated_at
+              ? `Оновлено ${new Date(data.pages[0].generated_at).toLocaleTimeString("uk")}`
               : "Персоналізовані новини"}
           </p>
         </div>
 
-        <button
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
-            "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300",
-            "hover:bg-slate-100 dark:hover:bg-slate-800",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+        <div className="flex items-center gap-2">
+          {feedFilter !== "read" && unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              disabled={markAllRead.isPending}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+                "border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400",
+                "hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+              )}
+            >
+              <CheckCheck className="w-4 h-4" />
+              Прочитати всі
+            </button>
           )}
-        >
-          <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
-          Оновити
-        </button>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+              "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300",
+              "hover:bg-slate-100 dark:hover:bg-slate-800",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+            )}
+          >
+            <RefreshCw
+              className={cn(
+                "w-4 h-4",
+                isFetching && !isFetchingNextPage && "animate-spin",
+              )}
+            />
+            Оновити
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
@@ -103,17 +176,17 @@ export const FeedPage = () => {
         ))}
       </div>
 
-      {/* Articles grid */}
+      {/* Feed list */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-40 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
+              className="h-16 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
             />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-slate-400">
           {feedFilter === "unread" ? (
             <>
@@ -133,37 +206,58 @@ export const FeedPage = () => {
             <>
               <Sparkles className="w-12 h-12 mb-3" />
               <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
-                Фід порожній
+                Стрічка порожня
               </p>
               <p className="text-sm mt-1">Додайте джерела або оновіть фід</p>
             </>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((item) => (
-            <ArticleCard
-              key={item.article_id}
-              article={{
-                id: item.article_id,
-                title: item.title,
-                url: item.url,
-                language: item.language,
-                status: "new",
-                relevance_score: item.relevance_score,
-                published_at: item.published_at,
-                created_at: item.published_at ?? "",
-                tags: [],
-                original_body: item.original_body,
-                original_title: item.original_title,
-                body: null,
-              }}
-              // Залишаємо ТІЛЬКИ НОВИЙ варіант:
-              isRead={checkIsRead(item)}
-              onClick={() => handleOpen(item)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
+            {items.map((item) => {
+              const read = checkIsRead(item);
+              return (
+                <ArticleCard
+                  key={item.article_id}
+                  variant="feed"
+                  isRead={read}
+                  onClick={() => handleOpen(item)}
+                  onMarkRead={(e) => handleMarkArticleRead(e, item)}
+                  article={{
+                    id: item.article_id,
+                    title: item.title,
+                    url: item.url,
+                    language: item.language,
+                    status: read ? "accepted" : "new",
+                    relevance_score: item.relevance_score,
+                    published_at: item.published_at,
+                    created_at: item.published_at ?? "",
+                    tags: [],
+                    original_body: null,
+                    original_title: null,
+                    body: null,
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Sentinel div — intersection observer target */}
+          <div ref={sentinelRef} className="h-4" />
+
+          {isFetchingNextPage && (
+            <div className="flex items-center justify-center py-6 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              <span className="text-sm">Завантаження...</span>
+            </div>
+          )}
+          {!hasNextPage && items.length > 0 && (
+            <p className="text-center text-xs text-slate-400 dark:text-slate-600 py-6">
+              Всі {total} статей завантажено
+            </p>
+          )}
+        </>
       )}
 
       <ArticleDrawer

@@ -22,7 +22,11 @@ class IFeedRepository(ABC):
     async def save_snapshot(self, snapshot: FeedSnapshot) -> None:
         """Зберігає новий агрегат фіду разом з усіма його items."""
         pass
-
+    @abstractmethod
+    async def append_items(self, snapshot_id: UUID, items: list[FeedItemRef]) -> None:
+        """Додає нові FeedItem до існуючого snapshot."""
+        ...
+ 
     @abstractmethod
     async def find_active_item(self, user_id: UUID, article_id: UUID) -> FeedItemRef | None:
         """

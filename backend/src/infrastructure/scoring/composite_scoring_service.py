@@ -1,67 +1,50 @@
 # infrastructure/scoring/composite_scoring_service.py
 """
-CompositeScoringService — тришаровий scoring.
+CompositeScoringService — двошаровий scoring (BM25 + Embeddings).
 
-[ОНОВЛЕНО] Додано 3-й шар: GeoRelevanceFilter.
+[СПРОЩЕНО] GeoRelevanceFilter повністю видалено.
+  Раніше geo-множник застосовувався двічі (у BM25 і як фінальний шар),
+  що призводило до надмірного відкидання релевантних статей.
+  Тепер pipeline чистий і передбачуваний.
 
-Шар 1 — BM25 (pre-filter з вбудованим geo_multiplier):
-  Якщо bm25_score (вже з geo_mult) < bm25_min_threshold → reject одразу (score=0.0).
-  BM25ScoringService сам застосовує geo_multiplier до свого score.
-  Тому bm25_min_threshold тепер враховує обидва аспекти разом.
+Архітектура:
 
-  Приклад:
-    HU-стаття про NATO без HU контексту:
-      bm25_raw=0.15, geo_mult=0.40 → bm25_adjusted=0.06
-      0.06 >= bm25_min_threshold(0.05) → проходить, але вже "слабкий"
+  Шар 0 — Embedding fast-path (HIGH CONFIDENCE):
+    Якщо embed_score >= embed_confidence_threshold → негайний accept.
+    BM25 не викликається взагалі.
+    Обґрунтування: cosine similarity > порогу означає що профіль
+    вже однозначно ідентифікував статтю як релевантну.
 
-    HU-стаття "котики милі":
-      bm25_raw=0.01, geo_mult=0.40 → bm25_adjusted=0.004
-      0.004 < 0.05 → reject одразу
+    Приклад:
+      Стаття про мобілізацію (тема яку юзер читає постійно):
+        embed=0.92 >= 0.88 → score=0.92 ✓
 
-Шар 2 — Embeddings (semantic scoring):
-  Порівнює вектор статті з профілем інтересів.
-  Повертає cosine similarity без geo-корекції.
+  Шар 1 — BM25 hard pre-filter:
+    Якщо bm25_score < bm25_min_threshold → reject одразу (score=0.0).
+    BM25 тепер повертає чистий тематичний score без geo-penalty,
+    тому поріг знову є тематичним бар'єром.
 
-Шар 3 — Geo final multiplier:
-  Застосовуємо geo_multiplier до ФІНАЛЬНОГО зваженого score.
-  GeoRelevanceFilter.analyze() викликається повторно (дешево — regex).
-  Це потрібно бо embeddings можуть "рятувати" тематично релевантні статті
-  навіть якщо BM25 був слабким — і гео-фільтр має останнє слово.
+    Приклад:
+      Стаття про котиків (жоден топік-кластер не спрацював):
+        bm25=0.02 < 0.08 → reject ✓
 
-  Приклад:
-    HU-стаття про NATO (geo_mult=0.40):
-      bm25=0.06 (adjusted), embed=0.70 (якщо профіль любить NATO)
-      weighted = 0.35*0.06 + 0.65*0.70 = 0.021 + 0.455 = 0.476
-      final = 0.476 * 0.40 = 0.190
-      0.190 < threshold(0.25) → REJECT ✓ (саме те що хотіли)
+      Стаття про NATO + Угорщина:
+        bm25=0.22 >= 0.08 → проходить далі ✓
 
-    HU-стаття про Угорщину в NATO (geo_mult=1.0):
-      bm25=0.15 (adjusted=0.15*1.0), embed=0.70
-      weighted = 0.35*0.15 + 0.65*0.70 = 0.0525 + 0.455 = 0.507
-      final = 0.507 * 1.0 = 0.507
-      0.507 >= 0.25 → ACCEPT ✓
+  Шар 2 — Зважений score (BM25 + Embeddings):
+    weighted = bm25_weight * bm25 + embed_weight * embed
+    Зважена комбінація дає balanced score.
 
-    HU-стаття про Закарпаття і мобілізацію (geo_mult=1.0):
-      bm25=0.45, embed=0.80
-      weighted = 0.35*0.45 + 0.65*0.80 = 0.1575 + 0.52 = 0.677
-      final = 0.677 * 1.0 = 0.677 → ACCEPT ✓
+    Приклад:
+      bm25=0.22, embed=0.71:
+        weighted = 0.35*0.22 + 0.65*0.71 = 0.077 + 0.462 = 0.539 → ACCEPT ✓
 
-Шар 0 — Embedding fast-path (HIGH CONFIDENCE):
-  Якщо embed_score >= embed_confidence_threshold (0.91) → негайний accept.
-  BM25 і GeoFilter не викликаються взагалі.
-  Обґрунтування: профіль cosine similarity > 0.91 — це однозначний сигнал.
-  GeoFilter не повинен топити статті які користувач ТОЧНО хоче читати.
-
-  Приклад:
-    Стаття HU про Закарпаття і мобілізацію (тема яку юзер читає постійно):
-      embed=0.94 >= 0.91 → score=0.94, BM25/geo пропущено ✓
-
-    Стаття EN про глобальний ринок нафти (схожа тематично):
-      embed=0.88 < 0.91 → іде через BM25 + geo pipeline
+      bm25=0.09, embed=0.28 (мало релевантна):
+        weighted = 0.35*0.09 + 0.65*0.28 = 0.031 + 0.182 = 0.213 → REJECT ✓
 
 Налаштування:
-  embed_confidence_threshold: float = 0.91  # fast-path поріг
-  bm25_min_threshold:         float = 0.07  # після geo_mult корекції у BM25
+  embed_confidence_threshold: float = 0.88  # fast-path поріг
+  bm25_min_threshold:         float = 0.08  # hard pre-filter
   bm25_weight:                float = 0.35
   embed_weight:               float = 0.65
 """
@@ -71,42 +54,36 @@ import logging
 
 from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.value_objects import ParsedContent
-from src.infrastructure.scoring.geo_relevance_filter import GeoRelevanceFilter
 
 logger = logging.getLogger(__name__)
 
 
 class CompositeScoringService(IScoringService):
     """
-    Реалізує IScoringService через BM25 + Embeddings + GeoFilter.
+    Реалізує IScoringService через BM25 + Embeddings.
 
     ProcessArticlesUseCase не знає про цей клас — отримує IScoringService.
 
-    ВАЖЛИВО: ParsedContent.language має бути заповнений до виклику score().
-    ProcessArticlesUseCase викликає _detect_language() перед _score() — це правильно.
-
     Приклад у container.py:
-        geo_filter = GeoRelevanceFilter()
         composite = CompositeScoringService(
-            bm25=BM25ScoringService(geo_filter=geo_filter),
+            bm25=BM25ScoringService(),
             embeddings=EmbeddingsScoringService(embedder, profile_repo),
-            geo_filter=geo_filter,   # той самий інстанс — без дублювання
         )
+
+    GeoRelevanceFilter більше не передається і не використовується.
     """
 
     def __init__(
         self,
         bm25: IScoringService,
         embeddings: IScoringService,
-        geo_filter: GeoRelevanceFilter | None = None,
-        bm25_min_threshold: float = 0.07,
+        bm25_min_threshold: float = 0.08,
         bm25_weight: float = 0.35,
         embed_weight: float = 0.65,
-        embed_confidence_threshold: float = 0.87,
+        embed_confidence_threshold: float = 0.88,
     ) -> None:
         self._bm25 = bm25
         self._embeddings = embeddings
-        self._geo_filter = geo_filter or GeoRelevanceFilter()
         self._bm25_min_threshold = bm25_min_threshold
         self._bm25_weight = bm25_weight
         self._embed_weight = embed_weight
@@ -115,49 +92,33 @@ class CompositeScoringService(IScoringService):
         assert bm25_weight > 0 and embed_weight > 0, "Weights must be positive"
 
     async def score(self, content: ParsedContent) -> float:
-        text = content.full_text()
-        language = getattr(content, "language", "") or ""
-
-        # ── Шар 2: Embeddings (без geo — чиста семантика) ─────────────────────
-        # Викликаємо ПЕРШИМ — якщо embed_score перевищує поріг впевненості,
-        # BM25 і GeoFilter пропускаємо повністю: профіль вже однозначно
-        # ідентифікував статтю як релевантну для користувача.
+        # ── Шар 0: Embedding fast-path ────────────────────────────────────────
+        # Якщо профіль вже впевнений — BM25 не потрібен.
         embed_score = await self._embeddings.score(content)
 
         if embed_score >= self._embed_confidence_threshold:
             logger.info(
-                "CompositeSC: embed=%.3f >= confidence_threshold=%.2f → "
-                "fast-path accept, score=embed lang=%s",
-                embed_score, self._embed_confidence_threshold, language,
+                "CompositeSC: embed=%.3f >= confidence_threshold=%.2f → fast-path accept",
+                embed_score, self._embed_confidence_threshold,
             )
             return embed_score
 
-        # ── Шар 1: BM25 з вбудованим geo_multiplier ──────────────────────────
-        # BM25ScoringService вже застосовує geo_mult до свого score.
-        bm25_adjusted = await self._bm25.score(content)
+        # ── Шар 1: BM25 hard pre-filter ───────────────────────────────────────
+        bm25_score = await self._bm25.score(content)
 
-        # if bm25_adjusted < self._bm25_min_threshold:
-        #     logger.info(
-        #         "CompositeSC: BM25_adjusted=%.3f < threshold=%.3f → early reject (lang=%s)",
-        #         bm25_adjusted, self._bm25_min_threshold, language,
-        #     )
-        #     return 0.0
+        if bm25_score < self._bm25_min_threshold:
+            logger.info(
+                "CompositeSC: BM25=%.3f < threshold=%.3f → early reject",
+                bm25_score, self._bm25_min_threshold,
+            )
+            return 0.0
 
-        # ── Зважений score ────────────────────────────────────────────────────
-        weighted = self._bm25_weight * bm25_adjusted + self._embed_weight * embed_score
-
-        # ── Шар 3: Geo final multiplier ───────────────────────────────────────
-        # Повторний виклик дешевий (regex, без ML).
-        # GeoFilter має "останнє слово" — навіть якщо embeddings дали 0.9,
-        # глобальна стаття чужою мовою отримає penalty.
-        geo_result = self._geo_filter.analyze(text, language)
-        final = weighted * geo_result.multiplier
+        # ── Шар 2: Зважений score ─────────────────────────────────────────────
+        weighted = self._bm25_weight * bm25_score + self._embed_weight * embed_score
 
         logger.info(
-            "CompositeSC: BM25_adj=%.3f embed=%.3f weighted=%.3f "
-            "geo_mult=%.2f final=%.3f lang=%s geo_reason=%s",
-            bm25_adjusted, embed_score, weighted,
-            geo_result.multiplier, final, language, geo_result.reason,
+            "CompositeSC: BM25=%.3f embed=%.3f weighted=%.3f",
+            bm25_score, embed_score, weighted,
         )
 
-        return min(final, 1.0)
+        return min(weighted, 1.0)

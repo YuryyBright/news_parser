@@ -1,5 +1,5 @@
 // src/components/articles/ArticleCard.tsx
-import { ExternalLink, Clock } from "lucide-react";
+import { ExternalLink, Clock, Eye } from "lucide-react";
 import { cn, formatDate, languageFlag } from "../../lib/utils";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleBadge } from "./ArticleBadge";
@@ -10,11 +10,121 @@ import type { Article } from "../../api/types";
 interface Props {
   article: Article;
   onClick?: () => void;
-  onClickOpen?: () => void;
   isRead?: boolean;
+  /** "card" — grid-картка (default), "feed" — рядок стрічки */
+  variant?: "card" | "feed";
+  onMarkRead?: (e: React.MouseEvent) => void;
 }
 
-export const ArticleCard = ({ article, onClick, isRead }: Props) => {
+export const ArticleCard = ({
+  article,
+  onClick,
+  isRead,
+  variant = "card",
+  onMarkRead,
+}: Props) => {
+  if (variant === "feed") {
+    return (
+      <article
+        onClick={onClick}
+        className={cn(
+          "flex items-start gap-4 px-4 py-4 cursor-pointer transition-colors group",
+          "bg-white dark:bg-slate-900",
+          !isRead && "hover:bg-slate-50 dark:hover:bg-slate-800/60",
+          isRead && "opacity-60",
+        )}
+      >
+        {/* Unread dot */}
+        <div className="mt-2 flex-shrink-0 w-2 h-2">
+          <div
+            className={cn(
+              "w-2 h-2 rounded-full transition-colors",
+              isRead ? "bg-transparent" : "bg-blue-500",
+            )}
+          />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p
+            className={cn(
+              "text-sm font-medium leading-snug line-clamp-2",
+              isRead
+                ? "text-slate-400 dark:text-slate-500"
+                : "text-slate-900 dark:text-white",
+            )}
+          >
+            {article.title}
+          </p>
+
+          <div className="flex items-center flex-wrap gap-3 mt-1.5">
+            {article.published_at && (
+              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+                <Clock className="w-3 h-3" />
+                {formatDate(article.published_at)}
+              </span>
+            )}
+            {article.language && (
+              <span className="text-xs">
+                {languageFlag(article.language)}
+                <span className="ml-1 font-mono text-slate-400 dark:text-slate-500 uppercase text-[11px]">
+                  {article.language}
+                </span>
+              </span>
+            )}
+            {article.relevance_score != null && (
+              <ScoreBadge score={article.relevance_score} />
+            )}
+            {article.tags?.length > 0 && (
+              <TagsList tags={article.tags.slice(0, 3)} clickable />
+            )}
+          </div>
+        </div>
+
+        {/* Right-side actions */}
+        <div
+          className="flex-shrink-0 flex items-center gap-1 mt-0.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Feedback — прихований, з'являється при hover */}
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <FeedbackButtons articleId={article.id} compact />
+          </div>
+
+          {/* Mark as read / open original */}
+          {!isRead && onMarkRead && (
+            <button
+              onClick={onMarkRead}
+              title="Позначити прочитаним"
+              className={cn(
+                "opacity-0 group-hover:opacity-100 transition-all",
+                "p-1.5 rounded-md",
+                "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
+              )}
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+          )}
+
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Відкрити оригінал"
+            className={cn(
+              "opacity-0 group-hover:opacity-100 transition-all",
+              "p-1.5 rounded-md",
+              "text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50",
+            )}
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+      </article>
+    );
+  }
+
+  // ─── variant="card" (original) ────────────────────────────────────────────
   return (
     <article
       className={cn(
@@ -28,13 +138,11 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
       )}
       onClick={onClick}
     >
-      {/* Unread indicator stripe */}
       {!isRead && (
         <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-full" />
       )}
 
       <div className="p-4 pl-5">
-        {/* Top row: status + score + language + date */}
         <div className="flex items-center gap-2 flex-wrap mb-2.5">
           <ArticleBadge status={article.status} />
           <ScoreBadge score={article.relevance_score} />
@@ -47,7 +155,6 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
           </div>
         </div>
 
-        {/* Title */}
         <h3
           className={cn(
             "text-sm font-semibold leading-snug mb-2.5",
@@ -59,12 +166,10 @@ export const ArticleCard = ({ article, onClick, isRead }: Props) => {
           {article.title}
         </h3>
 
-        {/* Tags */}
         {article.tags.length > 0 && (
           <TagsList tags={article.tags} clickable className="mb-3" />
         )}
 
-        {/* Bottom actions row */}
         <div
           className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
