@@ -77,7 +77,7 @@ class CompositeScoringService(IScoringService):
         self,
         bm25: IScoringService,
         embeddings: IScoringService,
-        bm25_min_threshold: float = 0.08,
+        bm25_min_threshold: float = 0.10,
         bm25_weight: float = 0.35,
         embed_weight: float = 0.65,
         embed_confidence_threshold: float = 0.88,

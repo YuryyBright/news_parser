@@ -416,12 +416,10 @@ class BM25ScoringService(IScoringService):
         try:
             from rank_bm25 import BM25Okapi
             self._backend = "rank_bm25"
+            # ✅ Corpus будується ОДИН РАЗ з keyword-документів
+            # Кожна тема = один "документ" зі своїми ключовими словами
             return BM25Okapi(_TOPIC_CORPUS_RAW)
         except ImportError:
-            logger.warning(
-                "rank_bm25 not installed (pip install rank-bm25). "
-                "Falling back to SimpleKeyword scoring."
-            )
             self._backend = "simple"
             return None
 
@@ -443,18 +441,15 @@ class BM25ScoringService(IScoringService):
         if not tokens:
             return 0.0
 
-        expanded_corpus = _corpus_with_substrings(tokens, _TOPIC_CORPUS_RAW)
-
-        from rank_bm25 import BM25Okapi
-        bm25 = BM25Okapi(expanded_corpus)
-        scores = bm25.get_scores(tokens)
-
+        # ✅ Query = токени статті проти фіксованого corpus тем
+        scores = self._bm25.get_scores(tokens)
+        
         raw = float(np.max(scores))
         normalized = min(raw / self._max_score, 1.0)
 
         logger.debug(
-            "BM25_raw: raw_max=%.3f normalized=%.3f tokens_count=%d",
-            raw, normalized, len(tokens),
+            "BM25: raw_max=%.3f normalized=%.3f best_topic=%d tokens=%d",
+            raw, normalized, int(np.argmax(scores)), len(tokens),
         )
         return normalized
 

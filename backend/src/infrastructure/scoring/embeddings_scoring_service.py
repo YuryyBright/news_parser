@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 
 # Score при cold start (порожній профіль — перші запуски системи)
 # Трохи вище threshold(0.25) але не 1.0 → BM25 ще фільтрує сміттєвий контент.
-COLD_START_SCORE = 0.55
+COLD_START_SCORE = 0.30
 
 TOP_K = 5
 
