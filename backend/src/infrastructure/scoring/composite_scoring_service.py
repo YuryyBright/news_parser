@@ -106,12 +106,12 @@ class CompositeScoringService(IScoringService):
         # ── Шар 1: BM25 hard pre-filter ───────────────────────────────────────
         bm25_score = await self._bm25.score(content)
 
-        if bm25_score < self._bm25_min_threshold:
-            logger.info(
-                "CompositeSC: BM25=%.3f < threshold=%.3f → early reject",
-                bm25_score, self._bm25_min_threshold,
-            )
-            return 0.0
+        # if bm25_score < self._bm25_min_threshold:
+        #     logger.info(
+        #         "CompositeSC: BM25=%.3f < threshold=%.3f → early reject",
+        #         bm25_score, self._bm25_min_threshold,
+        #     )
+        #     return 0.0
 
         # ── Шар 2: Зважений score ─────────────────────────────────────────────
         weighted = self._bm25_weight * bm25_score + self._embed_weight * embed_score
