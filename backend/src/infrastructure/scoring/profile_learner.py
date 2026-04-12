@@ -64,6 +64,7 @@ class ProfileLearner(IProfileLearner):
             vector=vector,
             score=score,
             tags=tags,
+            feedback_type="positive",
         )
 
         logger.debug(

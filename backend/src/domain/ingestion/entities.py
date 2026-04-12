@@ -136,9 +136,9 @@ class FetchJob(BaseEntity):
             if self.retries >= max_retries
             else FetchJobStatus.PENDING
         )
-        self._record_event(FetchJobFailed(
-            aggregate_id=self.id,
-            source_id=self.source_id,
-            reason=reason,
-            retries=self.retries,
-        ))
+        # self._record_event(FetchJobFailed(
+        #     aggregate_id=self.id,
+        #     source_id=self.source_id,
+        #     reason=reason,
+        #     retries=self.retries,
+        # ))
