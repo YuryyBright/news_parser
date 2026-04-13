@@ -46,14 +46,14 @@ class FilterWeightsSettings(BaseSettings):
 class FeedbackBoostSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FILTERING__FEEDBACK__", extra="ignore")
     min_count_for_boost: int   = 10
-    boost_embedding: float     = 0.55
+    boost_embedding: float     = 0.5
     boost_keyword: float       = 0.20
     boost_feedback: float      = 0.25
 
 
 class FilteringSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FILTERING__", extra="ignore")
-    default_threshold: float        = 0.55
+    default_threshold: float        = 0.5
     cold_start_phrases_count: int   = 8
     weights: FilterWeightsSettings  = Field(default_factory=FilterWeightsSettings)
     feedback: FeedbackBoostSettings = Field(default_factory=FeedbackBoostSettings)

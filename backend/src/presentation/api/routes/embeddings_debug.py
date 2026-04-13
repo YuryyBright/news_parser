@@ -215,6 +215,7 @@ async def profile_entries(
             "score": meta.get("score"),
             "tags": meta.get("tags", "").split(",") if meta.get("tags") else [],
             "added_at": meta.get("added_at"),
+            "feedback_type": meta.get("feedback_type", "unknown"),
         }
         for article_id, meta in zip(ids, metas)
     ]
@@ -228,7 +229,36 @@ async def profile_entries(
         "entries": entries[:limit],
     }
 
-
+@router.post("/profile/migrate-feedback-type")
+async def migrate_feedback_type(container: Container = Depends(get_container)):
+    """Проставляє feedback_type='positive' всім старим записам без цього поля."""
+    profile_repo = _get_profile_repo(container)
+    col = await profile_repo._get_collection()
+    
+    result = await col.get(include=["embeddings", "metadatas"])
+    ids = result["ids"]
+    metas = result["metadatas"]
+    embeddings = result["embeddings"]
+    
+    to_update_ids = []
+    to_update_embeddings = []
+    to_update_metas = []
+    
+    for id_, meta, emb in zip(ids, metas, embeddings):
+        if not meta.get("feedback_type"):
+            updated_meta = {**meta, "feedback_type": "positive"}
+            to_update_ids.append(id_)
+            to_update_embeddings.append(emb)
+            to_update_metas.append(updated_meta)
+    
+    if to_update_ids:
+        await col.upsert(
+            ids=to_update_ids,
+            embeddings=to_update_embeddings,
+            metadatas=to_update_metas,
+        )
+    
+    return {"migrated": len(to_update_ids), "total": len(ids)}
 # ═══════════════════════════════════════════════════════════════════════════════
 # GET /profile/centroid — інформація про центроїд
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -460,7 +490,24 @@ async def score_text(
         t2 = time.perf_counter()
         embed_score = await scoring._embeddings.score(content)
         embed_ms = round((time.perf_counter() - t2) * 1000, 1)
+    try:
+        profile_repo = _get_profile_repo(container)
+        embedder = _get_embedder(container)
+        article_vec = embedder.encode_passage(body.text)
+        
+        pos_count_result = await (await profile_repo._get_collection()).get(
+            where={"feedback_type": {"$eq": "positive"}}, include=[]
+        )
+        neg_count_result = await (await profile_repo._get_collection()).get(
+            where={"feedback_type": {"$eq": "negative"}}, include=[]
+        )
+        pos_sims = await profile_repo.query_by_feedback_type(article_vec, 5, "positive")
+        neg_sims = await profile_repo.query_by_feedback_type(article_vec, 5, "negative")
+        
+        # додай у відповідь:
 
+    except Exception as e:
+        logger.warning("profile detail failed: %s", e)
     # Geo аналіз
     geo_result = None
     with contextlib.suppress(Exception):
@@ -512,6 +559,12 @@ async def score_text(
             "bm25": bm25_ms if bm25_score is not None else None,
             "embeddings": embed_ms if embed_score is not None else None,
         },
+        "profile_detail": {
+                "positive_count": len(pos_count_result["ids"]),
+                "negative_count": len(neg_count_result["ids"]),
+                "pos_nn_max": max(pos_sims) if pos_sims else None,
+                "neg_nn_max": max(neg_sims) if neg_sims else None,
+            }
     }
 
 

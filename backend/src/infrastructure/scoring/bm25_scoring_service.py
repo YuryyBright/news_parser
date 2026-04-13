@@ -2,35 +2,28 @@
 """
 BM25ScoringService — перший шар scoring (pre-filter).
 
-Чому BM25 а не regex як у KeywordScoringService:
-  - BM25 враховує TF (частоту терміну в документі) і IDF (рідкість терміну)
-  - Не просто "є/немає" а реальний score → краща дискримінація
-  - Стійкий до "spam" — сотня повторень "армія" не дасть score=1.0
-  - Підходить для мультимовного тексту (токенізація по пробілах)
+Юзкейс: прикордонна зона UA/HU/SK/RO.
+  Мови корпусу: HU + SK + RO + EN (UA видалено).
+  Тематики: тільки те що визначає міграційну, прикордонну,
+  внутрішню і зовнішню політику країн регіону + армія + економіка.
 
-[СПРОЩЕНО] Geo early-reject повністю видалено.
-  BM25 повертає чистий тематичний score без будь-яких гео-множників.
-  Фільтрація виключно за тематичною релевантністю — geo не є нашою
-  відповідальністю на цьому рівні.
+НЕ входить у корпус:
+  - спорт, культура, виставки, розваги
+  - кримінальна хроніка без політичного контексту
+  - місцеві новини без регіонального/міжнародного виміру
 
-[РОЗШИРЕНО] Корпус тем:
-  war_and_weapons        — армія, фронт, зброя (UA/EN/HU/SK/RO)
-  politics               — вибори, уряд, президент
-  economy                — ВВП, ринки, санкції, торгівля
-  diplomacy              — НАТО, ООН, саміти, договори
-  energy                 — газ, нафта, АЕС, відновлювані
-  technology             — ШІ, кібер, стартапи
-  society                — права, біженці, протести
-  geopolitics            — NEW: сфери впливу, великі держави, альянси
-  security_intelligence  — NEW: спецслужби, шпигунство, гібридна війна
-  nuclear_wmd            — NEW: ядерна загроза, МАГАТЕ, нерозповсюдження
-  disinformation_info    — NEW: дезінформація, пропаганда, кібератаки
-  sanctions_finance      — NEW: санкції, заморожені активи, SWIFT
-  humanitarian_crisis    — NEW: МГП, гуманітарні коридори, військові злочини
-  elections_democracy    — NEW: демократія, авторитаризм, вибори під тиском
+Теми (8 категорій):
+  0. war_conflict          — армія, фронт, зброя, мобілізація
+  1. politics_government   — вибори, уряд, президент, парламент, корупція
+  2. foreign_policy_nato   — НАТО, ЄС, двосторонні відносини, саміти
+  3. border_migration      — кордон, міграція, біженці, транзит, пропускний пункт
+  4. economy_sanctions     — ВВП, санкції, торгівля, енергетика, бюджет
+  5. security_intelligence — спецслужби, гібридна війна, шпигунство, тероризм
+  6. minority_rights       — права меншин, мовний закон, автономія (HU↔UA/SK/RO контекст)
+  7. humanitarian_warcrimes— воєнні злочини, біженці з UA, гуманітарна допомога
 
 Бібліотека: rank_bm25 (pip install rank-bm25)
-  Якщо недоступна — fallback на SimpleKeywordScoring (без BM25).
+  Якщо недоступна — fallback на SimpleKeywordScoring.
 """
 from __future__ import annotations
 
@@ -47,326 +40,423 @@ logger = logging.getLogger(__name__)
 # ─── Корпус тем ───────────────────────────────────────────────────────────────
 _TOPIC_CORPUS_RAW: list[list[str]] = [
 
-    # ── 0. war_and_weapons ────────────────────────────────────────────────────
+    # ── 0. war_conflict ───────────────────────────────────────────────────────
+    # Армія, фронт, зброя, мобілізація — регіональний контекст (HU/SK/RO/EN)
     [
-        # UA
-        "війн", "збро", "ракет", "атак", "удар", "зсу", "армі", "військ",
-        "оборон", "наступ", "дрон", "бпла", "фронт", "снаряд", "ппо",
-        "окупац", "мобіліз", "бригад", "батальон", "обстріл", "загибл",
-        "втрат", "полонен", "контрнаступ", "укріплен", "позиці", "штурм",
-        "засідк", "мінн", "артилері", "танк", "броньован",
         # EN
-        "war", "attack", "missile", "strike", "military", "drone", "artillery",
-        "weapon", "troops", "army", "defense", "offensive", "combat", "ammo",
-        "front line", "frontline", "counteroffensive", "siege", "shelling",
-        "occupation", "mobilization", "casualties", "prisoner of war", "pow",
-        "armored", "tank", "fortification", "minefield",
+        "war", "conflict", "military", "army", "troops", "weapon", "missile",
+        "strike", "attack", "drone", "artillery", "front line", "frontline",
+        "offensive", "counteroffensive", "defense", "combat", "casualties",
+        "mobilization", "conscription", "armored", "tank", "shelling",
+        "occupation", "invasion", "ceasefire", "peacekeeping", "nato forces",
+        "military aid", "arms supply", "ammunition", "air defense",
+        "prisoner of war", "pow", "minefield", "fortification",
         # HU
-        "háború", "fegyver", "rakéta", "támadás", "katoná", "hadsereg",
-        "védelm", "offenzív", "drón", "invázió", "lövöldöz", "ostrom",
-        "hadifogoly", "veszteség",
+        "háború", "konfliktus", "katoná", "hadsereg", "csapat", "fegyver",
+        "rakéta", "támadás", "drón", "tüzérség", "frontvonat", "offenzíva",
+        "védelm", "harci", "veszteség", "mozgósítás", "sorozás", "páncélos",
+        "tank", "ágyúzás", "megszállás", "invázió", "tűzszünet", "békefen",
+        "katonai segély", "lőszer", "légvédelm", "hadifogoly",
         # SK
-        "vojn", "zbraň", "raket", "útok", "armád", "vojsk", "obran", "ofenzív",
-        "dron", "invázia", "ostreľovani", "straty", "zajatec",
+        "vojna", "konflikt", "vojenský", "armáda", "vojaci", "zbraň",
+        "raketa", "útok", "dron", "delostrelectvo", "frontová línia",
+        "ofenzíva", "obrana", "boj", "straty", "mobilizácia", "odvod",
+        "obrnený", "tank", "ostreľovanie", "okupácia", "invázia",
+        "prímerie", "mierové sily", "vojenská pomoc", "munícia",
+        "protivzdušná obrana", "vojnový zajatec",
         # RO
-        "război", "armă", "rachet", "atac", "armat", "militar", "defens",
-        "ofensiv", "dronă", "invazie", "bombardament", "pierderi",
+        "război", "conflict", "militar", "armată", "trupe", "armă",
+        "rachetă", "atac", "dronă", "artilerie", "linie de front",
+        "ofensivă", "apărare", "luptă", "pierderi", "mobilizare",
+        "recrutare", "blindat", "tanc", "bombardament", "ocupație",
+        "invazie", "armistițiu", "menținerea păcii", "ajutor militar",
+        "muniție", "apărare aeriană", "prizonier de război",
     ],
 
-    # ── 1. politics ───────────────────────────────────────────────────────────
+    # ── 1. politics_government ────────────────────────────────────────────────
+    # Вибори, уряд, президент, парламент, корупція — внутрішня політика
     [
-        # UA
-        "політ", "президент", "парламент", "уряд", "вибор", "депутат",
-        "міністр", "санкці", "дипломат", "скандал", "відставк", "коаліц",
-        "опозиц", "заяв", "законопроект", "реформ", "корупці", "олігарх",
-        "партіj", "конституці", "референдум", "вето", "указ",
         # EN
-        "election", "president", "parliament", "sanctions", "government",
-        "diplomacy", "minister", "senate", "scandal", "resignation",
-        "coalition", "opposition", "legislation", "reform", "corruption",
-        "referendum", "decree", "veto", "political crisis",
+        "election", "vote", "ballot", "president", "prime minister",
+        "parliament", "government", "minister", "party", "coalition",
+        "opposition", "corruption", "scandal", "resignation", "reform",
+        "legislation", "law", "decree", "veto", "referendum",
+        "democracy", "authoritarianism", "rule of law", "judicial",
+        "constitutional", "political crisis", "protest", "demonstration",
+        "press freedom", "civil society",
+        "territorial defense", "volunteer battalion", "mercenary", "wagner group",
+        "shahed", "himars", "patriot system", "f-16", "leopard tank",
+        "war fatigue", "frozen conflict", "demilitarized zone",
         # HU
-        "választás", "elnök", "parlament", "kormány", "képviselő", "miniszter",
-        "szankció", "botrány", "korrupció", "reform", "koalíció",
+        "választás", "szavazat", "elnök", "miniszterelnök", "parlament",
+        "kormány", "miniszter", "párt", "koalíció", "ellenzék",
+        "korrupció", "botrány", "lemondás", "reform", "jogszabály",
+        "törvény", "rendelet", "vétó", "népszavazás", "demokrácia",
+        "tekintélyelvűség", "jogállamiság", "bírói", "alkotmányos",
+        "politikai válság", "tüntetés", "sajtószabadság","mandátum", "mandátumok",
+        "százalék", "%",
+        "eredmény", "választási eredmény",
+        "feldolgozottság",
+        "lista", "országos lista",
+        "győzelem", "kétharmad", "többség", "fidesz", "tisza párt", "mi hazánk",
+        "ellenzék", "kormánypárt", "mandátumeloszlás",
+        "parlamenti többség",
+        "kormányalakítás","mandátum", "mandátumra", "mandátumot",
+        "frakció",
+        "területvédelem", "önkéntes zászlóalj", "zsoldos", "tűzszünet megsértése",
+        "fegyverszállítás", "hadiállapot", "védelmi kiadások", "hadkötelezettség",
+        "katonai kivonulás", "fegyverszünet",
+        "szuverenista", "békepárti", "háborúpárti", "Brüsszel-ellenes",
+        "nemzeti konzultáció", "Stop Brüsszel", "rezsicsökkentés"
         # SK
-        "voľby", "prezident", "parlament", "vlád", "poslanec", "minister",
-        "sankci", "korupci", "reforma", "koalíci", "škandál",
+        "voľby", "hlasovanie", "prezident", "predseda vlády", "parlament",
+        "vláda", "minister", "strana", "koalícia", "opozícia",
+        "korupcia", "škandál", "demisia", "reforma", "zákon",
+        "dekrét", "veto", "referendum", "demokracia", "autoritarizmus",
+        "právny štát", "súdny", "ústavný", "politická kríza",
+        "protest", "sloboda tlače",
+        "územná obrana", "dobrovoľnícky prápor", "žoldnier", "dodávky zbraní",
+        "vojnový stav", "výdavky na obranu", "branná povinnosť",
+        "percent", "výsledky volieb", "spracovanosť", "kandidátska listina",
+        "parlamentná väčšina", "koaličná dohoda", "smer", "progresívne slovensko",
+        "hlas", "republika", "kresťanskodemokratické", "opozičný líder",
+        "zostavovanie vlády", "poslanecký klub", "dôvera vláde",
         # RO
-        "aleger", "președinte", "parlament", "guvern", "deputat", "ministru",
-        "sancțiun", "corupți", "reformă", "coaliți", "scandal",
+        "alegeri", "vot", "președinte", "prim-ministru", "parlament",
+        "guvern", "ministru", "partid", "coaliție", "opoziție",
+        "corupție", "scandal", "demisie", "reformă", "lege",
+        "decret", "veto", "referendum", "democrație", "autoritarism",
+        "statul de drept", "judiciar", "constituțional", "criză politică",
+        "protest", "libertatea presei",
+        "apărare teritorială", "batalion de voluntari", "mercenar",
+        "livrări de arme", "stare de război", "cheltuieli de apărare",
+        "procent", "rezultate alegeri", "procesare voturi", "listă de candidați",
+        "majoritate parlamentară", "acord de coaliție", "psd", "pnl",
+        "usr", "aur", "formare guvern", "grup parlamentar", "moțiune de cenzură",
+        "vot de încredere",
+
     ],
 
-    # ── 2. economy ────────────────────────────────────────────────────────────
+    # ── 2. foreign_policy_nato_eu ─────────────────────────────────────────────
+    # НАТО, ЄС, двосторонні відносини, саміти, зовнішня політика
     [
-        # UA
-        "економік", "інфляці", "ввп", "ринок", "банк", "фінанс", "інвестиц",
-        "бюджет", "валют", "акці", "торгівл", "кредит", "борг", "податк",
-        "рецесі", "девальвац", "дефолт", "мвф", "відбудов", "ембарго",
         # EN
-        "gdp", "inflation", "market", "trade", "bank", "finance", "investment",
-        "budget", "currency", "stock", "debt", "tax", "recession", "devaluation",
-        "default", "imf", "reconstruction", "embargo", "tariff", "export",
-        "import", "supply chain",
+        "nato", "european union", "eu", "european council", "summit",
+        "foreign policy", "diplomacy", "ambassador", "bilateral",
+        "treaty", "agreement", "alliance", "accession", "membership",
+        "sanctions", "g7", "g20", "un", "united nations",
+        "security council", "transatlantic", "enlargement",
+        "european commission", "eu funding", "cohesion fund",
+        "strategic partnership", "defense cooperation",
+        "article 5", "collective defense",
+        "veto", "blocking", "hungary veto", "rule of law conditionality",
+        "frozen eu funds", "china relations", "belt and road",
+        "neutrality", "peace talks", "mediation", "orban", "fico",
+        "eu article 7", "democratic backsliding",
         # HU
-        "gazdaság", "infláció", "piac", "bank", "pénzügy", "befektetés",
-        "költségvetés", "valuta", "részvény", "adó", "recesszió",
+        "nato", "európai unió", "eu", "európai tanács", "csúcstalálkozó",
+        "külpolitika", "diplomácia", "nagykövet", "kétoldalú",
+        "szerződés", "megállapodás", "szövetség", "csatlakozás",
+        "tagság", "szankciók", "ensz", "biztonsági tanács",
+        "transzatlanti", "bővítés", "európai bizottság",
+        "uniós finanszírozás", "stratégiai partnerség",
+        "védelmi együttműködés", "kollektív védelem",
+        "vétó", "uniós alapok befagyasztása", "jogállamisági feltételrendszer",
+        "kínai kapcsolatok", "Brics", "semlegesség", "béketárgyalások",
+        "közvetítés", "keleti nyitás", "szuverenitásvédelem",
+        "Budapest-Washington", "magyarország-oroszország kapcsolat",
+
         # SK
-        "ekonomika", "infláci", "trh", "bank", "financi", "investíci",
-        "rozpočet", "mena", "daň", "recesia",
+        "nato", "európska únia", "eú", "európska rada", "samit",
+        "zahraničná politika", "diplomacia", "veľvyslanec", "bilaterálny",
+        "zmluva", "dohoda", "aliancia", "pristúpenie", "členstvo",
+        "sankcie", "osn", "bezpečnostná rada", "transatlantický",
+        "rozšírenie", "európska komisia", "fondy eú",
+        "strategické partnerstvo", "obranná spolupráca",
+        "veto", "zmrazené fondy eú", "neutralita", "mierové rokovania",
+        "fico-orban", "slovensko-ruské vzťahy", "čínske investície",
         # RO
-        "economi", "inflați", "piață", "banc", "finanț", "investiți",
-        "buget", "valut", "impozit", "recesiune",
+        "nato", "uniunea europeană", "ue", "consiliul european", "summit",
+        "politică externă", "diplomație", "ambasador", "bilateral",
+        "tratat", "acord", "alianță", "aderare", "membership",
+        "sancțiuni", "onu", "consiliul de securitate", "transatlantic",
+        "extindere", "comisia europeană", "fonduri ue",
+        "parteneriat strategic", "cooperare în apărare",
+        "veto", "fonduri ue blocate", "neutralitate", "negocieri de pace",
+        "relații cu rusia", "investiții chineze", "parcurs european",
     ],
 
-    # ── 3. diplomacy_international ────────────────────────────────────────────
+    # ── 3. border_migration ───────────────────────────────────────────────────
+    # Кордон, міграція, біженці, транзит, пропускний пункт — КЛЮЧОВА тема
     [
-        # UA
-        "переговор", "саміт", "угод", "договір", "посол", "союзник",
-        "нато", "євросоюз", "оон", "міжнародн", "двосторонн", "мирн план",
-        "перемир", "припинен вогню", "мирні переговори",
         # EN
-        "negotiations", "summit", "agreement", "ambassador", "nato", "eu", "un",
-        "international", "bilateral", "ceasefire", "peace talks", "treaty",
-        "alliance", "foreign policy", "g7", "g20", "security council",
-        "un security council", "european council", "peacekeeping",
+        "border", "border crossing", "checkpoint", "migration", "migrant",
+        "refugee", "asylum", "asylum seeker", "transit", "smuggling",
+        "human trafficking", "irregular migration", "frontex",
+        "border guard", "border control", "entry ban", "visa",
+        "residence permit", "deportation", "expulsion",
+        "internally displaced", "idp", "shelter", "reception center",
+        "border fence", "push back", "border incident",
+        "ukrainian refugees", "refugee camp",
+        "draft evasion", "military desertion", "border evasion",
+        "zakarpattia border", "uzhorod crossing", "chop border",
+        "berehove crossing", "tibava crossing", "košice corridor",
+        "male crossing", "men of military age", "travel ban ukraine",
+        "border queue", "crossing time",
+
         # HU
-        "tárgyalás", "csúcstalálkozó", "megállapodás", "nagykövet", "szövetség",
-        "tűzszünet", "béketárgyalás", "külpolitika",
+        "határ", "határátkelő", "ellenőrzőpont", "migráció", "migráns",
+        "menekült", "menedékjog", "menedékkérő", "tranzit", "csempészet",
+        "emberkereskedelem", "illegális bevándorlás", "frontex",
+        "határőr", "határellenőrzés", "belépési tilalom", "vízum",
+        "tartózkodási engedély", "deportálás", "kiutasítás",
+        "belső menekült", "szállás", "befogadóközpont",
+        "határkerítés", "visszatoloncolás", "határincidens",
+        "ukrán menekültek", "menekülttábor",
+        "katonai szökevény", "mozgósítás elől menekülő",
+        "kárpátaljai határátkelő", "záhony átkelő", "beregsurány átkelő",
+        "katonaköteles férfiak", "ukrajna utazási tilalom",
+        "határvárakozás", "átkelési idő", "illegális határátlépés",
         # SK
-        "rokovani", "samit", "dohod", "veľvyslanec", "spojenec",
-        "prímeri", "mierové rokovani", "zahraničná politika",
+        "hranica", "hraničný priechod", "kontrolný bod", "migrácia",
+        "migrant", "utečenec", "azyl", "žiadateľ o azyl", "tranzit",
+        "pašovanie", "obchodovanie s ľuďmi", "nelegálna migrácia",
+        "frontex", "pohraničná stráž", "hraničná kontrola",
+        "zákaz vstupu", "vízum", "povolenie na pobyt", "deportácia",
+        "vysťahovanie", "vnútorne vysídlená osoba", "ubytovanie",
+        "prijímacie centrum", "hraničný plot", "pushback",
+        "hraničný incident", "ukrajinskí utečenci",
+        "únik pred mobilizáciou", "vojenský dezertér",
+        "užhorodský priechod", "vyšné nemecké priechod",
+        "vojaci v úteku", "zákaz vycestovania ukrajina",
+        "čakacia doba na hranici",
         # RO
-        "negocier", "summit", "acord", "ambasador", "alianță",
-        "încetarea focului", "politică externă",
+        "frontieră", "punct de trecere", "punct de control", "migrație",
+        "migrant", "refugiat", "azil", "solicitant de azil", "tranzit",
+        "contrabandă", "trafic de persoane", "migrație ilegală",
+        "frontex", "poliția de frontieră", "control la frontieră",
+        "interdicție de intrare", "viză", "permis de ședere",
+        "deportare", "expulzare", "persoană strămutată intern",
+        "adăpost", "centru de primire", "gard la frontieră",
+        "refuzare la frontieră", "incident la frontieră",
+        "refugiați ucraineni",
+        "evaziune de la mobilizare", "dezertor militar",
+        "punctul siret", "punctul isaccea", "punctul porubne",
+        "bărbați de vârstă militară", "interdicție de călătorie ucraina",
     ],
 
-    # ── 4. energy ────────────────────────────────────────────────────────────
+    # ── 4. economy_energy_sanctions ───────────────────────────────────────────
+    # ВВП, санкції, торгівля, енергетика, бюджет — економіка регіону
     [
-        # UA
-        "енергетик", "газ", "нафт", "електроенерг", "аес", "ядерн",
-        "блекаут", "відключен", "світл", "відновлюван", "трубопровід",
-        "газопровід", "nord stream", "lng", "спг",
         # EN
-        "energy", "gas", "oil", "electricity", "nuclear", "blackout", "power",
-        "renewable", "solar", "wind", "pipeline", "lng", "natural gas",
-        "energy crisis", "power grid", "hydroelectric",
+        "economy", "gdp", "inflation", "budget", "debt", "deficit",
+        "investment", "trade", "export", "import", "market",
+        "sanctions", "embargo", "tariff", "supply chain",
+        "energy", "gas", "oil", "electricity", "nuclear power",
+        "pipeline", "lng", "energy crisis", "energy security",
+        "imf", "world bank", "eu funds", "reconstruction",
+        "financial aid", "currency", "exchange rate", "recession",
+        "unemployment", "wage", "subsidy",
+        "via carpatia", "rail baltica", "three seas initiative",
+        "food prices", "fuel price", "energy subsidy", "winter heating",
+        "gas storage", "lng terminal", "nuclear expansion", "paks",
+        "household energy", "energy poverty", "carbon tax",
+        "cohesion policy", "structural funds", "recovery fund",
         # HU
-        "energia", "gáz", "olaj", "villamos", "atomerőmű", "nukleáris",
-        "áramszünet", "megújuló", "csővezeték",
+        "gazdaság", "gdp", "infláció", "költségvetés", "adósság",
+        "hiány", "befektetés", "kereskedelem", "export", "import",
+        "piac", "szankciók", "embargó", "vám", "ellátási lánc",
+        "energia", "gáz", "olaj", "villamos energia", "atomerőmű",
+        "csővezeték", "lng", "energiaválság", "energiabiztonság",
+        "imf", "világbank", "uniós alapok", "újjáépítés",
+        "pénzügyi segély", "valuta", "árfolyam", "recesszió",
+        "munkanélküliség", "bér", "támogatás",
+        "Paks2", "atomenergia bővítés", "rezsicsökkentés",
+        "gázárak", "üzemanyagárak", "energiaszegénység",
+        "téli fűtés", "gáztározás", "helyreállítási alap",
+        "kohéziós politika", "strukturális alapok", "Via Carpatia",
+        "jadrová energia", "ceny plynu", "ceny pohonných hmôt",
+        "energetická chudoba", "zimné kúrenie", "zásobníky plynu",
+        "fond obnovy", "kohézna politika", "Via Carpatia",
         # SK
-        "energetik", "plyn", "ropa", "elektrina", "atómová", "jadrový",
-        "výpadok", "obnoviteľn", "plynovod",
+        "ekonomika", "hdp", "inflácia", "rozpočet", "dlh",
+        "deficit", "investícia", "obchod", "export", "import",
+        "trh", "sankcie", "embargo", "clo", "dodávateľský reťazec",
+        "energia", "plyn", "ropa", "elektrina", "jadrová elektráreň",
+        "plynovod", "lng", "energetická kríza", "energetická bezpečnosť",
+        "mmf", "svetová banka", "fondy eú", "obnova",
+        "finančná pomoc", "mena", "výmenný kurz", "recesia",
+        "nezamestnanosť", "mzda", "dotácia",
+        "energie nucleară", "prețuri gaze", "prețuri combustibil",
+        "sărăcie energetică", "încălzire iarnă", "depozite gaz",
+        "fond de redresare", "politică de coeziune", "Via Carpatia",
         # RO
-        "energet", "gaze", "petrol", "electricitat", "nuclear", "întreruper",
-        "regenerabil", "conductă",
+        "economie", "pib", "inflație", "buget", "datorie",
+        "deficit", "investiție", "comerț", "export", "import",
+        "piață", "sancțiuni", "embargo", "tarif", "lanț de aprovizionare",
+        "energie", "gaze", "petrol", "electricitate", "centrală nucleară",
+        "conductă", "lng", "criză energetică", "securitate energetică",
+        "fmi", "banca mondială", "fonduri ue", "reconstrucție",
+        "ajutor financiar", "monedă", "curs de schimb", "recesiune",
+        "șomaj", "salariu", "subvenție",
     ],
 
-    # ── 5. technology ────────────────────────────────────────────────────────
+    # ── 5. security_intelligence_hybrid ──────────────────────────────────────
+    # Спецслужби, гібридна війна, шпигунство, тероризм, кібер
     [
-        # UA
-        "технологі", "штучний інтелект", "стартап", "кібер", "айті",
-        "алгоритм", "блокчейн", "цифров", "хакер", "програмн",
         # EN
-        "ai", "artificial intelligence", "startup", "software", "cyber", "tech",
-        "algorithm", "blockchain", "digital", "machine learning", "hacker",
-        "semiconductor", "chip", "quantum", "data breach",
+        "intelligence", "secret service", "counterintelligence",
+        "hybrid war", "hybrid warfare", "espionage", "spy",
+        "sabotage", "terrorism", "terrorist",
+        "cyberattack", "critical infrastructure", "information warfare",
+        "propaganda", "disinformation", "influence operation",
+        "fsb", "gru", "cia", "counterterrorism",
+        "surveillance", "wiretapping", "covert operation",
+        "false flag", "asymmetric warfare",
+        "russian agent", "foreign agent law", "ngo crackdown",
+        "media capture", "state capture", "oligarch", "kleptocracy",
+        "money laundering", "illicit finance", "dark money",
+        "pegasus spyware", "phone surveillance", "signal intercept",
+        "election interference", "voter manipulation",
+
         # HU
-        "technológi", "mesterséges intelligencia", "szoftver", "kiberbiztonság",
-        "hacker", "adatlopás",
+        "hírszerzés", "titkosszolgálat", "kémelhárítás",
+        "hibrid háború", "kémkedés", "kém", "szabotázs",
+        "terrorizmus", "terrorista", "kibertámadás",
+        "kritikus infrastruktúra", "információs hadviselés",
+        "propaganda", "dezinformáció", "befolyásolási művelet",
+        "elhárítás", "lehallgatás", "fedett művelet",
+        "orosz ügynök", "külföldi ügynök törvény", "állami médiakapture",
+        "oligarcha", "pénzmosás", "Pegasus kémprogram",
+        "választási manipuláció", "médiabefolyásolás",
         # SK
-        "technológi", "umelá inteligencia", "softvér", "kybernetick",
-        "hacker", "únik dát",
+        "spravodajstvo", "tajná služba", "kontrarozviedka",
+        "hybridná vojna", "špionáž", "špión", "sabotáž",
+        "terorizmus", "terrorist", "kybernetický útok",
+        "kritická infraštruktúra", "informačná vojna",
+        "propaganda", "dezinformácia", "vplyvová operácia",
+        "protiteroristický", "odpočúvanie", "tajná operácia",
+        "ruský agent", "zákon o zahraničných agentoch", "médiakaptura",
+        "oligarcha", "pranie peňazí", "Pegasus spyware",
+        "volebná manipulácia",
         # RO
-        "tehnologi", "inteligență artificială", "software", "cibernetic",
-        "hacker", "breșă de date",
+        "informații", "servicii secrete", "contrainformații",
+        "război hibrid", "spionaj", "spion", "sabotaj",
+        "terorism", "terorist", "atac cibernetic",
+        "infrastructură critică", "război informațional",
+        "propagandă", "dezinformare", "operațiune de influență",
+        "contraterorism", "interceptare", "operațiune acoperită",
+        "agent rus", "lege privind agenții străini", "captură media",
+        "oligarh", "spălare de bani", "spyware Pegasus",
+        "manipulare electorală",
     ],
 
-    # ── 6. society_humanitarian ──────────────────────────────────────────────
+    # ── 6. minority_rights_regional ───────────────────────────────────────────
+    # Права меншин, мовний закон, автономія — специфіка HU↔UA/SK/RO
     [
-        # UA
-        "суспільств", "протест", "права людини", "біженц",
-        "міграц", "гуманітарн", "евакуац", "постраждал", "жертв", "цивільн",
-        "демонстрац", "страйк", "соціальн",
         # EN
-        "society", "protest", "human rights", "refugees", "migration",
-        "humanitarian", "evacuation", "victims", "civilian", "demonstration",
-        "strike", "social", "ngo", "aid",
+        "minority rights", "ethnic minority", "hungarian minority",
+        "romanian minority", "slovak minority", "language law",
+        "autonomy", "self-governance", "cultural rights",
+        "mother tongue", "minority language", "discrimination",
+        "dual citizenship", "passport", "diaspora",
+        "transylvania", "transcarpathia", "zakarpattia",
+        "southern slovakia", "székely",
+        "minority school", "minority education",
+        "language law ukraine", "ukrainian language policy",
+        "kmksz", "umdsz", "hungarian passport zakarpattia",
+        "minority veto", "territorial autonomy", "szeklerland",
+        "covasna harghita mures", "vojvodina", "ruthenian minority",
+        "subcarpathian ruthenians", "berehove", "uzhhorod",
+        "mukachevo hungarian", "minority quota", "minority mp",
+
         # HU
-        "társadalom", "tüntetés", "menekült", "migráció", "humanitárius",
-        "evakuáció", "áldozat", "polgári", "sztrájk",
+        "kisebbségi jogok", "etnikai kisebbség", "magyar kisebbség",
+        "román kisebbség", "szlovák kisebbség", "nyelvtörvény",
+        "autonómia", "önkormányzat", "kulturális jogok",
+        "anyanyelv", "kisebbségi nyelv", "diszkrimináció",
+        "kettős állampolgárság", "útlevél", "diaszpóra",
+        "erdély", "kárpátalja", "felvidék", "székelyek",
+        "kisebbségi iskola", "kisebbségi oktatás",
+        "ukrajna nyelvtörvénye", "KMKSZ", "UMDSZ",
+        "kárpátaljai magyarok", "beregszász", "ungvár", "munkács",
+        "magyar útlevél kárpátalján", "területi autonómia",
+        "székelyföldi autonómia", "Covasna", "Hargita", "Maros megye",
+        "kisebbségi kvóta", "kisebbségi képviselő", "Ruszin kisebbség",
+
         # SK
-        "spoločnosť", "protest", "utečenec", "migráci", "humanitárn",
-        "evakuáci", "obeť", "civilist", "štrajk",
+        "práva menšín", "etnická menšina", "maďarská menšina",
+        "rumunská menšina", "jazykový zákon", "autonómia",
+        "samospráva", "kultúrne práva", "materinský jazyk",
+        "menšinový jazyk", "diskriminácia", "dvojité občianstvo",
+        "pas", "diaspora", "transylvánia", "zakarpatsko",
+        "južné slovensko", "menšinová škola", "menšinové vzdelávanie",
+        "jazykový zákon ukrajiny", "maďarská menšina na slovensku",
+        "SMK", "Most-Híd", "maďarský pas na slovensku",
+        "južné slovensko maďari", "dvojjazyčné tabule",
         # RO
-        "societat", "protest", "refugiat", "migrați", "umanitar",
-        "evacuare", "victimă", "civil", "grevă",
+        "drepturile minorităților", "minoritate etnică",
+        "minoritate maghiară", "minoritate slovacă", "lege lingvistică",
+        "autonomie", "autoguvernare", "drepturi culturale",
+        "limbă maternă", "limbă minoritară", "discriminare",
+        "dublă cetățenie", "pașaport", "diaspora",
+        "transilvania", "transcarpatia", "secui",
+        "școală pentru minorități", "educație pentru minorități",
+        "legea lingvistică ucraina", "UDMR", "pașaport maghiar românia",
+        "ardeal", "secuime", "autonomie teritorială",
+        "maghiari din transilvania", "bilingvism",
     ],
 
-    # ── 7. geopolitics [NEW] ──────────────────────────────────────────────────
-    # Велика геополітика: сфери впливу, стратегічне суперництво, блоки
+    # ── 7. humanitarian_warcrimes_aid ─────────────────────────────────────────
+    # Воєнні злочини, біженці з UA, гуманітарна допомога, МКС
     [
-        # UA
-        "геополітик", "сфера впливу", "стратегічн", "наддержав", "многополярн",
-        "розширенн нато", "вступ до єс", "кандидатств", "членств",
-        "безпековий порядок", "ядерне стримуванн",
         # EN
-        "geopolitics", "sphere of influence", "strategic", "superpower",
-        "multipolar", "nato expansion", "eu accession", "eu membership",
-        "security order", "deterrence", "containment", "proxy war",
-        "great power", "cold war", "iron curtain", "buffer state",
-        "geostrategic", "hegemony", "power projection", "military alliance",
-        "transatlantic", "indo-pacific", "brics", "global south",
+        "war crimes", "crimes against humanity", "genocide",
+        "icc", "international criminal court", "tribunal",
+        "deportation", "torture", "massacre", "civilian casualties",
+        "humanitarian aid", "humanitarian corridor", "evacuation",
+        "displaced persons", "shelter", "food aid", "medical aid",
+        "reconstruction aid", "donor conference",
+        "unhcr", "icrc", "red cross", "ngo", "relief organization",
+        "accountability", "justice", "atrocity", "human rights violation",
+        "child deportation", "stolen children", "filtration camp",
+        "russian asset seizure", "frozen assets", "reparations",
+        "reconstruction fund", "marshall plan ukraine",
+        "sexual violence war", "rape as weapon",
+        "mine clearance", "demining", "ecocide",
+        "hospital bombing", "school bombing", "cultural heritage destruction",
         # HU
-        "geopolitika", "befolyási övezet", "stratégiai", "nagyhatalom",
-        "nato-bővítés", "eu-csatlakozás", "nukleáris elrettentés",
-        # SK
-        "geopolitika", "sféra vplyvu", "strategick", "superveľmoc",
-        "rozšírenie nato", "vstup do eú", "odstrašovanie",
-        # RO
-        "geopolitic", "sferă de influență", "strategic", "superputere",
-        "extinderea nato", "aderarea la ue", "descurajare nucleară",
-    ],
+        "háborús bűnök", "emberiesség elleni bűnök", "népirtás",
+        "nbn", "nemzetközi büntetőbíróság", "törvényszék",
+        "deportálás", "kínzás", "mészárlás", "civil áldozatok",
+        "humanitárius segély", "humanitárius folyosó", "evakuáció",
+        "kitelepített személyek", "menedék", "élelmiszersegély",
+        "orvosi segítség", "újjáépítési segély",
+        "unhcr", "vöröskereszt", "civil szervezet", "elszámoltathatóság",
+        "gyerekdeportálás", "elrabolt gyerekek", "orosz vagyon lefoglalása",
+        "jóvátétel", "ukrán újjáépítési alap", "aknamentesítés",
+        "ökocídium", "kórházbombázás",
 
-    # ── 8. security_intelligence [NEW] ────────────────────────────────────────
-    # Спецслужби, гібридна війна, тероризм, шпигунство
-    [
-        # UA
-        "спецслужб", "розвідк", "контррозвідк", "гібридн", "диверсі",
-        "саботаж", "шпигун", "терорист", "вербуванн", "агент", "ффсб", "гру",
-        "ціа", "мі6", "нсо", "пегас", "кібератак", "інфраструктур",
-        # EN
-        "intelligence", "counterintelligence", "hybrid war", "hybrid warfare",
-        "sabotage", "espionage", "spy", "terrorism", "terrorist", "recruit",
-        "fsb", "gru", "cia", "mi6", "mossad", "nso group", "pegasus",
-        "cyberattack", "critical infrastructure", "false flag",
-        "asymmetric warfare", "psychological operations", "psyops",
-        "information warfare", "covert operation",
-        # HU
-        "titkosszolgálat", "hírszerzés", "kémkedés", "hibrid háború",
-        "szabotázs", "terrorista", "kibertámadás", "kritikus infrastruktúra",
-        # SK
-        "spravodajsk", "kontrarozviedka", "hybridná vojna", "sabotáž",
-        "špionáž", "terorizmus", "kyberútok", "kritická infraštruktúra",
-        # RO
-        "servicii de informați", "contrainformații", "război hibrid",
-        "sabotaj", "spionaj", "terorism", "atac cibernetic",
-    ],
-
-    # ── 9. nuclear_wmd [NEW] ──────────────────────────────────────────────────
-    # Ядерна зброя, МАГАТЕ, нерозповсюдження, хімічна/біологічна зброя
-    [
-        # UA
-        "ядерн", "атомн", "аес", "запорізька аес", "заяес", "магате",
-        "нерозповсюдженн", "ядерна зброя", "радіоактивн", "бруднa бомб",
-        "хімічна зброя", "біологічна зброя", "хімічна атак",
-        # EN
-        "nuclear", "atomic", "iaea", "non-proliferation", "nuclear weapon",
-        "radioactive", "dirty bomb", "chemical weapon", "biological weapon",
-        "wmd", "weapons of mass destruction", "nuclear plant", "nuclear power",
-        "enrichment", "warhead", "icbm", "ballistic missile",
-        "nuclear deterrence", "nuclear threat", "radiation leak",
-        # HU
-        "nukleáris", "atomerőmű", "atomfegyver", "sugárzás", "vegyifegyver",
-        "biológiai fegyver", "nukleáris fenyegetés",
-        # SK
-        "nukleárn", "atómová elektráreň", "jadrová zbraň", "žiareni",
-        "chemická zbraň", "biologická zbraň",
-        # RO
-        "nuclear", "centrală nucleară", "armă nucleară", "radiații",
-        "armă chimică", "armă biologică",
-    ],
-
-    # ── 10. disinformation_information_war [NEW] ──────────────────────────────
-    # Дезінформація, пропаганда, медіа-маніпуляції, цензура
-    [
-        # UA
-        "дезінформац", "пропаганд", "фейк", "маніпуляці", "цензур",
-        "інформаційн війн", "медіа маніпуляці", "fake news", "deepfake",
-        "тролі", "ботоферм", "наратив", "когнітивн", "медіаграмотн",
-        # EN
-        "disinformation", "propaganda", "fake news", "deepfake", "manipulation",
-        "censorship", "information war", "troll farm", "bot network",
-        "narrative", "cognitive warfare", "media literacy", "fact-check",
-        "misinformation", "influence operation", "psyops",
-        # HU
-        "dezinformáció", "propaganda", "álhír", "manipuláció", "cenzúra",
-        "információs háború", "trollfarm",
-        # SK
-        "dezinformáci", "propaganda", "falošné správy", "manipuláci",
-        "cenzúra", "informačná vojna", "trollfarma",
-        # RO
-        "dezinformare", "propagandă", "știri false", "manipulare",
-        "cenzură", "război informațional",
-    ],
-
-    # ── 11. sanctions_finance_war [NEW] ───────────────────────────────────────
-    # Санкційна економіка, заморожені активи, обхід санкцій, SWIFT
-    [
-        # UA
-        "санкці", "заморожен актив", "конфіскац", "репарац",
-        "обхід санкцій", "swift", "свіфт", "вторинні санкці",
-        "олігарх", "яхт", "активи рф", "замороженн резерв",
-        # EN
-        "sanctions", "frozen assets", "confiscation", "reparations",
-        "sanctions evasion", "swift", "secondary sanctions", "oligarch",
-        "asset freeze", "russian assets", "war reparations",
-        "financial warfare", "export control", "dual use",
-        # HU
-        "szankciók", "befagyasztott eszközök", "elkobzás", "jóvátétel",
-        "szankciók kijátszása", "oligarcha",
-        # SK
-        "sankcie", "zmrazené aktíva", "konfiškáci", "reparáci",
-        "obchádzanie sankcií", "oligarcha",
-        # RO
-        "sancțiun", "active înghețate", "confiscare", "reparații",
-        "eludarea sancțiunilor", "oligarh",
-    ],
-
-    # ── 12. war_crimes_accountability [NEW] ──────────────────────────────────
-    # Воєнні злочини, МКС, трибунали, геноцид, відповідальність
-    [
-        # UA
-        "воєнн злочин", "злочин проти людяності", "геноцид", "мкс",
-        "міжнародний кримінальний суд", "трибунал", "депортаці",
-        "фільтраційн табір", "катуванн", "страт", "масов вбивств",
-        "буча", "маріупол", "ізюм",
-        # EN
-        "war crimes", "crimes against humanity", "genocide", "icc",
-        "international criminal court", "tribunal", "deportation",
-        "filtration camp", "torture", "execution", "mass killing",
-        "accountability", "justice", "atrocity", "massacre",
-        # HU
-        "háborús bűnök", "emberiesség elleni bűnök", "népirtás", "nbn",
-        "deportálás", "kínzás", "tömeges gyilkosság",
         # SK
         "vojnové zločiny", "zločiny proti ľudskosti", "genocída",
-        "deportáci", "mučeni", "masová vražda",
+        "mts", "medzinárodný trestný súd", "tribunál",
+        "deportácia", "mučenie", "masaker", "civilné obete",
+        "humanitárna pomoc", "humanitárny koridor", "evakuácia",
+        "vysídlené osoby", "útočisko", "potravinová pomoc",
+        "zdravotnícka pomoc", "pomoc pri obnove",
+        "unhcr", "červený kríž", "mimovládna organizácia", "zodpovednosť",
+        "deportácia detí", "ukradnuté deti", "zaistenie ruských aktív",
+        "reparácie", "fond obnovy ukrajiny", "odminovanie", "ecocída",
         # RO
         "crime de război", "crime împotriva umanității", "genocid",
-        "deportare", "tortură", "masacru",
-    ],
-
-    # ── 13. elections_democracy [NEW] ────────────────────────────────────────
-    # Демократія під тиском, автократія, виборчі маніпуляції
-    [
-        # UA
-        "демократі", "автократі", "авторитаризм", "виборч маніпуляці",
-        "фальсифікац", "виборч комісі", "міжнародн спостерігач",
-        "свобод преси", "незалежн суд", "верховенств прав",
-        # EN
-        "democracy", "autocracy", "authoritarianism", "election fraud",
-        "electoral manipulation", "election commission", "international observer",
-        "press freedom", "judicial independence", "rule of law",
-        "democratic backsliding", "hybrid regime", "competitive authoritarianism",
-        # HU
-        "demokrácia", "autokrácia", "tekintélyelvűség", "választási csalás",
-        "sajtószabadság", "bírói függetlenség", "jogállamiság",
-        # SK
-        "demokraci", "autokraci", "autoritarizmus", "volebný podvod",
-        "sloboda tlače", "nezávislosť súdnictva", "právny štát",
-        # RO
-        "democrație", "autocrație", "autoritarism", "fraudă electorală",
-        "libertatea presei", "independența justiției", "statul de drept",
+        "cpi", "curtea penală internațională", "tribunal",
+        "deportare", "tortură", "masacru", "victime civile",
+        "ajutor umanitar", "coridor umanitar", "evacuare",
+        "persoane strămutate", "adăpost", "ajutor alimentar",
+        "ajutor medical", "ajutor pentru reconstrucție",
+        "unhcr", "crucea roșie", "ong", "responsabilitate", "justiție",
+        "deportarea copiilor", "copii furați", "confiscarea activelor rusești",
+        "reparații", "fond de reconstrucție ucraina", "deminare", "ecocid",
     ],
 ]
 
@@ -379,33 +469,16 @@ def _tokenize(text: str) -> list[str]:
     return [t for t in tokens if len(t) > 2]
 
 
-def _corpus_with_substrings(query_tokens: list[str], corpus: list[list[str]]) -> list[list[str]]:
-    expanded = []
-    for doc_keywords in corpus:
-        expanded_doc = []
-        for kw in doc_keywords:
-            matched = [
-                qt for qt in query_tokens
-                if qt.startswith(kw) or kw.startswith(qt[:4]) or kw in qt
-            ]
-            expanded_doc.extend(matched if matched else [kw])
-        expanded.append(expanded_doc)
-    return expanded
-
-
 class BM25ScoringService(IScoringService):
     """
     IScoringService через BM25 без geo-фільтрації.
 
-    [СПРОЩЕНО] Повністю видалено GeoRelevanceFilter — BM25 повертає
-    чистий тематичний score ∈ [0.0, 1.0]. Geo-логіка більше не є
-    відповідальністю цього сервісу.
+    Корпус: 8 тем × 4 мови (HU/SK/RO/EN).
+    Без UA — система орієнтована на регіональні медіа HU/SK/RO
+    та англомовні джерела про регіон.
 
-    [РОЗШИРЕНО] Корпус тем: 14 категорій замість 7, акцент на геополітику,
-    безпеку, ядерку, дезінформацію, санкції, воєнні злочини.
-
-    ParsedContent.language більше НЕ потрібен для scoring —
-    corpus сам містить ключові слова всіх мов (UA/EN/HU/SK/RO).
+    ParsedContent.language НЕ використовується —
+    корпус сам покриває всі 4 мови.
     """
 
     def __init__(self, max_score: float = _BM25_MAX_SCORE) -> None:
@@ -416,8 +489,6 @@ class BM25ScoringService(IScoringService):
         try:
             from rank_bm25 import BM25Okapi
             self._backend = "rank_bm25"
-            # ✅ Corpus будується ОДИН РАЗ з keyword-документів
-            # Кожна тема = один "документ" зі своїми ключовими словами
             return BM25Okapi(_TOPIC_CORPUS_RAW)
         except ImportError:
             self._backend = "simple"
@@ -441,9 +512,7 @@ class BM25ScoringService(IScoringService):
         if not tokens:
             return 0.0
 
-        # ✅ Query = токени статті проти фіксованого corpus тем
         scores = self._bm25.get_scores(tokens)
-        
         raw = float(np.max(scores))
         normalized = min(raw / self._max_score, 1.0)
 
@@ -454,6 +523,7 @@ class BM25ScoringService(IScoringService):
         return normalized
 
     def _simple_score(self, text: str) -> float:
+        """Fallback без rank_bm25 — простий підрахунок тем."""
         text_lower = text.lower()
         matched = 0
         for keywords in _TOPIC_CORPUS_RAW:
@@ -467,18 +537,17 @@ class BM25ScoringService(IScoringService):
     def calibrate_max_score(self, sample_texts: list[str]) -> float:
         """
         Утиліта для калібрування _BM25_MAX_SCORE.
-        Запусти на кількох "ідеально релевантних" статтях щоб знайти реальний max.
+        Запусти на кількох еталонних статтях щоб знайти реальний max.
         """
         if self._backend != "rank_bm25":
             return self._max_score
 
-        from rank_bm25 import BM25Okapi
         max_raw = 0.0
         for text in sample_texts:
             tokens = _tokenize(text)
-            expanded = _corpus_with_substrings(tokens, _TOPIC_CORPUS_RAW)
-            bm25 = BM25Okapi(expanded)
-            scores = bm25.get_scores(tokens)
+            if not tokens:
+                continue
+            scores = self._bm25.get_scores(tokens)
             max_raw = max(max_raw, float(np.max(scores)))
 
         logger.info("Calibrated BM25 max score: %.2f", max_raw)

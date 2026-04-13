@@ -211,26 +211,40 @@ class InterestProfileRepository:
         n_results: int = 5,
         feedback_type: str = "positive",
     ) -> list[float]:
-        """
-        Повертає список cosine similarities з топ-N векторів заданого типу.
-        Використовується для окремого positive/negative NN-scoring.
-        """
         col = await self._get_collection()
+
+        # Спочатку рахуємо скільки є записів цього типу
+        try:
+            count_result = await col.get(
+                where={"feedback_type": {"$eq": feedback_type}},
+                include=[],
+            )
+            available = len(count_result["ids"])
+        except Exception as e:
+            logger.warning("query_by_feedback_type count failed: %s", e)
+            return []
+
+        if available == 0:
+            return []
+
+        # Запитуємо не більше ніж є
+        safe_n = min(n_results, available)
 
         try:
             results = await col.query(
                 query_embeddings=[query_vector.tolist()],
-                n_results=n_results,
+                n_results=safe_n,
                 where={"feedback_type": {"$eq": feedback_type}},
                 include=["distances"],
             )
-        except Exception:
+        except Exception as e:
+            logger.warning("query_by_feedback_type query failed: feedback_type=%s n=%d: %s",
+                        feedback_type, safe_n, e)
             return []
 
         if not results["distances"] or not results["distances"][0]:
             return []
 
-        # ChromaDB cosine distance [0,2] → similarity [0,1]
         return [
             max(0.0, 1.0 - dist / 2.0)
             for dist in results["distances"][0]
