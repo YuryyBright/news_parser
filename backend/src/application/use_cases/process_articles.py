@@ -145,10 +145,10 @@ class ProcessArticlesUseCase:
         return result
 
     async def _run_one(self, raw: RawArticle) -> str:
-        """Повертає 'accepted' | 'rejected' | 'dedup'."""
-        async with self._session_factory() as session:
-            async with session.begin():
-                return await self._process_one(session, raw)
+            """Повертає 'accepted' | 'rejected' | 'dedup'."""
+            async with self._session_factory() as session:
+                async with session.begin():
+                    return await self._process_one(session, raw)
 
     async def _process_one(self, session, raw: RawArticle) -> str:
         article_repo = self._article_repo_factory(session)
@@ -216,12 +216,16 @@ class ProcessArticlesUseCase:
             await article_repo.save(article)
         except IntegrityError:
             # Race condition: інший конкурентний таск вже зберіг цю статтю
-            # між нашим dedup-check і save. Трактуємо як дублікат.
+            # між нашим dedup-check і save.
+            #
+            # ВАЖЛИВО: після IntegrityError SQLAlchemy закриває поточну транзакцію.
+            # Будь-яка операція в тій самій сесії → InvalidRequestError.
+            # Тому mark_processed виконуємо в окремій сесії/транзакції.
             logger.info(
                 "Race condition dedup: url=%s content_hash already exists",
                 raw.content.url,
             )
-            await raw_repo.mark_processed(raw.id)
+            await self._mark_processed_safe(raw.id)
             return "dedup"
 
         await raw_repo.mark_processed(raw.id)
@@ -231,7 +235,41 @@ class ProcessArticlesUseCase:
             raw.id, article.id, language, relevance_score, tag_names,
         )
 
+        # ── 8. Implicit feedback: зберігаємо вектор у профіль ────────────────
+        if self._profile_learner is not None:
+            try:
+                await self._profile_learner.add_to_profile(
+                    article_id=article.id,
+                    content_text=original_full_text,
+                    score=relevance_score,
+                    tags=tag_names,
+                )
+            except Exception as exc:
+                # Не падаємо — профіль не є критичним для pipeline
+                logger.warning("ProfileLearner failed for article=%s: %s", article.id, exc)
+
         return "accepted"
+
+    async def _mark_processed_safe(self, raw_id: UUID) -> None:
+        """
+        Позначає RawArticle як оброблений у НОВІЙ сесії та транзакції.
+
+        Використовується після IntegrityError у _process_one,
+        коли поточна транзакція вже закрита SQLAlchemy після rollback.
+
+        Якщо і це впаде — логуємо warning але не пробрасуємо виняток,
+        бо стаття вже оброблена (race condition dedup).
+        """
+        try:
+            async with self._session_factory() as new_session:
+                async with new_session.begin():
+                    raw_repo = self._raw_repo_factory(new_session)
+                    await raw_repo.mark_processed(raw_id)
+        except Exception as exc:
+            logger.warning(
+                "mark_processed_safe failed for raw_id=%s (non-critical): %s",
+                raw_id, exc,
+            )
 
     # ─── Dedup helpers ────────────────────────────────────────────────────────
 
