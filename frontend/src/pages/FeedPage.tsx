@@ -142,10 +142,7 @@ export const FeedPage = () => {
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
-  // Language filter — only active on "unread" tab
   const [activeLang, setActiveLang] = useState<string | null>(null);
-
-  // Auto-refresh timer
   const [showTimerPanel, setShowTimerPanel] = useState(false);
   const { intervalSec, countdown, setAutoRefresh, formatCountdown } =
     useAutoRefresh(useCallback(() => refetch(), [refetch]));
@@ -159,21 +156,14 @@ export const FeedPage = () => {
 
   const unreadItems = allItems.filter((item) => !checkIsRead(item));
 
-  const unreadCount =
-    feedFilter === "all"
-      ? unreadItems.length
-      : feedFilter === "unread"
-        ? total
-        : 0;
+  const unreadCount = feedFilter === "read" ? 0 : unreadItems.length;
 
-  // Available languages derived from unread items
   const availableLangs = Array.from(
     new Set(
       unreadItems.map((item) => item.language?.toLowerCase()).filter(Boolean),
     ),
   ) as string[];
 
-  // Items to render — apply lang filter only on "unread" tab
   const filteredItems =
     feedFilter === "unread" && activeLang
       ? allItems.filter(
@@ -182,7 +172,6 @@ export const FeedPage = () => {
         )
       : allItems;
 
-  // Group by language when on "unread" tab and no specific lang selected
   const groupByLang =
     feedFilter === "unread" && !activeLang && availableLangs.length > 1;
 
@@ -217,136 +206,102 @@ export const FeedPage = () => {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Reset lang filter when switching away from "unread"
   useEffect(() => {
     if (feedFilter !== "unread") setActiveLang(null);
   }, [feedFilter]);
 
-  // ─── Handlers ────────────────────────────────────────────────────────────
-
-  const handleOpen = (item: any) => {
-    setActiveArticle(item.article_id);
-    if (!checkIsRead(item)) {
-      markRead.mutate(item.article_id);
-      markReadStore(item.article_id);
-    }
-  };
-
-  const handleMarkArticleRead = (e: React.MouseEvent, item: any) => {
-    e.stopPropagation();
-    if (!checkIsRead(item)) {
-      markRead.mutate(item.article_id);
-      markReadStore(item.article_id);
-    }
-  };
-
-  const handleMarkAllRead = () => {
-    const unreadIds = allItems
-      .filter((item) => !checkIsRead(item))
-      .map((item) => item.article_id);
-    if (unreadIds.length === 0) return;
-    markAllRead.mutate(unreadIds);
-  };
-
-  // ─── Article card renderer ───────────────────────────────────────────────
+  // ─── Render item ─────────────────────────────────────────────────────────
 
   const renderItem = (item: any) => {
     const read = checkIsRead(item);
     return (
       <ArticleCard
-        key={item.article_id}
+        key={item.article_id ?? item.id}
+        article={item}
         variant="feed"
         isRead={read}
-        onClick={() => handleOpen(item)}
-        onMarkRead={(e) => handleMarkArticleRead(e, item)}
-        article={{
-          id: item.article_id,
-          title: item.title,
-          url: item.url,
-          language: item.language,
-          status: read ? "accepted" : "new",
-          relevance_score: item.relevance_score,
-          published_at: item.published_at,
-          created_at: item.published_at ?? "",
-          tags: [],
-          original_body: null,
-          original_title: null,
-          body: null,
+        onClick={() => {
+          setActiveArticle(item.article_id ?? item.id);
         }}
+        onMarkRead={
+          !read
+            ? (e) => {
+                e.stopPropagation();
+                markReadStore(item.article_id ?? item.id);
+                markRead.mutate(item.article_id ?? item.id);
+              }
+            : undefined
+        }
       />
     );
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="max-w-3xl mx-auto space-y-4">
+      {/* ─── Header ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
             Стрічка
-            {unreadCount > 0 && (
-              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-bold bg-blue-500 text-white">
-                {unreadCount}
-              </span>
-            )}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            {data?.pages[0]?.generated_at
-              ? `Оновлено ${new Date(data.pages[0].generated_at).toLocaleTimeString("uk")}`
-              : "Персоналізовані новини"}
-          </p>
+          {total > 0 && (
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              {total} статей ·{" "}
+              {unreadCount > 0 ? `${unreadCount} нових` : "всі прочитані"}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {feedFilter !== "read" && unreadCount > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Mark all read */}
+          {unreadCount > 0 && (
             <button
-              onClick={handleMarkAllRead}
+              onClick={() =>
+                markAllRead.mutate(unreadItems.map((i) => i.article_id))
+              }
               disabled={markAllRead.isPending}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
-                "border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400",
-                "hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
-                "disabled:opacity-50 disabled:cursor-not-allowed",
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
+                "border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400",
+                "hover:bg-emerald-50 dark:hover:bg-emerald-950",
+                "disabled:opacity-50",
               )}
             >
-              <CheckCheck className="w-4 h-4" />
-              Прочитати всі
+              <CheckCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Всі прочитані</span>
             </button>
           )}
 
-          {/* Auto-refresh toggle button */}
+          {/* Auto-refresh */}
           <div className="relative">
             <button
               onClick={() => setShowTimerPanel((v) => !v)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
                 intervalSec !== null
-                  ? "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+                  ? "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
                   : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
               )}
             >
-              <Timer className="w-4 h-4" />
-              {countdown !== null ? (
-                <span className="tabular-nums">
+              <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              {intervalSec !== null && countdown !== null ? (
+                <span className="tabular-nums font-mono text-xs">
                   {formatCountdown(countdown)}
                 </span>
               ) : (
-                "Авто"
+                <span className="hidden xs:inline">Авто</span>
               )}
             </button>
 
-            {/* Timer panel */}
             {showTimerPanel && (
-              <div className="absolute right-0 top-full mt-2 z-20 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-3 w-64">
+              <div className="absolute right-0 top-full mt-2 z-20 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
-                    Автооновлення
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Авто-оновлення
                   </span>
                   <button
                     onClick={() => setShowTimerPanel(false)}
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -360,7 +315,7 @@ export const FeedPage = () => {
                         setShowTimerPanel(false);
                       }}
                       className={cn(
-                        "px-3 py-1.5 rounded-lg text-sm font-medium border transition-all",
+                        "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
                         intervalSec === value
                           ? "bg-blue-500 border-blue-500 text-white"
                           : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
@@ -372,7 +327,7 @@ export const FeedPage = () => {
                 </div>
                 {intervalSec !== null && countdown !== null && (
                   <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                    Наступне оновлення через{" "}
+                    Оновлення через{" "}
                     <span className="tabular-nums font-medium text-blue-500">
                       {formatCountdown(countdown)}
                     </span>
@@ -382,11 +337,12 @@ export const FeedPage = () => {
             )}
           </div>
 
+          {/* Refresh */}
           <button
             onClick={() => refetch()}
             disabled={isFetching}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all",
+              "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
               "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300",
               "hover:bg-slate-100 dark:hover:bg-slate-800",
               "disabled:opacity-50 disabled:cursor-not-allowed",
@@ -394,23 +350,23 @@ export const FeedPage = () => {
           >
             <RefreshCw
               className={cn(
-                "w-4 h-4",
+                "w-3.5 h-3.5 sm:w-4 sm:h-4",
                 isFetching && !isFetchingNextPage && "animate-spin",
               )}
             />
-            Оновити
+            <span className="hidden xs:inline">Оновити</span>
           </button>
         </div>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-4 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">
+      {/* ─── Filter tabs ──────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-full sm:w-fit">
         {FILTER_TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setFeedFilter(key)}
             className={cn(
-              "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
+              "flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all",
               feedFilter === key
                 ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
@@ -426,9 +382,9 @@ export const FeedPage = () => {
         ))}
       </div>
 
-      {/* Language filter chips — only on "unread" tab */}
+      {/* ─── Language filter chips ────────────────────────────────────────── */}
       {feedFilter === "unread" && availableLangs.length > 1 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setActiveLang(null)}
             className={cn(
@@ -474,9 +430,9 @@ export const FeedPage = () => {
         </div>
       )}
 
-      {/* Feed list */}
+      {/* ─── Feed list ────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2 sm:gap-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
@@ -486,11 +442,11 @@ export const FeedPage = () => {
         </div>
       ) : filteredItems.length === 0 &&
         !groupedItems?.some((g) => g.items.length > 0) ? (
-        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+        <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-slate-400">
           {feedFilter === "unread" ? (
             <>
-              <CheckCheck className="w-12 h-12 mb-3 text-emerald-500" />
-              <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+              <CheckCheck className="w-10 h-10 sm:w-12 sm:h-12 mb-3 text-emerald-500" />
+              <p className="text-base sm:text-lg font-medium text-slate-700 dark:text-slate-300">
                 Все прочитано!
               </p>
               <p className="text-sm mt-1">Нових статей у фіді немає</p>
@@ -503,8 +459,8 @@ export const FeedPage = () => {
             </>
           ) : (
             <>
-              <Sparkles className="w-12 h-12 mb-3" />
-              <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+              <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 mb-3" />
+              <p className="text-base sm:text-lg font-medium text-slate-700 dark:text-slate-300">
                 Стрічка порожня
               </p>
               <p className="text-sm mt-1">Додайте джерела або оновіть фід</p>
@@ -512,13 +468,12 @@ export const FeedPage = () => {
           )}
         </div>
       ) : groupedItems ? (
-        /* Grouped by language sections */
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 sm:gap-6">
           {groupedItems.map(({ lang, items }) => {
             const meta = getLangMeta(lang);
             return (
               <div key={lang}>
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 px-1">
                   <span className="text-base">{meta.flag}</span>
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                     {meta.label}
@@ -541,13 +496,12 @@ export const FeedPage = () => {
           })}
         </div>
       ) : (
-        /* Flat list (filtered or non-unread tabs) */
         <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
           {filteredItems.map(renderItem)}
         </div>
       )}
 
-      {/* Sentinel div — intersection observer target */}
+      {/* Sentinel */}
       <div ref={sentinelRef} className="h-4" />
 
       {isFetchingNextPage && (

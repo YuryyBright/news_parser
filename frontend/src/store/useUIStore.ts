@@ -1,4 +1,3 @@
-// src/store/useUIStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -19,11 +18,22 @@ export const useUIStore = create<UIStore>()(
       sidebarOpen: true,
       toggleTheme: () => {
         const next = get().theme === "light" ? "dark" : "light";
-        document.documentElement.classList.toggle("dark", next === "dark");
+
+        // Надійний спосіб перемикання класів
+        if (next === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
+
         set({ theme: next });
       },
       setTheme: (t) => {
-        document.documentElement.classList.toggle("dark", t === "dark");
+        if (t === "dark") {
+          document.documentElement.classList.add("dark");
+        } else {
+          document.documentElement.classList.remove("dark");
+        }
         set({ theme: t });
       },
       toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
@@ -32,7 +42,7 @@ export const useUIStore = create<UIStore>()(
   ),
 );
 
-// Ініціалізація теми при завантаженні
+// Ініціалізація теми при завантаженні (залишається без змін)
 const savedTheme = localStorage.getItem("ui-store");
 if (savedTheme) {
   try {

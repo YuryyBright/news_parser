@@ -51,12 +51,14 @@ export const Sidebar = () => {
           <NavLink
             key={to}
             to={to}
+            title={!sidebarOpen ? label : undefined}
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group",
                 isActive
                   ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white",
+                !sidebarOpen && "justify-center",
               )
             }
           >
@@ -71,7 +73,8 @@ export const Sidebar = () => {
       {/* Toggle button */}
       <button
         onClick={toggleSidebar}
-        className="flex items-center justify-center h-12 border-t border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+        className="flex items-center justify-center h-12 border-t border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        title={sidebarOpen ? "Згорнути" : "Розгорнути"}
       >
         {sidebarOpen ? (
           <ChevronLeft className="w-4 h-4" />

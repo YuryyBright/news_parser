@@ -51,12 +51,21 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "occupation", "invasion", "ceasefire", "peacekeeping", "nato forces",
         "military aid", "arms supply", "ammunition", "air defense",
         "prisoner of war", "pow", "minefield", "fortification",
+        "special operations", "military exercise", "interoperability", 
+        "us africom", "sahel region",
+        
         # HU
         "háború", "konfliktus", "katoná", "hadsereg", "csapat", "fegyver",
         "rakéta", "támadás", "drón", "tüzérség", "frontvonat", "offenzíva",
         "védelm", "harci", "veszteség", "mozgósítás", "sorozás", "páncélos",
         "tank", "ágyúzás", "megszállás", "invázió", "tűzszünet", "békefen",
         "katonai segély", "lőszer", "légvédelm", "hadifogoly",
+        "válaszolt a honvéd vezérkar", "honvédség", "kecskemét", "líbia", 
+        "embraer kc-390", "flintlock 26", "különleges műveleti gyakorlat", 
+        "nato", "us africom", "katonai gyakorlat", "száhel-övezet", 
+        "magyar honvédség", "hadgyakorlat", "nemzetközi együttműködés", 
+        "interoperabilitás", 
+
         # SK
         "vojna", "konflikt", "vojenský", "armáda", "vojaci", "zbraň",
         "raketa", "útok", "dron", "delostrelectvo", "frontová línia",
@@ -64,6 +73,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "obrnený", "tank", "ostreľovanie", "okupácia", "invázia",
         "prímerie", "mierové sily", "vojenská pomoc", "munícia",
         "protivzdušná obrana", "vojnový zajatec",
+
         # RO
         "război", "conflict", "militar", "armată", "trupe", "armă",
         "rachetă", "atac", "dronă", "artilerie", "linie de front",

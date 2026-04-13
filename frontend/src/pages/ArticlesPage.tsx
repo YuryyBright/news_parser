@@ -17,6 +17,7 @@ import {
   Plus,
   Loader2,
   RefreshCw,
+  Filter,
 } from "lucide-react";
 import {
   useArticles,
@@ -34,15 +35,16 @@ import { ScoreBadge } from "../components/articles/ScoreBadge";
 import { cn, languageFlag } from "../lib/utils";
 import type { ArticleStatus } from "../api/types";
 import { UserID } from "../api/types";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_OPTIONS: { value: ArticleStatus | ""; label: string }[] = [
   { value: "", label: "Всі статті" },
-  { value: "new", label: "🟡 Нові" },
+  // { value: "new", label: "🟡 Нові" },
   { value: "accepted", label: "🟢 Прийняті" },
   { value: "rejected", label: "🔴 Відхилені" },
-  { value: "expired", label: "⚫ Приховані" },
-  { value: "processing", label: "🔵 В обробці" },
+  // { value: "expired", label: "⚫ Приховані" },
+  // { value: "processing", label: "🔵 В обробці" },
 ];
 
 const LANG_OPTIONS = ["", "uk", "en", "sk", "ro", "hu", "de", "fr", "pl"];
@@ -58,12 +60,12 @@ const SORT_OPTIONS: { value: SortBy; label: string; icon: React.ReactNode }[] =
   [
     {
       value: "created_at",
-      label: "Дата додавання",
+      label: "Додавання",
       icon: <Clock className="w-3.5 h-3.5" />,
     },
     {
       value: "published_at",
-      label: "Дата публікації",
+      label: "Публікація",
       icon: <Calendar className="w-3.5 h-3.5" />,
     },
     {
@@ -91,7 +93,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
   const handleSubmit = async () => {
     if (!url.trim()) return;
     try {
-      new URL(url); // validate
+      new URL(url);
     } catch {
       return;
     }
@@ -100,22 +102,25 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      {/* Modal */}
+      {/* Modal — bottom sheet on mobile, centered on sm+ */}
       <div
         className={cn(
-          "relative w-full max-w-lg rounded-2xl shadow-2xl",
+          "relative w-full sm:max-w-lg",
+          "rounded-t-2xl sm:rounded-2xl shadow-2xl",
           "bg-white dark:bg-slate-900",
           "border border-slate-200 dark:border-slate-800",
-          "p-6",
+          "p-5 sm:p-6",
+          // Bottom sheet drag handle on mobile
+          "after:content-[''] after:absolute after:top-2.5 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-1 after:rounded-full after:bg-slate-200 dark:after:bg-slate-700 sm:after:hidden",
         )}
       >
-        <div className="flex items-center gap-3 mb-5">
+        <div className="flex items-center gap-3 mb-5 mt-2 sm:mt-0">
           <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950">
             <Link2 className="w-5 h-5 text-blue-500" />
           </div>
@@ -124,7 +129,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
               Додати статтю за URL
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Стаття буде спарсена і поставлена в чергу на обробку
+              Стаття буде спарсена і поставлена в чергу
             </p>
           </div>
           <button
@@ -164,7 +169,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
               disabled={ingest.isPending || !url.trim()}
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                "bg-blue-500 hover:bg-blue-600 text-white",
+                "bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
               )}
             >
@@ -182,7 +187,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
         </div>
 
         <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-          💡 Статус обробки можна відслідкувати в розділі Sources → Tasks
+          💡 Статус обробки — Sources → Tasks
         </p>
       </div>
     </div>
@@ -231,7 +236,7 @@ const SearchBar = ({ value, onChange, onClear, isLoading }: SearchBarProps) => {
             onClear();
             inputRef.current?.focus();
           }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -264,14 +269,14 @@ const SortButton = ({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
+        "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap",
         isActive
           ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
           : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
       )}
     >
       {icon}
-      {label}
+      <span className="hidden sm:inline">{label}</span>
       {isActive &&
         (sortDir === "desc" ? (
           <ArrowDown className="w-3 h-3 ml-0.5" />
@@ -304,7 +309,6 @@ const Pagination = ({
   const from = (page - 1) * page_size + 1;
   const to = Math.min(page * page_size, total);
 
-  // Generate page numbers with ellipsis
   const getPages = () => {
     const nums: (number | "...")[] = [];
     if (pages <= 7) {
@@ -325,10 +329,10 @@ const Pagination = ({
   };
 
   const btnBase =
-    "min-w-[32px] h-8 px-2 rounded-lg text-xs font-medium border transition-colors";
+    "min-w-[36px] sm:min-w-[32px] h-9 sm:h-8 px-2 rounded-lg text-xs font-medium border transition-colors";
 
   return (
-    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
       <span className="text-xs text-slate-400 dark:text-slate-500">
         {from}–{to} з {total} статей
       </span>
@@ -344,26 +348,38 @@ const Pagination = ({
           <ChevronLeft className="w-3.5 h-3.5 mx-auto" />
         </button>
 
-        {getPages().map((p, i) =>
-          p === "..." ? (
-            <span key={`e-${i}`} className="px-1 text-xs text-slate-400">
-              …
-            </span>
-          ) : (
-            <button
-              key={p}
-              onClick={() => onPage(p as number)}
-              className={cn(
-                btnBase,
-                p === page
-                  ? "bg-blue-500 border-blue-500 text-white"
-                  : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
-              )}
-            >
-              {p}
-            </button>
-          ),
-        )}
+        {/* На мобільних показуємо менше кнопок */}
+        {getPages()
+          .filter((p, i, arr) => {
+            if (typeof p === "string") return true;
+            // На мобільних: тільки сусідні + перша + остання
+            if (window.innerWidth < 640) {
+              return (
+                p === 1 || p === pages || Math.abs((p as number) - page) <= 1
+              );
+            }
+            return true;
+          })
+          .map((p, i) =>
+            p === "..." ? (
+              <span key={`e-${i}`} className="px-1 text-xs text-slate-400">
+                …
+              </span>
+            ) : (
+              <button
+                key={p}
+                onClick={() => onPage(p as number)}
+                className={cn(
+                  btnBase,
+                  p === page
+                    ? "bg-blue-500 border-blue-500 text-white"
+                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                )}
+              >
+                {p}
+              </button>
+            ),
+          )}
 
         <button
           onClick={() => onPage(page + 1)}
@@ -400,22 +416,17 @@ export const ArticlesPage = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showAddUrl, setShowAddUrl] = useState(false);
 
-  // Дебаунс пошуку
   const [debouncedQ, setDebouncedQ] = useState(searchQuery);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(searchQuery), 350);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Запити
-  // user_id з store — виключає дизлайкнуті статті
-  // const userId = useArticlesStore((s) => (s as any).userId ?? null);
-
   const { data: listData, isLoading: listLoading } = useArticles(
     isSearchMode
       ? {}
       : {
-          status: filters.status ?? "accepted", // дефолт — тільки прийняті
+          status: filters.status ?? "accepted",
           min_score: filters.min_score,
           language: filters.language ?? undefined,
           tag: filters.tag ?? undefined,
@@ -425,7 +436,7 @@ export const ArticlesPage = () => {
           sort_dir: filters.sort_dir,
           page: filters.page,
           page_size: filters.page_size,
-          ...(UserID ? { user_id: UserID } : {}), // виключаємо дизлайкнуті
+          ...(UserID ? { user_id: UserID } : {}),
         },
   );
 
@@ -451,91 +462,85 @@ export const ArticlesPage = () => {
         }
       : null;
 
-  const isLoading = isSearchMode
-    ? searchFetching && debouncedQ.length >= 2
-    : listLoading;
-  const totalInfo = isSearchMode
-    ? searchData
-      ? `${searchData.total} результатів для "${searchData.query}"`
-      : ""
-    : listData
-      ? `${listData.total} статей`
-      : "";
+  const isLoading = isSearchMode ? false : listLoading;
 
   const hasActiveFilters =
     !!filters.status ||
-    (filters.min_score ?? 0) > 0 ||
     !!filters.language ||
     !!filters.tag ||
+    filters.min_score != null ||
     !!filters.date_from ||
-    !!filters.date_to;
+    !!filters.date_to ||
+    !!filters.date_preset;
+
+  const activeFiltersCount = [
+    filters.status,
+    filters.language,
+    filters.tag,
+    filters.min_score != null ? "score" : null,
+    filters.date_from || filters.date_to || filters.date_preset ? "date" : null,
+  ].filter(Boolean).length;
 
   const selectClass = cn(
-    "px-3 py-2 rounded-lg border text-sm transition-colors",
-    "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700",
+    "px-3 py-1.5 rounded-lg border text-sm transition-colors",
+    "bg-white dark:bg-slate-900",
+    "border-slate-200 dark:border-slate-800",
     "text-slate-700 dark:text-slate-300",
     "focus:outline-none focus:ring-2 focus:ring-blue-500",
   );
 
   return (
-    <div>
-      {/* ─── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            Статті
-          </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-            {isLoading ? "Завантаження..." : totalInfo}
-          </p>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-4">
+      {/* ─── Toolbar ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3">
+        {/* Top row */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onClear={() => setSearchQuery("")}
+            isLoading={searchFetching}
+          />
 
-        <div className="flex items-center gap-2">
+          {/* Filters toggle */}
+          <button
+            onClick={() => setShowFilters((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
+              showFilters || hasActiveFilters
+                ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
+                : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+            )}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Фільтри</span>
+            {activeFiltersCount > 0 && (
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold bg-blue-500 text-white">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          {/* Add URL */}
           <button
             onClick={() => setShowAddUrl(true)}
             className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all",
+              "flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
               "border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400",
               "hover:bg-emerald-50 dark:hover:bg-emerald-950",
             )}
           >
-            <Link2 className="w-4 h-4" />
-            Додати URL
-          </button>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all",
-              showFilters || hasActiveFilters
-                ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
-                : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
-            )}
-          >
-            <SlidersHorizontal className="w-4 h-4" />
-            Фільтри
-            {hasActiveFilters && (
-              <span className="w-2 h-2 bg-blue-500 rounded-full" />
-            )}
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Додати URL</span>
           </button>
         </div>
-      </div>
 
-      {/* ─── Search + Sort row ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onClear={() => {
-            setSearchQuery("");
-            setDebouncedQ("");
-          }}
-          isLoading={searchFetching && debouncedQ.length >= 2}
-        />
-
-        {/* Sort buttons (hidden in search mode) */}
-        {!isSearchMode && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Sort row */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+          <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
+            Сортування:
+          </span>
+          <div className="flex items-center gap-1.5">
             {SORT_OPTIONS.map(({ value, label, icon }) => (
               <SortButton
                 key={value}
@@ -548,58 +553,14 @@ export const ArticlesPage = () => {
               />
             ))}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Search mode banner */}
-      {isSearchMode && (
-        <div
-          className={cn(
-            "flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-sm",
-            "bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800",
-            "text-blue-700 dark:text-blue-300",
-          )}
-        >
-          <Search className="w-3.5 h-3.5 shrink-0" />
-          <span>Режим пошуку — пагінація і сортування тимчасово вимкнені</span>
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setDebouncedQ("");
-            }}
-            className="ml-auto text-blue-500 hover:text-blue-700 underline text-xs"
-          >
-            Очистити
-          </button>
-        </div>
-      )}
-
-      {/* Active tag chip (outside filter panel) */}
-      {filters.tag && !showFilters && (
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Тег:
-          </span>
-          <button
-            onClick={() => setFilter("tag", null)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-          >
-            <Tag className="w-3 h-3" />
-            {filters.tag}
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-      )}
-
-      {/* ─── Filter Panel ───────────────────────────────────────────────── */}
+      {/* ─── Filter Panel ─────────────────────────────────────────────────── */}
       {showFilters && (
-        <div
-          className={cn(
-            "mb-5 p-4 rounded-xl border",
-            "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
-          )}
-        >
-          <div className="flex flex-wrap gap-x-6 gap-y-4 items-end">
+        <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+          {/* Filter controls grid */}
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
             {/* Status */}
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
@@ -610,7 +571,7 @@ export const ArticlesPage = () => {
                 onChange={(e) =>
                   setFilter("status", (e.target.value as ArticleStatus) || null)
                 }
-                className={selectClass}
+                className={cn(selectClass, "w-full")}
               >
                 {STATUS_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -628,7 +589,7 @@ export const ArticlesPage = () => {
               <select
                 value={filters.language ?? ""}
                 onChange={(e) => setFilter("language", e.target.value || null)}
-                className={selectClass}
+                className={cn(selectClass, "w-full")}
               >
                 {LANG_OPTIONS.map((lang) => (
                   <option key={lang} value={lang}>
@@ -654,19 +615,19 @@ export const ArticlesPage = () => {
                 onChange={(e) =>
                   setFilter("min_score", parseFloat(e.target.value))
                 }
-                className="w-36 accent-blue-500"
+                className="w-full accent-blue-500"
               />
             </div>
 
             {/* Page size */}
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
-                Статей на сторінці
+                На сторінці
               </label>
               <select
                 value={filters.page_size}
                 onChange={(e) => setFilter("page_size", Number(e.target.value))}
-                className={selectClass}
+                className={cn(selectClass, "w-full")}
               >
                 {[10, 20, 30, 50, 100].map((n) => (
                   <option key={n} value={n}>
@@ -684,7 +645,7 @@ export const ArticlesPage = () => {
                 </label>
                 <button
                   onClick={() => setFilter("tag", null)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
                   <Tag className="w-3.5 h-3.5" />
                   {filters.tag}
@@ -695,22 +656,24 @@ export const ArticlesPage = () => {
 
             {/* Reset */}
             {hasActiveFilters && (
-              <button
-                onClick={resetFilters}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
-              >
-                <X className="w-3.5 h-3.5" />
-                Скинути фільтри
-              </button>
+              <div className="flex items-end">
+                <button
+                  onClick={resetFilters}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Скинути фільтри
+                </button>
+              </div>
             )}
           </div>
 
           {/* Date presets */}
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
               Дата додавання
             </label>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               {DATE_PRESETS.map(({ value, label }) => (
                 <button
                   key={String(value)}
@@ -727,7 +690,7 @@ export const ArticlesPage = () => {
               ))}
 
               {/* Custom date range */}
-              <div className="flex items-center gap-2 ml-2">
+              <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
                 <span className="text-xs text-slate-400">Від:</span>
                 <input
                   type="date"
@@ -765,62 +728,63 @@ export const ArticlesPage = () => {
           </div>
 
           {!filters.status && (
-            <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
-              💡 Фільтр "Всі статті" включає всі статуси. Приховані ("Не
-              показувати") теж відображаються якщо не вибрано конкретний статус.
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              💡 "Всі статті" включає всі статуси, зокрема приховані.
             </p>
           )}
         </div>
       )}
 
-      {/* ─── Grid ───────────────────────────────────────────────────────── */}
+      {/* ─── Grid ─────────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
           {Array.from({
-            length: filters.page_size > 9 ? 9 : filters.page_size,
+            length: Math.min(filters.page_size > 9 ? 9 : filters.page_size, 9),
           }).map((_, i) => (
             <div
               key={i}
-              className="h-40 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
+              className="h-36 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
             />
           ))}
         </div>
       ) : articles.length === 0 ? (
-        <div className="text-center py-20">
+        <div className="text-center py-16 sm:py-20">
           <div className="text-4xl mb-4">{isSearchMode ? "🔎" : "🔍"}</div>
           <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
             {isSearchMode
               ? `Нічого не знайдено за "${debouncedQ}"`
               : "Статей не знайдено"}
           </p>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 px-4">
             {isSearchMode
               ? "Спробуйте інший запит або перевірте написання"
               : hasActiveFilters
                 ? "Спробуйте змінити або скинути фільтри"
                 : "Поки що немає статей у цьому розділі"}
           </p>
-          {isSearchMode && (
-            <button
-              onClick={() => setShowAddUrl(true)}
-              className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
-            >
-              <Link2 className="w-3.5 h-3.5" />
-              Додати статтю за URL
-            </button>
-          )}
-          {!isSearchMode && hasActiveFilters && (
-            <button
-              onClick={resetFilters}
-              className="mt-4 px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Скинути фільтри
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
+            {isSearchMode && (
+              <button
+                onClick={() => setShowAddUrl(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950 transition-colors"
+              >
+                <Link2 className="w-3.5 h-3.5" />
+                Додати статтю за URL
+              </button>
+            )}
+            {!isSearchMode && hasActiveFilters && (
+              <button
+                onClick={resetFilters}
+                className="px-4 py-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Скинути фільтри
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {articles.map((article) => (
               <ArticleCard
                 key={article.id}
@@ -830,7 +794,6 @@ export const ArticlesPage = () => {
             ))}
           </div>
 
-          {/* Pagination */}
           {pagination && (
             <Pagination
               page={pagination.page}
@@ -843,7 +806,7 @@ export const ArticlesPage = () => {
         </>
       )}
 
-      {/* ─── Drawers & Modals ───────────────────────────────────────────── */}
+      {/* ─── Drawers & Modals ─────────────────────────────────────────────── */}
       <ArticleDrawer
         articleId={activeArticleId}
         onClose={() => setActiveArticle(null)}

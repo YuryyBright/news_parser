@@ -4,6 +4,12 @@
     font-family: "Plus Jakarta Sans", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+  }
 }
 
 @layer utilities {

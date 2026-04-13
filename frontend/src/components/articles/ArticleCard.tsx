@@ -28,14 +28,15 @@ export const ArticleCard = ({
       <article
         onClick={onClick}
         className={cn(
-          "flex items-start gap-4 px-4 py-4 cursor-pointer transition-colors group",
+          "flex items-start gap-3 px-3 sm:px-4 py-3 sm:py-4 cursor-pointer transition-colors group",
           "bg-white dark:bg-slate-900",
-          !isRead && "hover:bg-slate-50 dark:hover:bg-slate-800/60",
+          !isRead &&
+            "hover:bg-slate-50 dark:hover:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-800",
           isRead && "opacity-60",
         )}
       >
         {/* Unread dot */}
-        <div className="mt-2 flex-shrink-0 w-2 h-2">
+        <div className="mt-1.5 flex-shrink-0 w-2 h-2">
           <div
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
@@ -57,7 +58,7 @@ export const ArticleCard = ({
             {article.title}
           </p>
 
-          <div className="flex items-center flex-wrap gap-3 mt-1.5">
+          <div className="flex items-center flex-wrap gap-2 mt-1.5">
             {article.published_at && (
               <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
                 <Clock className="w-3 h-3" />
@@ -75,30 +76,32 @@ export const ArticleCard = ({
             {article.relevance_score != null && (
               <ScoreBadge score={article.relevance_score} />
             )}
+            {/* Теги — ховаємо на дуже малих екранах */}
             {article.tags?.length > 0 && (
-              <TagsList tags={article.tags.slice(0, 3)} clickable />
+              <span className="hidden xs:block">
+                <TagsList tags={article.tags.slice(0, 2)} clickable />
+              </span>
             )}
           </div>
         </div>
 
-        {/* Right-side actions */}
+        {/* Right-side actions — на мобільних завжди видимі, на десктопі при hover */}
         <div
-          className="flex-shrink-0 flex items-center gap-1 mt-0.5"
+          className="flex-shrink-0 flex items-center gap-0.5 mt-0.5"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Feedback — прихований, з'являється при hover */}
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-            <FeedbackButtons articleId={article.id} compact />
+          {/* Feedback — при hover на md+ або завжди на touch */}
+          <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-0.5">
+            <FeedbackButtons articleId={article.article_id} compact />
           </div>
 
-          {/* Mark as read / open original */}
           {!isRead && onMarkRead && (
             <button
               onClick={onMarkRead}
               title="Позначити прочитаним"
               className={cn(
-                "opacity-0 group-hover:opacity-100 transition-all",
-                "p-1.5 rounded-md",
+                "p-1.5 rounded-md transition-all",
+                "sm:opacity-0 sm:group-hover:opacity-100",
                 "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
               )}
             >
@@ -112,8 +115,8 @@ export const ArticleCard = ({
             rel="noopener noreferrer"
             title="Відкрити оригінал"
             className={cn(
-              "opacity-0 group-hover:opacity-100 transition-all",
-              "p-1.5 rounded-md",
+              "p-1.5 rounded-md transition-all",
+              "sm:opacity-0 sm:group-hover:opacity-100",
               "text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50",
             )}
           >
@@ -124,7 +127,7 @@ export const ArticleCard = ({
     );
   }
 
-  // ─── variant="card" (original) ────────────────────────────────────────────
+  // ─── variant="card" ───────────────────────────────────────────────────────
   return (
     <article
       className={cn(
@@ -132,6 +135,7 @@ export const ArticleCard = ({
         "border-slate-200 dark:border-slate-800",
         "hover:border-blue-300 dark:hover:border-blue-700",
         "hover:shadow-lg dark:hover:shadow-slate-950/50",
+        "active:scale-[0.99]",
         "transition-all duration-200",
         onClick && "cursor-pointer",
         isRead && "opacity-55",
@@ -142,8 +146,8 @@ export const ArticleCard = ({
         <div className="absolute left-0 top-3 bottom-3 w-[3px] bg-blue-500 rounded-full" />
       )}
 
-      <div className="p-4 pl-5">
-        <div className="flex items-center gap-2 flex-wrap mb-2.5">
+      <div className="p-3 sm:p-4 pl-4 sm:pl-5">
+        <div className="flex items-center gap-2 flex-wrap mb-2">
           <ArticleBadge status={article.status} />
           <ScoreBadge score={article.relevance_score} />
           <span className="text-base leading-none" title={article.language}>
@@ -157,7 +161,7 @@ export const ArticleCard = ({
 
         <h3
           className={cn(
-            "text-sm font-semibold leading-snug mb-2.5",
+            "text-sm font-semibold leading-snug mb-2",
             "text-slate-900 dark:text-white",
             "group-hover:text-blue-600 dark:group-hover:text-blue-400",
             "transition-colors line-clamp-2",

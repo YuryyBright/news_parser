@@ -414,8 +414,8 @@ def _apply_filters_to_stmt(stmt, model, f: ArticleFilter, tag: str | None = None
         conditions.append(model.published_at <= published_to)
 
     if tag:
-        from src.infrastructure.persistence.models import TagModel, article_tags
-        stmt = stmt.join(article_tags).join(TagModel).where(TagModel.name == tag)
+        from src.infrastructure.persistence.models import TagModel
+        stmt = stmt.join(TagModel).where(TagModel.name == tag)
 
     if conditions:
         stmt = stmt.where(and_(*conditions))

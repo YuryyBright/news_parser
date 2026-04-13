@@ -13,12 +13,15 @@ export const FeedbackButtons = ({ articleId, compact = false }: Props) => {
   const expire = useExpireArticle();
 
   const btnBase = cn(
-    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all duration-150",
-    compact && "px-2 py-1 text-xs",
+    "flex items-center gap-1.5 rounded-lg font-medium border transition-all duration-150",
+    "active:scale-95",
+    compact
+      ? "px-2 py-1 text-xs min-h-[28px]"
+      : "px-3 py-1.5 text-sm min-h-[36px] sm:min-h-[32px]",
   );
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
       <button
         onClick={() => feedback.mutate({ id: articleId, liked: true })}
         disabled={feedback.isPending}
@@ -29,8 +32,8 @@ export const FeedbackButtons = ({ articleId, compact = false }: Props) => {
           "disabled:opacity-50",
         )}
       >
-        <ThumbsUp className={cn("w-4 h-4", compact && "w-3 h-3")} />
-        {!compact && "Цікаво"}
+        <ThumbsUp className={cn("w-4 h-4", compact && "w-3.5 h-3.5")} />
+        {!compact && <span className="hidden xs:inline">Цікаво</span>}
       </button>
 
       <button
@@ -43,8 +46,8 @@ export const FeedbackButtons = ({ articleId, compact = false }: Props) => {
           "disabled:opacity-50",
         )}
       >
-        <ThumbsDown className={cn("w-4 h-4", compact && "w-3 h-3")} />
-        {!compact && "Нецікаво"}
+        <ThumbsDown className={cn("w-4 h-4", compact && "w-3.5 h-3.5")} />
+        {!compact && <span className="hidden xs:inline">Нецікаво</span>}
       </button>
 
       <button
@@ -58,8 +61,8 @@ export const FeedbackButtons = ({ articleId, compact = false }: Props) => {
         )}
         title="Не показувати"
       >
-        <EyeOff className={cn("w-4 h-4", compact && "w-3 h-3")} />
-        {!compact && "Не показувати"}
+        <EyeOff className={cn("w-4 h-4", compact && "w-3.5 h-3.5")} />
+        {!compact && <span className="hidden sm:inline">Не показувати</span>}
       </button>
     </div>
   );

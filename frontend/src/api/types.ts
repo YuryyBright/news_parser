@@ -23,6 +23,7 @@ export type SourceType = "rss" | "web" | "api" | "telegram";
 
 export interface Article {
   id: string;
+  article_id: string;
   title: string;
   url: string;
   language: string;

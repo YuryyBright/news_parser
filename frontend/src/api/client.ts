@@ -5,7 +5,8 @@ import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 
 export const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8001/api/v1",
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ?? "http://192.168.0.199:8001/api/v1",
   headers: { "Content-Type": "application/json" },
   timeout: 15_000,
 });
