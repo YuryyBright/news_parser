@@ -124,7 +124,7 @@ class AzureTranslatorSettings(BaseSettings):
     
     api_key: str = ""
     region: str = "westeurope"
-    endpoint: str = "https://api.cognitive.microsofttranslator.com"
+    endpoint: str = "https://api.cognitive.microsofttranslator.com/"
     target_language: str = "uk"  # Змінюємо на "uk" за замовчуванням
     skip_languages: list[str] = ["uk", "unknown"] # Не перекладаємо те, що вже українською
     enabled: bool = True

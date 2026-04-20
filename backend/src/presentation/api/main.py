@@ -98,7 +98,7 @@ def _start_scheduler(container):
     scheduler.add_job(
         _schedule_all_sources_job,
         trigger="interval",
-        minutes=5,
+        minutes=20,
         id="schedule_all_sources",
         replace_existing=True,
         name="Re-schedule all active sources",

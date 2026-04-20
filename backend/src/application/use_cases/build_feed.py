@@ -70,7 +70,7 @@ class BuildFeedUseCase:
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
                 limit=self._feed_size,   # до 600 статей одразу
-                min_score=0.44,
+                min_score=0.65,
                 offset=0,
                 sort_by="created_at",
                 sort_dir="desc",
@@ -125,7 +125,7 @@ class BuildFeedUseCase:
                 ArticleFilter(
                     status=ArticleStatus.ACCEPTED,
                     limit=_BATCH_SIZE,
-                    min_score=0.44,
+                    min_score=0.65,
                     offset=offset,
                     sort_by="created_at",
                     sort_dir="desc",
