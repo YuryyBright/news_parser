@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 # Максимум статей у профілі — щоб колекція не росла нескінченно.
 # При досягненні ліміту — видаляємо найстаріші (FIFO).
-MAX_PROFILE_SIZE = 500
+MAX_PROFILE_SIZE = 20_000
 
 
 class InterestProfileRepository:

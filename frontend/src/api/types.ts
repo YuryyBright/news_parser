@@ -102,6 +102,7 @@ export interface FeedArticle {
   published_at: string | null;
   original_title: string | null;
   original_body: string | null;
+  tags: string[];
 }
 export interface FeedPageResponse {
   snapshot_id: string;

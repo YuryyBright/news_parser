@@ -32,7 +32,9 @@ import {
 import { ArticleCard } from "../components/articles/ArticleCard";
 import { ArticleDrawer } from "../components/articles/ArticleDrawer";
 import { ScoreBadge } from "../components/articles/ScoreBadge";
-import { cn, languageFlag } from "../lib/utils";
+import { cn } from "../lib/utils";
+// ─── Shared language helpers (single source of truth) ────────────────────────
+import { getLangMeta, flagImgProps } from "../lib/languages";
 import type { ArticleStatus } from "../api/types";
 import { UserID } from "../api/types";
 
@@ -74,6 +76,20 @@ const SORT_OPTIONS: { value: SortBy; label: string; icon: React.ReactNode }[] =
       icon: <Star className="w-3.5 h-3.5" />,
     },
   ];
+
+// ─── Flag image component ─────────────────────────────────────────────────────
+
+const FlagImg = ({ lang, className }: { lang: string; className?: string }) => {
+  const meta = getLangMeta(lang);
+  if (!meta.country) return null;
+  return (
+    <img
+      {...flagImgProps(meta.country)}
+      alt={meta.label}
+      className={cn("inline-block rounded-sm object-cover", className)}
+    />
+  );
+};
 
 // ─── AddByUrl Modal ───────────────────────────────────────────────────────────
 
@@ -348,11 +364,9 @@ const Pagination = ({
           <ChevronLeft className="w-3.5 h-3.5 mx-auto" />
         </button>
 
-        {/* На мобільних показуємо менше кнопок */}
         {getPages()
           .filter((p, i, arr) => {
             if (typeof p === "string") return true;
-            // На мобільних: тільки сусідні + перша + остання
             if (window.innerWidth < 640) {
               return (
                 p === 1 || p === pages || Math.abs((p as number) - page) <= 1
@@ -581,7 +595,10 @@ export const ArticlesPage = () => {
               </select>
             </div>
 
-            {/* Language */}
+            {/* Language — uses FlagImg via inline rendering in option labels
+                Note: <option> cannot render React nodes, so we keep text-only
+                labels here. The flag is shown in the LangTabBar / FilterPanel
+                where custom buttons are available. */}
             <div>
               <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
                 Мова
@@ -591,13 +608,16 @@ export const ArticlesPage = () => {
                 onChange={(e) => setFilter("language", e.target.value || null)}
                 className={cn(selectClass, "w-full")}
               >
-                {LANG_OPTIONS.map((lang) => (
-                  <option key={lang} value={lang}>
-                    {lang
-                      ? `${languageFlag(lang)} ${lang.toUpperCase()}`
-                      : "Всі мови"}
-                  </option>
-                ))}
+                {LANG_OPTIONS.map((lang) => {
+                  const meta = lang ? getLangMeta(lang) : null;
+                  return (
+                    <option key={lang} value={lang}>
+                      {lang
+                        ? `${meta!.label} (${lang.toUpperCase()})`
+                        : "Всі мови"}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

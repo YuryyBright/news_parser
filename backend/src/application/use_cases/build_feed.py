@@ -70,7 +70,7 @@ class BuildFeedUseCase:
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
                 limit=self._feed_size,   # до 600 статей одразу
-                min_score=0.65,
+                min_score=0.55,
                 offset=0,
                 sort_by="created_at",
                 sort_dir="desc",
@@ -125,7 +125,7 @@ class BuildFeedUseCase:
                 ArticleFilter(
                     status=ArticleStatus.ACCEPTED,
                     limit=_BATCH_SIZE,
-                    min_score=0.65,
+                    min_score=0.55,
                     offset=offset,
                     sort_by="created_at",
                     sort_dir="desc",
@@ -198,6 +198,7 @@ class BuildFeedUseCase:
             article_title=article.title,
             article_url=article.url,
             article_published_at=_pub_val(article),
+            tags=list(getattr(article, "tags", None) or []), 
         )
 
     def _to_view(self, snapshot: FeedSnapshot) -> FeedSnapshotView:
@@ -217,6 +218,7 @@ class BuildFeedUseCase:
                     article_url=item.article_url,
                     article_relevance_score=item.score,
                     article_published_at=item.article_published_at,
+                    tags=item.tags
                 )
                 for item in snapshot.items
             ],

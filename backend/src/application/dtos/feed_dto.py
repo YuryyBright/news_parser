@@ -18,7 +18,7 @@ class FeedItemView:
     article_url: str
     article_relevance_score: float
     article_published_at: datetime | None
-
+    tags: list[str]
 
 @dataclass(frozen=True)
 class FeedSnapshotView:

@@ -1,6 +1,7 @@
 // src/components/articles/ArticleCard.tsx
 import { ExternalLink, Clock, Eye } from "lucide-react";
-import { cn, formatDate, languageFlag } from "../../lib/utils";
+import { cn, formatDate } from "../../lib/utils";
+import { getLangMeta, flagImgProps } from "../../lib/languages";
 import { ScoreBadge } from "./ScoreBadge";
 import { ArticleBadge } from "./ArticleBadge";
 import { TagsList } from "./TagsList";
@@ -15,6 +16,18 @@ interface Props {
   variant?: "card" | "feed";
   onMarkRead?: (e: React.MouseEvent) => void;
 }
+
+const FlagImg = ({ lang, className }: { lang: string; className?: string }) => {
+  const meta = getLangMeta(lang);
+  if (!meta.country) return null;
+  return (
+    <img
+      {...flagImgProps(meta.country)}
+      alt={meta.label}
+      className={cn("inline-block rounded-sm object-cover", className)}
+    />
+  );
+};
 
 export const ArticleCard = ({
   article,
@@ -66,9 +79,12 @@ export const ArticleCard = ({
               </span>
             )}
             {article.language && (
-              <span className="text-xs">
-                {languageFlag(article.language)}
-                <span className="ml-1 font-mono text-slate-400 dark:text-slate-500 uppercase text-[11px]">
+              <span className="flex items-center text-xs">
+                <FlagImg
+                  lang={article.language}
+                  className="w-[18px] h-[13px]"
+                />
+                <span className="ml-1.5 font-mono text-slate-400 dark:text-slate-500 uppercase text-[11px]">
                   {article.language}
                 </span>
               </span>
@@ -150,8 +166,11 @@ export const ArticleCard = ({
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <ArticleBadge status={article.status} />
           <ScoreBadge score={article.relevance_score} />
-          <span className="text-base leading-none" title={article.language}>
-            {languageFlag(article.language)}
+          <span
+            className="flex items-center justify-center leading-none"
+            title={getLangMeta(article.language).label}
+          >
+            <FlagImg lang={article.language} className="w-[20px] h-[15px]" />
           </span>
           <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 tabular-nums">
             <Clock className="w-3 h-3 shrink-0" />

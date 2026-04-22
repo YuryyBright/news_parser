@@ -6,12 +6,25 @@ import { ScoreBadge } from "./ScoreBadge";
 import { ArticleBadge } from "./ArticleBadge";
 import { TagsList } from "./TagsList";
 import { FeedbackButtons } from "./FeedbackButtons";
-import { cn, formatDateFull, languageFlag } from "../../lib/utils";
+import { cn, formatDateFull } from "../../lib/utils";
+import { getLangMeta, flagImgProps } from "../../lib/languages";
 
 interface Props {
   articleId: string | null;
   onClose: () => void;
 }
+
+const FlagImg = ({ lang, className }: { lang: string; className?: string }) => {
+  const meta = getLangMeta(lang);
+  if (!meta.country) return null;
+  return (
+    <img
+      {...flagImgProps(meta.country)}
+      alt={meta.label}
+      className={cn("inline-block rounded-sm object-cover", className)}
+    />
+  );
+};
 
 export const ArticleDrawer = ({ articleId, onClose }: Props) => {
   const { data: article, isLoading } = useArticle(articleId);
@@ -84,10 +97,14 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
 
                   {/* Meta */}
                   <div className="flex flex-wrap gap-3 text-sm text-slate-500 dark:text-slate-400">
-                    <span className="flex items-center gap-1">
+                    <span className="flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5 flex-shrink-0" />
-                      {languageFlag(article.language)}{" "}
-                      {article.language.toUpperCase()}
+                      <FlagImg
+                        lang={article.language}
+                        className="w-[18px] h-[13px] flex-shrink-0"
+                      />
+                      {getLangMeta(article.language).label} (
+                      {article.language.toUpperCase()})
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 flex-shrink-0" />

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 from datetime import datetime, timezone
-
+from sqlalchemy.orm import selectinload
 from sqlalchemy import select, update, delete, and_
 from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -77,6 +77,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
             .join(ArticleModel, FeedItemModel.article_id == ArticleModel.id)
             .where(FeedItemModel.snapshot_id == snap_row.id)
             .order_by(FeedItemModel.rank)
+            .options(selectinload(ArticleModel.tags)) 
         )
 
         items = []
@@ -94,6 +95,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
                     article_title=article.title or "",
                     article_url=article.url or "",
                     article_published_at=getattr(article, "published_at", None),
+                    tags=[t.name for t in (article.tags or [])], 
                 )
             )
 
@@ -122,10 +124,24 @@ class SqlAlchemyFeedRepository(IFeedRepository):
         )
 
     async def append_items(self, snapshot_id: UUID, items: list[FeedItem]) -> None:
-        for item in items:
+        if not items:
+            return
+
+        # Беремо article_id які вже є в цьому snapshot — захист від race condition
+        existing = await self._session.execute(
+            select(FeedItemModel.article_id)
+            .where(FeedItemModel.snapshot_id == str(snapshot_id))
+        )
+        existing_ids = {row[0] for row in existing.all()}
+
+        new_items = [i for i in items if str(i.article_id) not in existing_ids]
+        for item in new_items:
             self._session.add(self._item_to_model(item))
-        await self._session.flush()
-        logger.debug("Appended %d items to snapshot=%s", len(items), snapshot_id)
+
+        if new_items:
+            await self._session.flush()
+            logger.debug("Appended %d items to snapshot=%s (skipped %d dupes)",
+                        len(new_items), snapshot_id, len(items) - len(new_items))
 
     # ─── дії ─────────────────────────────────────────────────────────────────
 

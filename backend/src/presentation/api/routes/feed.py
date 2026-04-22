@@ -110,4 +110,5 @@ def _feed_item_to_response(item: FeedItemView) -> FeedArticleResponse:
         url=item.article_url,
         relevance_score=item.article_relevance_score,
         published_at=item.article_published_at,
+        tags=item.tags,  
     )

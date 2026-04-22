@@ -441,7 +441,7 @@ def _pg_config(language: str | None) -> str:
     mapping = {
         "en": "english", "de": "german", "fr": "french",
         "es": "spanish", "it": "italian", "pt": "portuguese",
-        "nl": "dutch", "ru": "russian",
+        "nl": "dutch", "ru": "russian", "sk": "slovak", "hu": "hungarian", "ro": "romanian",
     }
     return mapping.get(language or "", "simple")
 

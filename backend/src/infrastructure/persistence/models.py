@@ -243,6 +243,9 @@ class FeedSnapshotModel(Base):
 
 class FeedItemModel(Base):
     __tablename__ = "feed_items"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "article_id", name="uq_feed_item_article"),
+    )
 
     id:          Mapped[str]                 = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
     snapshot_id: Mapped[str]                 = mapped_column(ForeignKey("feed_snapshots.id", ondelete="CASCADE"))

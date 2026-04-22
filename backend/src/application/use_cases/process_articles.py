@@ -29,7 +29,7 @@ from typing import Callable, Any
 from uuid import uuid4, UUID
 
 from sqlalchemy.exc import IntegrityError
-
+import asyncio
 from src.application.ports.language_detector import ILanguageDetector
 from src.application.ports.scoring_service import IScoringService
 from src.application.ports.tagger import ITagger
@@ -135,7 +135,7 @@ class ProcessArticlesUseCase:
                 result.failed += 1
                 result.errors.append(f"raw_id={raw.id}: {exc}")
                 logger.exception("Failed to process raw article %s", raw.id)
-
+            await asyncio.sleep(5)
         logger.info(
             "process_articles done: processed=%d accepted=%d rejected=%d "
             "dedup_skipped=%d failed=%d",

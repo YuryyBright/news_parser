@@ -28,6 +28,7 @@ class FeedItem(BaseEntity):
     article_title: str = ""
     article_url: str = ""
     article_published_at: datetime | None = None
+    tags: list[str] = field(default_factory=list)
 
     def mark_read(self) -> None:
         self.status = FeedItemStatus.READ

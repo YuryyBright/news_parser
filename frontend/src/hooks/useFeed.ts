@@ -19,15 +19,11 @@ export const useFeed = (filter: FeedFilter = "all") => {
     getNextPageParam: (lastPage) =>
       lastPage.has_more ? lastPage.offset + lastPage.limit : undefined,
     initialPageParam: 0,
-    // staleTime=0: при кожному фокусі/маунті перевіряємо нові статті.
-    // Бекенд кешований (snapshot), тому це не дорого.
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
-  // Дедублікуємо статті по article_id з усіх сторінок.
-  // Це виправляє зсув offset після markRead: одна й та сама стаття
-  // може потрапити на дві сторінки якщо між запитами змінився total.
   const articles = useMemo<FeedArticle[]>(() => {
     const seen = new Set<string>();
     const result: FeedArticle[] = [];
@@ -50,11 +46,33 @@ export const useMarkRead = () => {
   const { markRead } = useFeedStore();
   return useMutation({
     mutationFn: (articleId: string) => feedApi.markRead(UserID, articleId),
-    onSuccess: (_, articleId) => {
+    onMutate: (articleId) => {
+      // Оптимістично оновлюємо кеш — без жодного HTTP запиту
       markRead(articleId);
-      // Інвалідуємо тільки активний фільтр, щоб не скидати інші сторінки
+      qc.setQueriesData<ReturnType<typeof useInfiniteQuery>["data"]>(
+        { queryKey: ["feed", UserID] },
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((item: FeedArticle) =>
+                item.article_id === articleId
+                  ? { ...item, status: "read" as const }
+                  : item,
+              ),
+            })),
+          };
+        },
+      );
+    },
+    onError: () => {
+      // При помилці — інвалідуємо щоб відновити реальний стан
       qc.invalidateQueries({ queryKey: ["feed", UserID] });
     },
+    // onSuccess навмисно відсутній — invalidate не потрібен,
+    // кеш вже оновлено оптимістично в onMutate
   });
 };
 
@@ -64,8 +82,28 @@ export const useMarkAllRead = () => {
   return useMutation({
     mutationFn: (articleIds: string[]) =>
       Promise.all(articleIds.map((id) => feedApi.markRead(UserID, id))),
-    onSuccess: (_, articleIds) => {
+    onMutate: (articleIds) => {
+      const idSet = new Set(articleIds);
       markAllRead(articleIds);
+      qc.setQueriesData<ReturnType<typeof useInfiniteQuery>["data"]>(
+        { queryKey: ["feed", UserID] },
+        (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) => ({
+              ...page,
+              items: page.items.map((item: FeedArticle) =>
+                idSet.has(item.article_id)
+                  ? { ...item, status: "read" as const }
+                  : item,
+              ),
+            })),
+          };
+        },
+      );
+    },
+    onError: () => {
       qc.invalidateQueries({ queryKey: ["feed", UserID] });
     },
   });

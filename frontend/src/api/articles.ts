@@ -73,6 +73,8 @@ export const articlesApi = {
   },
 
   create: async (payload: CreateArticlePayload): Promise<ArticleDetail> => {
+    // Додаємо штучну затримку 3 секунди перед створенням статті
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     const { data } = await client.post("/articles/", payload);
     return data;
   },
