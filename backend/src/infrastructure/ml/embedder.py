@@ -10,7 +10,7 @@ Embedder — тонка обгортка над sentence-transformers.
 
 Модель: intfloat/multilingual-e5-small
   - 118MB, підтримує 100+ мов включно з українською
-  - Розмір вектора: 384
+  - Розмір вектора: 1024
   - Prefix: "query: " для запитів, "passage: " для документів
   - https://huggingface.co/intfloat/multilingual-e5-small
 """
@@ -24,9 +24,9 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # Константи моделі
-MODEL_NAME = "intfloat/multilingual-e5-small"
-EMBEDDING_DIM = 384
-MAX_SEQ_LEN = 512  # токени, ~400 слів
+MODEL_NAME = "BAAI/bge-m3"
+EMBEDDING_DIM = 1024
+MAX_SEQ_LEN = 1024   # токени, ~400 слів
 
 
 class Embedder:

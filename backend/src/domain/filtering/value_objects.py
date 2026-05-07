@@ -17,7 +17,7 @@ class FilterMethod(StrEnum):
 class EmbeddingVector(ValueObject):
     vector: np.ndarray
     model_version: str
-    dimensions: int = 384
+    dimensions: int = 1024
 
     def _validate(self) -> None:
         if len(self.vector) != self.dimensions:

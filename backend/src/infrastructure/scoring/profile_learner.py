@@ -67,7 +67,7 @@ class ProfileLearner(IProfileLearner):
             feedback_type="positive",
         )
 
-        logger.debug(
+        logger.info(
             "ProfileLearner: saved article=%s score=%.3f tags=%s",
             article_id, score, tags,
         )

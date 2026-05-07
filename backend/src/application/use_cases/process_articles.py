@@ -236,7 +236,8 @@ class ProcessArticlesUseCase:
         )
 
         # ── 8. Implicit feedback: зберігаємо вектор у профіль ────────────────
-        if self._profile_learner is not None:
+        if self._profile_learner is not None and relevance_score >= 0.85:
+
             try:
                 await self._profile_learner.add_to_profile(
                     article_id=article.id,

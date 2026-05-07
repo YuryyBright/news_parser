@@ -38,7 +38,7 @@ class IInterestProfileRepository(abc.ABC):
         Повертає центроїд (середній вектор) всіх збережених статей.
 
         Returns:
-            np.ndarray: L2-нормований вектор (наприклад, shape (384,) для e5).
+            np.ndarray: L2-нормований вектор (наприклад, shape (1024,) для e5).
             None: Якщо профіль порожній.
         """
         pass

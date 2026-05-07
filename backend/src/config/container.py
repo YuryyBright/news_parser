@@ -28,7 +28,7 @@ from sqlalchemy import text
 
 from src.application.ports.task_queue import ITaskQueue
 from src.config.settings import get_settings
-
+from functools import cached_property
 logger = logging.getLogger(__name__)
 
 
@@ -78,7 +78,7 @@ class Container:
         self._tagger = None              # EmbeddingTagger
         self._profile_learner = None     # ProfileLearner
         self._translator = None          # Translator
-
+        self._llm_client = None
         logger.info("Container initialized (sync). Call init_async() to complete setup.")
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -98,6 +98,7 @@ class Container:
         chroma = await self._get_chroma()
         await self._init_scoring_pipeline(chroma)
         await self._init_translator()
+        await self._init_llm_client()
         logger.info("Container.init_async(): done.")
     async def _get_chroma(self):
         """Lazy init Chroma клієнта."""
@@ -119,6 +120,55 @@ class Container:
             endpoint=cfg.azure_translator.endpoint,
         )
         logger.info("Azure Translator initialized (target=%s)", cfg.azure_translator.target_language)
+    async def _init_llm_client(self) -> None:
+        """
+        Ініціалізує LLM клієнт залежно від settings.
+ 
+        Якщо vllm.enabled=true  → VLLMClient (локальний інференс)
+        Якщо є anthropic_api_key → AnthropicLLMClient (хмарний API)
+        Інакше                  → None (генерація недоступна)
+ 
+        Health check для vLLM: якщо сервер недоступний — логуємо warning
+        але НЕ кидаємо помилку. Застосунок запуститься, генерація
+        повернe помилку тільки коли її викличуть.
+        """
+        cfg = get_settings()
+ 
+        # Пріоритет 1: vLLM (локальний)
+        vllm_cfg = getattr(cfg, "vllm", None)
+        if vllm_cfg and getattr(vllm_cfg, "enabled", False):
+            from src.infrastructure.llm.vllm_client import VLLMClient
+            self._llm_client = VLLMClient(
+                base_url=vllm_cfg.base_url,
+                model=vllm_cfg.model,
+                api_key=vllm_cfg.api_key,
+                timeout=vllm_cfg.timeout,
+                temperature=vllm_cfg.temperature,
+                top_p=vllm_cfg.top_p,
+            )
+            ok = await self._llm_client.health_check()
+            if ok:
+                logger.info("vLLM client initialized: model=%s url=%s", vllm_cfg.model, vllm_cfg.base_url)
+            else:
+                logger.warning(
+                    "vLLM client initialized but server is UNREACHABLE at %s. "
+                    "Generation will fail until vLLM is started.",
+                    vllm_cfg.base_url,
+                )
+            return
+ 
+        # Пріоритет 2: Anthropic (якщо є API ключ)
+        anthropic_key = getattr(cfg, "anthropic_api_key", None)
+        if anthropic_key:
+            from src.infrastructure.llm.anthropic_client import AnthropicLLMClient
+            self._llm_client = AnthropicLLMClient(api_key=anthropic_key)
+            logger.info("Anthropic LLM client initialized")
+            return
+ 
+        logger.warning(
+            "No LLM client configured. "
+            "Set vllm.enabled=true or ANTHROPIC_API_KEY to enable news generation."
+        )
 
     async def _init_scoring_pipeline(self, chroma_client=None) -> None:
         """
@@ -548,7 +598,80 @@ class Container:
         return BatchDeduplicateUseCase(
             single_uc=self.deduplicate_uc(session),
         )
+    @cached_property
+    def _rag_embedder(self):
+        """
+        SentenceTransformer embedder для RAG (окремий від Embedder scoring pipeline).
+        Якщо хочете використовувати той самий Embedder.instance() — замініть тут.
+        """
+        from src.infrastructure.scoring.embedding_service import (
+            SentenceTransformerEmbeddingService,
+        )
+        cfg = get_settings()
+        emb_cfg = cfg.embedding
+        return SentenceTransformerEmbeddingService(
+            model_name=getattr(emb_cfg, "model_name", "BAAI/bge-m3"),
+            device=getattr(emb_cfg, "device", None),
+        )
+ 
+    @cached_property
+    def _chunk_repo(self):
+        from src.infrastructure.vector_store.chunk_vector_repo import ChunkVectorRepository
+        cfg = get_settings()
+        if self._chroma_client is None:
+            raise RuntimeError(
+                "ChromaDB not initialized. Call await container.init_async() first."
+            )
+        col_name   = getattr(cfg.chroma, "collection_docx_chunks", "docx_chunks")
+        dimensions = cfg.embedding.dimensions
+        return ChunkVectorRepository(
+            client=self._chroma_client,
+            collection_name=col_name,
+            dimensions=dimensions,
+        )
+    def generated_news_repo(self, session: AsyncSession):
+        from src.infrastructure.persistence.repositories.generated_news_repo import SqlAlchemyGeneratedNewsRepository
+        return SqlAlchemyGeneratedNewsRepository(session)
+    @cached_property
+    def _docx_parser(self):
+        from src.infrastructure.parsers.docx_parser import DocxParser
+        return DocxParser()
+ 
+    @cached_property
+    def _chunker(self):
+        from src.infrastructure.parsers.text_chunker import SlidingWindowChunker
+        return SlidingWindowChunker(chunk_size=2000, overlap=300, mode="block_aware")
+ 
+    # ── RAG: Use Cases ────────────────────────────────────────────────────────
+ 
+    @cached_property
+    def ingest_single_uc(self):
+        from src.application.use_cases.ingest_docx import IngestDocxUseCase
+        return IngestDocxUseCase(
+            parser=self._docx_parser,
+            chunker=self._chunker,
+            embedder=self._rag_embedder,
+            chunk_repo=self._chunk_repo,
+        )
+ 
+    @cached_property
+    def ingest_batch_uc(self):
+        from src.application.use_cases.ingest_docx import BatchIngestDocxUseCase
+        return BatchIngestDocxUseCase(single_uc=self.ingest_single_uc)
+ 
 
+    @cached_property
+    def verify_uc(self):
+        from src.application.use_cases.verify_search import VerifySearchUseCase
+        return VerifySearchUseCase(
+            embedder=self._rag_embedder,
+            chunk_repo=self._chunk_repo,
+        )
+ 
+    @property
+    def chunk_repo(self):
+        """Публічний доступ до chunk_repo (для /rag/stats ендпоінту)."""
+        return self._chunk_repo
 
 # ── Singleton ─────────────────────────────────────────────────────────────────
 

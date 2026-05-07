@@ -147,7 +147,7 @@ class EmbeddingsScoringService(IScoringService):
 
     async def encode(self, content: ParsedContent) -> np.ndarray:
         """
-        Повертає вектор статті (384-dim, float32).
+        Повертає вектор статті (1024-dim, float32).
         Використовується у ProfileLearner і для пошуку схожих статей.
         """
         text = content.full_text()

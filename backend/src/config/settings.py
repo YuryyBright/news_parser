@@ -8,6 +8,49 @@ from dotenv import load_dotenv
 class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DATABASE__", extra="ignore")
     url: str = "sqlite+aiosqlite:///./data/news_parser.db"
+class VLLMSettings(BaseSettings):
+    """
+    Конфігурація vLLM клієнта.
+ 
+    Pydantic читає з env: VLLM__BASE_URL, VLLM__MODEL тощо.
+    """
+ 
+    enabled: bool = Field(
+        default=False,
+        description="Увімкнути vLLM замість Anthropic для генерації новин",
+    )
+    base_url: str = Field(
+        default="http://localhost:8000",
+        description="URL vLLM OpenAI-compatible API сервера",
+    )
+    model: str = Field(
+        default="mistralai/Mistral-7B-Instruct-v0.3",
+        description="Назва моделі — має збігатись з --model при запуску vLLM",
+    )
+    api_key: str = Field(
+        default="EMPTY",
+        description="API ключ — 'EMPTY' для локального vLLM без автентифікації",
+    )
+    timeout: float = Field(
+        default=120.0,
+        description="Таймаут HTTP запиту в секундах (генерація повільніша ніж Anthropic)",
+    )
+    temperature: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="Температура семплінгу. 0.0 = детермінований вихід",
+    )
+    top_p: float | None = Field(
+        default=None,
+        description="Nucleus sampling. None = вимкнено",
+    )
+    max_tokens: int = Field(
+        default=1200,
+        description="Максимальна кількість токенів у відповіді",
+    )
+ 
+    model_config = {"env_prefix": "VLLM__", "extra": "ignore"}
 
 
 class ChromaSettings(BaseSettings):
@@ -22,7 +65,7 @@ class ChromaSettings(BaseSettings):
 class EmbeddingSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="EMBEDDING__", extra="ignore")
     model: str = "paraphrase-multilingual-MiniLM-L12-v2"
-    dimensions: int = 384
+    dimensions: int = 1024
     batch_size: int = 64
     normalize: bool = True
 
@@ -152,6 +195,7 @@ class Settings(BaseSettings):
     llm:           LLMSettings          = Field(default_factory=LLMSettings)
     logging:       LoggingSettings      = Field(default_factory=LoggingSettings)
     scoring:       ScoringSettings      = Field(default_factory=ScoringSettings)
+    vllm:          VLLMSettings         = Field(default_factory=VLLMSettings)
     azure_translator: AzureTranslatorSettings = Field(default_factory=AzureTranslatorSettings)
     # Shortcut — єдиний рядок для всього коду
     @property

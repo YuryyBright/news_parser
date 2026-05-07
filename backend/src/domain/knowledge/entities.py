@@ -28,7 +28,7 @@ class ArticleEmbedding(BaseEntity):
     article_id: UUID = None         # type: ignore[assignment]
     vector: np.ndarray = field(default=None, repr=False)  # type: ignore[assignment]
     model_version: str = ""
-    dimensions: int = 384
+    dimensions: int = 1024
 
 
 @dataclass

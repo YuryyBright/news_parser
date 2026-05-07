@@ -278,3 +278,17 @@ class UserFeedbackModel(Base):
     article_id:   Mapped[str]             = mapped_column(String(36), ForeignKey("articles.id", ondelete="CASCADE"), nullable=False, index=True)
     liked:        Mapped[bool]                  = mapped_column(Boolean, nullable=False)
     created_at:   Mapped[datetime]              = mapped_column(TIMESTAMP, default=utcnow)
+
+class GeneratedNewsModel(Base):
+    __tablename__ = "generated_news"
+
+    id:          Mapped[str]      = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    title:       Mapped[str]      = mapped_column(Text, nullable=False)
+    body:        Mapped[str]      = mapped_column(Text, nullable=False)
+    query:       Mapped[str]      = mapped_column(Text, nullable=False)
+    status:      Mapped[str]      = mapped_column(String(50), default="generated")
+    language:    Mapped[str]      = mapped_column(String(10), default="uk")
+    context_score: Mapped[float]  = mapped_column(Float, default=0.0)
+    model_used:  Mapped[str|None] = mapped_column(String(100))
+    source_chunks: Mapped[list]   = mapped_column(JSON, default=list)
+    created_at:  Mapped[datetime] = mapped_column(TIMESTAMP, default=utcnow)
