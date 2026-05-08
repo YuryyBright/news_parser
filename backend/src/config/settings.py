@@ -160,6 +160,14 @@ class ScoringSettings(BaseSettings):
     embed_weight: float = 0.60
     tagger_threshold: float = 0.40
     embed_confidence_threshold: float = 0.89
+class OpenRouterSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="OPENROUTER__", extra="ignore")
+    
+    enabled:     bool  = False
+    api_key:     str   = ""
+    model:       str   = "google/gemma-3-27b-it:free"
+    timeout:     float = 60.0
+    temperature: float = 0.7
 
 class AzureTranslatorSettings(BaseSettings):
     # Додаємо префікс, щоб він збігався з вашим .env
@@ -171,6 +179,12 @@ class AzureTranslatorSettings(BaseSettings):
     target_language: str = "uk"  # Змінюємо на "uk" за замовчуванням
     skip_languages: list[str] = ["uk", "unknown"] # Не перекладаємо те, що вже українською
     enabled: bool = True
+ 
+class TelegramSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="TELEGRAM__", extra="ignore")  # ← додати це
+    enabled:   bool  = False
+    bot_token: str   = ""
+    threshold: float = 0.65
 
 
 class Settings(BaseSettings):
@@ -197,6 +211,8 @@ class Settings(BaseSettings):
     scoring:       ScoringSettings      = Field(default_factory=ScoringSettings)
     vllm:          VLLMSettings         = Field(default_factory=VLLMSettings)
     azure_translator: AzureTranslatorSettings = Field(default_factory=AzureTranslatorSettings)
+    telegram:      TelegramSettings      = Field(default_factory=TelegramSettings)
+    openrouter: OpenRouterSettings       = Field(default_factory=OpenRouterSettings)
     # Shortcut — єдиний рядок для всього коду
     @property
     def vector_dim(self) -> int:

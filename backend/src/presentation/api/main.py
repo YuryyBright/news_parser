@@ -28,14 +28,15 @@ setup_logging()
 logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+    
     # ── 1. DI Container ──────────────────────────────────────────────────────
     logger.info("Starting up application...")
     from src.config.container import init_container
     container = init_container()
     await container.init_async()
 
-    # ── 2. Task registry — handler функції реєструються після container ──────
-    #    (handlers.py використовує get_container() всередині)
+    # ── 2. Task registry ─────────────────────────────────────────────────────
     from src.infrastructure.task_queue.registry import register_all_tasks
     register_all_tasks()
 
@@ -44,7 +45,7 @@ async def lifespan(app: FastAPI):
     await create_all_tables()
     logger.info("Database ready")
 
-    # ── 4. Startup use case — запускаємо парсинг для всіх активних джерел ────
+    # ── 4. Startup use case ───────────────────────────────────────────────────
     from src.application.use_cases.startup import StartupUseCase
     from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
 
@@ -59,13 +60,20 @@ async def lifespan(app: FastAPI):
         result.sources_found, result.tasks_enqueued,
     )
 
-    # ── 5. Periodic scheduler ─────────────────────────────────────────────────
+    # ── 5. Scheduler + Telegram ───────────────────────────────────────────────
     scheduler = _start_scheduler(container)
+    tg_task = asyncio.create_task(container.run_telegram_bot())
 
-    yield  # ← FastAPI обробляє запити
-    
-    logger.info("Shutting down application...")
+    yield  # ← єдиний yield
+
     # ── Shutdown ──────────────────────────────────────────────────────────────
+    logger.info("Shutting down application...")
+    tg_task.cancel()
+    try:
+        await tg_task
+    except asyncio.CancelledError:
+        pass
+
     if scheduler:
         scheduler.shutdown(wait=False)
         logger.info("Scheduler stopped")

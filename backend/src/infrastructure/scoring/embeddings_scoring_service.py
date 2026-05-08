@@ -96,39 +96,43 @@ class EmbeddingsScoringService(IScoringService):
         if not text or not text.strip():
             return 0.0
 
-        # ── Cold start: профіль порожній ─────────────────────────────────────
         centroid = await self._profile_repo.get_centroid()
         if centroid is None:
             return COLD_START_SCORE
 
         article_vec = self._embedder.encode_passage(text)
 
-        # ── 1. Centroid similarity (Rocchio-зсунутий від негативних) ─────────
         centroid_sim = float(np.clip(
             self._embedder.cosine_similarity(article_vec, centroid), 0.0, 1.0
         ))
 
-        # ── 2. Positive NN ────────────────────────────────────────────────────
-        pos_sims = await self._profile_repo.query_by_feedback_type(
-            article_vec, n_results=TOP_K, feedback_type="positive"
-        )
-        pos_nn = max(pos_sims) if pos_sims else centroid_sim  # fallback на centroid
+        # ── ФІКС: HNSW може не існувати якщо колекція порожня ────────────────
+        try:
+            pos_sims = await self._profile_repo.query_by_feedback_type(
+                article_vec, n_results=TOP_K, feedback_type="positive"
+            )
+        except Exception as exc:
+            logger.debug("EmbeddingsScoring: pos query failed (empty index?): %s", exc)
+            pos_sims = []
 
-        # ── 3. Negative NN ────────────────────────────────────────────────────
-        neg_sims = await self._profile_repo.query_by_feedback_type(
-            article_vec, n_results=TOP_K, feedback_type="negative"
-        )
+        try:
+            neg_sims = await self._profile_repo.query_by_feedback_type(
+                article_vec, n_results=TOP_K, feedback_type="negative"
+            )
+        except Exception as exc:
+            logger.debug("EmbeddingsScoring: neg query failed (empty index?): %s", exc)
+            neg_sims = []
+        # ─────────────────────────────────────────────────────────────────────
+
+        pos_nn = max(pos_sims) if pos_sims else centroid_sim
         neg_nn = max(neg_sims) if neg_sims else None
 
-        # ── 4. Discriminator ──────────────────────────────────────────────────
         if neg_nn is None:
-            # Немає негативних → discriminator = pos_nn (стара логіка)
             discriminator = pos_nn
         else:
-            # Відносна різниця, масштабована сигмоїдою
-            # margin > 0 → ближче до liked; margin < 0 → ближче до disliked
             margin = pos_nn - neg_nn
             discriminator = _sigmoid(margin * SHARPNESS)
+
 
         # ── 5. Фінальний score ────────────────────────────────────────────────
         raw = W_CENTROID * centroid_sim + W_DISC * discriminator

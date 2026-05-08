@@ -79,11 +79,67 @@ class Container:
         self._profile_learner = None     # ProfileLearner
         self._translator = None          # Translator
         self._llm_client = None
+        self._telegram_user_repo = None 
+        self._telegram_notifier = None   # TelegramNotifier
+        self._content_fetcher = None
+        self._llm_rewriter = None
         logger.info("Container initialized (sync). Call init_async() to complete setup.")
 
     # ══════════════════════════════════════════════════════════════════════════
     # ASYNC INITIALIZATION — викликати ONE TIME у lifespan
     # ══════════════════════════════════════════════════════════════════════════
+    async def _init_telegram(self) -> None:
+        """
+        Ініціалізує Telegram bot та notifier.
+    
+        Потрібні env/settings:
+            telegram.bot_token — токен бота (@BotFather)
+            telegram.enabled   — bool (default False)
+        """
+        tg_cfg = get_settings().telegram
+    
+        if not tg_cfg or tg_cfg.enabled is False:
+            logger.info("Telegram disabled (set telegram.enabled=true)")
+            return
+    
+        from src.presentation.telegram.user_repo import TelegramUserRepository
+        from src.presentation.telegram.notifier_adapter import TelegramNotifierAdapter
+    
+        self._telegram_user_repo = TelegramUserRepository()
+        self._telegram_notifier  = TelegramNotifierAdapter(
+            bot_token=tg_cfg.bot_token,
+            user_repo=self._telegram_user_repo,
+        )
+        logger.info("Telegram notifier initialized")
+    async def _init_content_fetcher(self) -> None:
+        from src.infrastructure.parsers.trafilatura_fetcher import TrafilaturaContentFetcher
+        self._content_fetcher = TrafilaturaContentFetcher(timeout=10.0)
+        logger.info("TrafilaturaContentFetcher initialized")
+    
+    async def _init_llm_rewriter(self) -> None:
+        if self._llm_client is None:
+            logger.info("LLM rewriter skipped (no llm_client)")
+            return
+        from src.infrastructure.llm.telegram_rewriter import TelegramLLMRewriter
+        self._llm_rewriter = TelegramLLMRewriter(llm_client=self._llm_client)
+        logger.info("TelegramLLMRewriter initialized")
+    async def run_telegram_bot(self) -> None:
+        """
+        Запустити Telegram polling у окремому asyncio task.
+        Викликати в lifespan після init_async().
+    
+            asyncio.create_task(container.run_telegram_bot())
+        """
+        if self._telegram_notifier is None:
+            logger.debug("Telegram bot not configured, skipping")
+            return
+    
+        cfg = get_settings()
+        from src.presentation.telegram.bot import run_bot
+        await run_bot(
+            token=cfg.telegram.bot_token,
+            repo=self._telegram_user_repo,
+        )
 
     async def init_async(self) -> None:
         # WAL mode для SQLite (no-op на PostgreSQL)
@@ -96,9 +152,15 @@ class Container:
             pass  # не SQLite — ігноруємо
 
         chroma = await self._get_chroma()
+        await self._init_telegram()
         await self._init_scoring_pipeline(chroma)
         await self._init_translator()
+        await self._init_content_fetcher() 
         await self._init_llm_client()
+        await self._init_llm_rewriter()
+
+
+        
         logger.info("Container.init_async(): done.")
     async def _get_chroma(self):
         """Lazy init Chroma клієнта."""
@@ -121,54 +183,36 @@ class Container:
         )
         logger.info("Azure Translator initialized (target=%s)", cfg.azure_translator.target_language)
     async def _init_llm_client(self) -> None:
-        """
-        Ініціалізує LLM клієнт залежно від settings.
- 
-        Якщо vllm.enabled=true  → VLLMClient (локальний інференс)
-        Якщо є anthropic_api_key → AnthropicLLMClient (хмарний API)
-        Інакше                  → None (генерація недоступна)
- 
-        Health check для vLLM: якщо сервер недоступний — логуємо warning
-        але НЕ кидаємо помилку. Застосунок запуститься, генерація
-        повернe помилку тільки коли її викличуть.
-        """
         cfg = get_settings()
- 
-        # Пріоритет 1: vLLM (локальний)
-        vllm_cfg = getattr(cfg, "vllm", None)
-        if vllm_cfg and getattr(vllm_cfg, "enabled", False):
-            from src.infrastructure.llm.vllm_client import VLLMClient
-            self._llm_client = VLLMClient(
-                base_url=vllm_cfg.base_url,
-                model=vllm_cfg.model,
-                api_key=vllm_cfg.api_key,
-                timeout=vllm_cfg.timeout,
-                temperature=vllm_cfg.temperature,
-                top_p=vllm_cfg.top_p,
-            )
-            ok = await self._llm_client.health_check()
-            if ok:
-                logger.info("vLLM client initialized: model=%s url=%s", vllm_cfg.model, vllm_cfg.base_url)
-            else:
-                logger.warning(
-                    "vLLM client initialized but server is UNREACHABLE at %s. "
-                    "Generation will fail until vLLM is started.",
-                    vllm_cfg.base_url,
-                )
-            return
- 
-        # Пріоритет 2: Anthropic (якщо є API ключ)
-        anthropic_key = getattr(cfg, "anthropic_api_key", None)
-        if anthropic_key:
-            from src.infrastructure.llm.anthropic_client import AnthropicLLMClient
-            self._llm_client = AnthropicLLMClient(api_key=anthropic_key)
-            logger.info("Anthropic LLM client initialized")
-            return
- 
-        logger.warning(
-            "No LLM client configured. "
-            "Set vllm.enabled=true or ANTHROPIC_API_KEY to enable news generation."
+        openrouter_cfg = cfg.openrouter
+        
+        # Тимчасово для діагностики
+        logger.info(
+            "OpenRouter config: enabled=%s, api_key_set=%s, model=%s",
+            openrouter_cfg.enabled,
+            bool(openrouter_cfg.api_key),
+            openrouter_cfg.model,
         )
+        
+        if openrouter_cfg and openrouter_cfg.enabled and openrouter_cfg.api_key:
+                from src.infrastructure.llm.openrouter_client import OpenRouterClient
+                self._llm_client = OpenRouterClient(
+                    api_key=openrouter_cfg.api_key,
+                    model=openrouter_cfg.model,
+                    timeout=openrouter_cfg.timeout,
+                    temperature=openrouter_cfg.temperature,
+                )
+                ok = await self._llm_client.health_check()
+                if ok:
+                    logger.info("OpenRouter client initialized: model=%s", openrouter_cfg.model)
+                else:
+                    logger.warning("OpenRouter initialized but health check failed")
+                return
+    
+        logger.warning(
+                "No LLM client configured. "
+                "Set vllm.enabled=true or ANTHROPIC_API_KEY to enable news generation."
+            )
 
     async def _init_scoring_pipeline(self, chroma_client=None) -> None:
         """
@@ -273,10 +317,10 @@ class Container:
     # ── Shutdown ──────────────────────────────────────────────────────────────
 
     async def close(self) -> None:
-        """Закрити всі з'єднання при shutdown."""
-
         if self._translator is not None:
             await self._translator.close()
+        if self._llm_client is not None:          # ← додати
+            await self._llm_client.close()        # ← OpenRouterClient має close()
         await self._engine.dispose()
         if self._chroma_client is not None:
             from src.infrastructure.vector_store.chroma_client import close_chroma
@@ -368,6 +412,14 @@ class Container:
             threshold=cfg.filtering.default_threshold,
             translator=self._translator,
             target_language=cfg.azure_translator.target_language,
+            telegram_notifier=self._telegram_notifier,       # NEW
+            telegram_threshold=cfg.telegram.threshold        # NEW (default 0.8)
+                           if hasattr(cfg, "telegram") and self._telegram_notifier
+                           else 0.8,
+            content_fetcher=self._content_fetcher,   
+            llm_rewriter=self._llm_rewriter,        
+            chunk_repo=self._chunk_repo,             
+
         )
 
     def startup_uc(self, session: AsyncSession):

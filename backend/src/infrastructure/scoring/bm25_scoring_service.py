@@ -131,6 +131,10 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "parlamentná väčšina", "koaličná dohoda", "smer", "progresívne slovensko",
         "hlas", "republika", "kresťanskodemokratické", "opozičný líder",
         "zostavovanie vlády", "poslanecký klub", "dôvera vláde",
+        "matovič", "igor matovič", "hnutie slovensko", "oľano", "poslanec", 
+        "poslanci", "národná rada", "nrsr", "parlamentná schôdza", "štátny sviatok", 
+        "voľno", "pracovný deň", "zákonodarca","sas", "sloboda a solidarita", "branislav gröhling", "veronika remišová", 
+        "za ľudí", "uznesenie", "prenasledovanie opozície",
         # RO
         "alegeri", "vot", "președinte", "prim-ministru", "parlament",
         "guvern", "ministru", "partid", "coaliție", "opoziție",
@@ -185,6 +189,10 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "strategické partnerstvo", "obranná spolupráca",
         "veto", "zmrazené fondy eú", "neutralita", "mierové rokovania",
         "fico-orban", "slovensko-ruské vzťahy", "čínske investície",
+        "fico", "robert fico", "putin", "vladimir putin", "moskva", "rusko", 
+        "kremeľ", "ruská federácia", "rokovanie", "stretnutie", "bilaterálna spolupráca",
+        "ušakov", "jurij ušakov", "západné sankcie", "európske obmedzenia",
+        "spojenci", "kolaborácia", "jednotný postoj", "ruská imperiálna politika",
         # RO
         "nato", "uniunea europeană", "ue", "consiliul european", "summit",
         "politică externă", "diplomație", "ambasador", "bilateral",
@@ -300,6 +308,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "energie nucleară", "prețuri gaze", "prețuri combustibil",
         "sărăcie energetică", "încălzire iarnă", "depozite gaz",
         "fond de redresare", "politică de coeziune", "Via Carpatia",
+        "gazprom", "spp", "slovenský plynárenský priemysel", "družba", 
+        "ropovod družba", "transnefť", "transpetrol", "dodávky plynu", 
+        "dodávky ropy", "obchodné vzťahy","dodávky energie",
         # RO
         "economie", "pib", "inflație", "buget", "datorie",
         "deficit", "investiție", "comerț", "export", "import",
@@ -348,7 +359,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "protiteroristický", "odpočúvanie", "tajná operácia",
         "ruský agent", "zákon o zahraničných agentoch", "médiakaptura",
         "oligarcha", "pranie peňazí", "Pegasus spyware",
-        "volebná manipulácia",
+        "volebná manipulácia","hybridné útoky", "extrémizmus",
         # RO
         "informații", "servicii secrete", "contrainformații",
         "război hibrid", "spionaj", "spion", "sabotaj",
@@ -457,6 +468,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "unhcr", "červený kríž", "mimovládna organizácia", "zodpovednosť",
         "deportácia detí", "ukradnuté deti", "zaistenie ruských aktív",
         "reparácie", "fond obnovy ukrajiny", "odminovanie", "ecocída",
+        "vojnový zločinec", "agresívna vojna",
         # RO
         "crime de război", "crime împotriva umanității", "genocid",
         "cpi", "curtea penală internațională", "tribunal",
