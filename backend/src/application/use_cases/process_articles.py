@@ -203,7 +203,7 @@ class ProcessArticlesUseCase:
         # ── 5.5. Переклад — тільки якщо стаття пройде поріг ─────────────────────
         should_translate = (
             self._translator is not None
-            and relevance_score >= self._telegram_threshold
+            and relevance_score >= 0.55
         )
         if should_translate:
             language = await self._translate_content(raw, language)
@@ -326,6 +326,7 @@ class ProcessArticlesUseCase:
         # ── 4. Відправка ──────────────────────────────────────────────────────
         try:
             notification = ArticleNotification(
+                id=article.id,
                 title=article.title or "",
                 body=article.body or "",
                 url=article.url,

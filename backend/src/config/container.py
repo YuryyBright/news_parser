@@ -124,21 +124,24 @@ class Container:
         self._llm_rewriter = TelegramLLMRewriter(llm_client=self._llm_client)
         logger.info("TelegramLLMRewriter initialized")
     async def run_telegram_bot(self) -> None:
-        """
-        Запустити Telegram polling у окремому asyncio task.
-        Викликати в lifespan після init_async().
-    
-            asyncio.create_task(container.run_telegram_bot())
-        """
         if self._telegram_notifier is None:
-            logger.debug("Telegram bot not configured, skipping")
             return
-    
+
         cfg = get_settings()
+
+        # Фабрика: повертає (session, use_case) як async context manager
+        from contextlib import asynccontextmanager
+
+        @asynccontextmanager
+        async def feedback_factory():
+            async with self.db_session() as session:
+                yield session, self.submit_feedback_uc(session)
+
         from src.presentation.telegram.bot import run_bot
         await run_bot(
             token=cfg.telegram.bot_token,
             repo=self._telegram_user_repo,
+            feedback_factory=feedback_factory,
         )
 
     async def init_async(self) -> None:
