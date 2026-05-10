@@ -7,7 +7,7 @@ import httpx
 
 from src.application.ports.telegram_notifier import ArticleNotification, ITelegramNotifier
 from src.presentation.telegram.user_repo import TelegramUserRepository
-
+from datetime import datetime
 logger = logging.getLogger(__name__)
 
 _SCORE_BAR_LEN = 10
@@ -23,11 +23,13 @@ def _escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+
 def _build_message(article: ArticleNotification) -> str:
     bar = _score_bar(article.score)
     pct = int(article.score * 100)
     tags = "  ".join(f"#{_escape(t)}" for t in article.tags[:5]) if article.tags else ""
     lang = article.language.upper() if article.language != "unknown" else ""
+    date_str = _format_date(article.published_at)   # ← нове
 
     if article.rewritten_text:
         body = _escape(article.rewritten_text.strip())
@@ -43,13 +45,13 @@ def _build_message(article: ArticleNotification) -> str:
     if body:
         lines += [body, ""]
     lines.append(f"<code>{bar}</code> {pct}%")
+    if date_str:
+        lines.append(f"🗓 {date_str}")   # ← нове
     if lang:
         lines.append(f"🌐 {lang}")
     if tags:
         lines.append(tags)
-
     return "\n".join(lines)
-
 
 def _inline_keyboard(url: str, article_id: str) -> dict:
     """
@@ -66,7 +68,11 @@ def _inline_keyboard(url: str, article_id: str) -> dict:
         rows.append([{"text": "Читати статтю →", "url": url}])
     return {"inline_keyboard": rows}
 
-
+def _format_date(dt: datetime | None) -> str:
+    if dt is None:
+        return ""
+    return dt.strftime("%d.%m.%Y, %H:%M")
+    # На Windows: dt.strftime("%#d %b %Y, %H:%M")
 class TelegramNotifierAdapter(ITelegramNotifier):
 
     def __init__(

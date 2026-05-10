@@ -177,10 +177,9 @@ class ProcessArticlesUseCase:
         # ── 1. Detect language ────────────────────────────────────────────────
         language = await self._detect_language(raw)
 
-       # ── 1.5. Fetch full text тільки якщо RSS текст замалий ───────────────────
+        # ── 1.5. Fetch full text тільки якщо RSS текст замалий ───────────────
         rss_full_text = raw.content.full_text()
-
-        MIN_TEXT_LENGTH = 500  # символів, налаштуй під себе
+        MIN_TEXT_LENGTH = 500
 
         if len(rss_full_text) < MIN_TEXT_LENGTH:
             fetched_text = await self._fetch_raw_full_text(raw.content.url, rss_full_text)
@@ -193,14 +192,29 @@ class ProcessArticlesUseCase:
         # ── 2. Встановлюємо language в content перед scoring ─────────────────
         _inject_language(raw.content, language)
 
-        # ── 3. Score ──────────────────────────────────────────────────────────────
+        # ── 3. Score ──────────────────────────────────────────────────────────
         relevance_score = await self._score(raw)
         original_full_text = raw.content.full_text()
-
         original_title = raw.content.title
         original_body  = raw.content.body
 
-        # ── 5.5. Переклад — тільки якщо стаття пройде поріг ─────────────────────
+        # ── 4. Dedup check ────────────────────────────────────────────────────  ← ДОДАНО
+        dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
+        is_dup, dup_reason = await self._check_dedup(raw, article_repo, raw_repo, dedup_uc)
+        if is_dup:
+            await raw_repo.mark_processed(raw.id)
+            return "dedup"
+
+        # ── 5. Reject якщо score нижче threshold ──────────────────────────────  ← ДОДАНО
+        if relevance_score < self._threshold:
+            await raw_repo.mark_processed(raw.id)
+            logger.info(
+                "Rejected (low score): raw_id=%s url=%s score=%.3f threshold=%.3f",
+                raw.id, raw.content.url, relevance_score, self._threshold,
+            )
+            return "rejected"
+
+        # ── 5.5. Переклад — тільки якщо стаття пройде поріг ─────────────────
         should_translate = (
             self._translator is not None
             and relevance_score >= 0.55
@@ -208,7 +222,7 @@ class ProcessArticlesUseCase:
         if should_translate:
             language = await self._translate_content(raw, language)
 
-        # ── 6. Тегування ──────────────────────────────────────────────────────────
+        # ── 6. Тегування ──────────────────────────────────────────────────────
         translated_full_text = raw.content.full_text()
         tag_names = self._tagger.tag(translated_full_text)
 
@@ -333,6 +347,7 @@ class ProcessArticlesUseCase:
                 score=relevance_score,
                 tags=tag_names,
                 language=language,
+                published_at=article.published_at.value if article.published_at else None,  # ← нове
                 full_text=full_text,
                 style_context=style_context,
                 rewritten_text=rewritten,

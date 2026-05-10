@@ -9,7 +9,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from uuid import UUID
-
+from datetime import datetime
 @dataclass
 class ArticleNotification:
     id: UUID
@@ -19,9 +19,10 @@ class ArticleNotification:
     score: float
     tags: list[str]
     language: str
+    published_at: datetime | None = None   # ← нове
     full_text: str = ""
     style_context: str = ""
-    rewritten_text: str = ""  
+    rewritten_text: str = ""
 
 
 class ITelegramNotifier(ABC):
