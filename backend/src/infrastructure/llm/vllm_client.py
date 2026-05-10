@@ -14,6 +14,7 @@ vLLM запускає локальний сервер з ендпоінтами 
   vllm.max_tokens        — 1200 за замовч.
   vllm.temperature       — 0.7
   vllm.api_key           — "EMPTY" (vLLM не вимагає, але поле обов'язкове)
+  vllm.no_think          — False (True для Qwen3: вимикає блок <think>…</think>)
 
 Чому НЕ openai SDK:
   Зайва залежність для локального інференсу.
@@ -27,6 +28,15 @@ vLLM запускає локальний сервер з ендпоінтами 
 Перевірка доступності:
   await client.health_check() → bool
   Перед генерацією корисно переконатись що vLLM server запущений.
+
+no_think (Qwen3):
+  Qwen3 підтримує два режими мислення:
+    • Thinking mode  (за замовч.) — модель генерує <think>…</think> перед відповіддю.
+    • Non-thinking   (no_think=True) — швидша відповідь без прихованих роздумів.
+  Реалізовано через chat_template_kwargs: {"enable_thinking": False}
+  що передається у extra_body запиту (vLLM ≥ 0.8.5).
+  Також автоматично додається /no_think у системний промпт як fallback
+  для старіших версій vLLM.
 """
 from __future__ import annotations
 
@@ -39,10 +49,13 @@ from src.application.ports.rag_ports import ILLMClient, LLMResponse
 
 logger = logging.getLogger(__name__)
 
-_CHAT_ENDPOINT       = "/v1/chat/completions"
+_CHAT_ENDPOINT        = "/v1/chat/completions"
 _COMPLETIONS_ENDPOINT = "/v1/completions"
-_MODELS_ENDPOINT     = "/v1/models"
-_DEFAULT_MODEL       = "mistralai/Mistral-7B-Instruct-v0.3"
+_MODELS_ENDPOINT      = "/v1/models"
+_DEFAULT_MODEL        = "mistralai/Mistral-7B-Instruct-v0.3"
+
+# Префікс системного промпту для Qwen3 non-thinking mode (fallback)
+_QWEN_NO_THINK_PREFIX = "/no_think\n"
 
 
 class VLLMUnavailableError(Exception):
@@ -71,6 +84,10 @@ class VLLMClient(ILLMClient):
         timeout:     таймаут HTTP запиту (генерація може бути повільною)
         temperature: температура семплінгу (0.0 = детермінований)
         top_p:       nucleus sampling (None = вимкнено)
+        no_think:    Qwen3 non-thinking mode — вимикає блок <think>…</think>.
+                     Використовує chat_template_kwargs (vLLM ≥ 0.8.5) +
+                     /no_think префікс у system prompt як fallback.
+                     Для інших моделей (Mistral, LLaMA тощо) параметр ігнорується.
     """
 
     def __init__(
@@ -78,9 +95,10 @@ class VLLMClient(ILLMClient):
         base_url: str = "http://localhost:8000",
         model: str = _DEFAULT_MODEL,
         api_key: str = "EMPTY",
-        timeout: float = 120.0,
+        timeout: float = 1440.0,
         temperature: float = 0.7,
         top_p: float | None = None,
+        no_think: bool = True,
     ) -> None:
         # Нормалізуємо URL — прибираємо trailing slash
         self._base_url    = base_url.rstrip("/")
@@ -89,6 +107,7 @@ class VLLMClient(ILLMClient):
         self._timeout     = timeout
         self._temperature = temperature
         self._top_p       = top_p
+        self._no_think    = no_think   # Qwen3: вимикає <think>…</think> блок
         self._client: httpx.AsyncClient | None = None
 
     # ── ILLMClient ────────────────────────────────────────────────────────────
@@ -97,7 +116,7 @@ class VLLMClient(ILLMClient):
         self,
         system_prompt: str,
         user_prompt: str,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
     ) -> LLMResponse:
         """
         Виклик vLLM /v1/chat/completions.
@@ -106,17 +125,24 @@ class VLLMClient(ILLMClient):
           system → {"role": "system", "content": system_prompt}
           user   → {"role": "user",   "content": user_prompt}
 
+        Для Qwen3 з no_think=True:
+          • extra_body.chat_template_kwargs.enable_thinking = False
+            (vLLM ≥ 0.8.5, рекомендований спосіб)
+          • /no_think додається на початок system_prompt як fallback
+
         Returns:
             LLMResponse з текстом і статистикою токенів.
 
         Raises:
-            VLLMCallError     — HTTP помилка або невалідна відповідь
+            VLLMCallError        — HTTP помилка або невалідна відповідь
             VLLMUnavailableError — сервер не відповідає (Connection refused)
         """
+        effective_system = self._apply_no_think_prefix(system_prompt)
+
         payload: dict[str, Any] = {
             "model":       self._model,
             "messages": [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": effective_system},
                 {"role": "user",   "content": user_prompt},
             ],
             "max_tokens":  max_tokens,
@@ -126,13 +152,17 @@ class VLLMClient(ILLMClient):
         if self._top_p is not None:
             payload["top_p"] = self._top_p
 
+        # Qwen3 non-thinking mode через chat_template_kwargs (vLLM ≥ 0.8.5)
+        if self._no_think:
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
+
         url = self._base_url + _CHAT_ENDPOINT
 
         logger.info(
             "[vllm] Request: model=%s max_tokens=%d temp=%.2f "
-            "system_len=%d user_len=%d",
+            "system_len=%d user_len=%d no_think=%s",
             self._model, max_tokens, self._temperature,
-            len(system_prompt), len(user_prompt),
+            len(effective_system), len(user_prompt), self._no_think,
         )
 
         client   = self._get_client()
@@ -148,6 +178,11 @@ class VLLMClient(ILLMClient):
             raise VLLMCallError(
                 f"Unexpected vLLM response format: {data}"
             ) from exc
+
+        # Qwen3 thinking mode може повертати <think>…</think> навіть з fallback —
+        # якщо no_think=True, обрізаємо залишки блоку на рівні клієнта
+        if self._no_think:
+            text = _strip_think_block(text)
 
         usage         = data.get("usage", {})
         input_tokens  = usage.get("prompt_tokens", 0)
@@ -246,6 +281,20 @@ class VLLMClient(ILLMClient):
             "Content-Type":  "application/json",
         }
 
+    def _apply_no_think_prefix(self, system_prompt: str) -> str:
+        """
+        Додає /no_think на початок system_prompt для Qwen3 (fallback спосіб).
+
+        Qwen3 chat template розпізнає цей префікс і перемикається
+        в non-thinking mode навіть без chat_template_kwargs.
+        Якщо префікс вже присутній — не дублюємо.
+        """
+        if not self._no_think:
+            return system_prompt
+        if system_prompt.startswith(_QWEN_NO_THINK_PREFIX):
+            return system_prompt
+        return _QWEN_NO_THINK_PREFIX + system_prompt
+
     async def _post(
         self,
         client: httpx.AsyncClient,
@@ -303,3 +352,20 @@ class VLLMClient(ILLMClient):
 
         except Exception as exc:
             raise VLLMCallError(f"Unexpected vLLM error: {exc}") from exc
+
+
+# ── Утиліта ───────────────────────────────────────────────────────────────────
+
+def _strip_think_block(text: str) -> str:
+    """
+    Видаляє блок <think>…</think> з відповіді Qwen3 якщо він все одно з'явився.
+
+    Це захисний шар на випадок якщо ні chat_template_kwargs,
+    ні /no_think префікс не спрацювали (стара версія vLLM / інший шаблон).
+
+    Приклад:
+        "<think>\nякісь роздуми\n</think>\nВідповідь" → "Відповідь"
+    """
+    import re
+    cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
+    return cleaned.strip()

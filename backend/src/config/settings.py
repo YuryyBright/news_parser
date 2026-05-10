@@ -32,7 +32,7 @@ class VLLMSettings(BaseSettings):
         description="API ключ — 'EMPTY' для локального vLLM без автентифікації",
     )
     timeout: float = Field(
-        default=120.0,
+        default=1440.0,
         description="Таймаут HTTP запиту в секундах (генерація повільніша ніж Anthropic)",
     )
     temperature: float = Field(
@@ -146,7 +146,7 @@ class LLMSettings(BaseSettings):
     provider: str   = "anthropic"
     api_key: str    = ""
     model: str      = "claude-haiku-4-5-20251001"
-    max_tokens: int = 512
+    max_tokens: int = 4096
 
 class LoggingSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="LOG__", extra="ignore")

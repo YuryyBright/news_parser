@@ -25,34 +25,55 @@ def _escape(text: str) -> str:
 
 
 def _build_message(article: ArticleNotification) -> str:
+    lines = []
+
+    # 1. БЛОК 1: Офіційне зведення від LLM (якщо є)
+    if article.rewritten_text:
+        lines.append("📄 <b>Текст згенерований ШІ (натисніть, щоб скопіювати):</b>")
+        
+        # Обгортаємо текст у тег <code> для автоматичного копіювання по кліку
+        escaped_rewritten = _escape(article.rewritten_text.strip())
+        lines.append(f"<code>{escaped_rewritten}</code>")
+        
+        lines.append("")
+        lines.append("—" * 20)  # Розділювач
+        lines.append("")
+
+    # 2. БЛОК 2: Базовий переклад статті (title + body)
+    if article.title or article.body:
+        lines.append("📝 <b>Фрагмент новини:</b>")
+        
+        if article.title:
+            lines.append(f"<b>{_escape(article.title)}</b>\n")
+            
+        if article.body:
+            # Telegram має жорсткий ліміт у 4096 символів на повідомлення.
+            # Оскільки ми вже додали рерайт, обрізаємо базовий переклад, 
+            # щоб повідомлення гарантовано відправилось.
+            raw_body = article.body.strip().replace("\n", " ")
+            if len(raw_body) > 1500:
+                raw_body = raw_body[:1500].rsplit(" ", 1)[0] + "…"
+            
+            lines.append(_escape(raw_body))
+            lines.append("")
+
+    # 3. БЛОК 3: Метадані (Скоринг, Теги, Дата, Мова)
     bar = _score_bar(article.score)
     pct = int(article.score * 100)
     tags = "  ".join(f"#{_escape(t)}" for t in article.tags[:5]) if article.tags else ""
     lang = article.language.upper() if article.language != "unknown" else ""
-    date_str = _format_date(article.published_at)   # ← нове
+    date_str = _format_date(article.published_at)
 
-    if article.rewritten_text:
-        body = _escape(article.rewritten_text.strip())
-    elif article.body:
-        raw = article.body.strip().replace("\n", " ")
-        if len(raw) > 1000:
-            raw = raw[:1000].rsplit(" ", 1)[0] + "…"
-        body = _escape(raw)
-    else:
-        body = ""
-
-    lines = [f"📰 <b>{_escape(article.title)}</b>", ""]
-    if body:
-        lines += [body, ""]
     lines.append(f"<code>{bar}</code> {pct}%")
+    
     if date_str:
-        lines.append(f"🗓 {date_str}")   # ← нове
+        lines.append(f"🗓 {date_str}")
     if lang:
-        lines.append(f"🌐 {lang}")
+        lines.append(f"🌐 Джерело: {lang}")
     if tags:
         lines.append(tags)
-    return "\n".join(lines)
 
+    return "\n".join(lines)
 def _inline_keyboard(url: str, article_id: str) -> dict:
     """
     Перший ряд: 👍 Like  👎 Dislike

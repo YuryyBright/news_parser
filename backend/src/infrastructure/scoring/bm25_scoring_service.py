@@ -37,6 +37,30 @@ from src.domain.ingestion.value_objects import ParsedContent
 
 logger = logging.getLogger(__name__)
 
+_NEGATIVE_KEYWORDS: list[str] = [
+    # спорт
+    "football", "soccer", "basketball", "tennis", "f1", "formula 1",
+    "labdarúgás", "futbal", "fotbal",
+    # культура / розваги
+    "concert", "festival", "cinema", "theater", "exhibition",
+    "koncert", "kiállítás", "divadlo", "festivalul",
+    # кримінал без політики
+    "robbery", "theft", "murder", "burglary",
+    "rablás", "lopás", "gyilkosság",
+    # реклама / прес-релізи
+    "sponsored", "advertisement", "promo",
+]
+
+# ── Буст-слова: якщо є — підняти score ───────────────────────────────────────
+_BOOST_KEYWORDS: list[str] = [
+    "ukraine", "ukrajna", "slovensko", "románia", "ungaria",
+    "zelenskyy", "zelenski", "putin", "orban", "fico",
+    "nato", "eu", "sanctions", "szankció", "sankcie", "sancțiuni",
+]
+
+_NEGATIVE_PENALTY = 0.35   # відніміємо від нормалізованого score
+_BOOST_BONUS      = 0.10   # додаємо, але не вище 1.0
+
 # ─── Корпус тем ───────────────────────────────────────────────────────────────
 _TOPIC_CORPUS_RAW: list[list[str]] = [
 
@@ -73,6 +97,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "obrnený", "tank", "ostreľovanie", "okupácia", "invázia",
         "prímerie", "mierové sily", "vojenská pomoc", "munícia",
         "protivzdušná obrana", "vojnový zajatec",
+        "barak", "batériu", "batéria", "cvičia", "cvičiť", "systému", "systém",
 
         # RO
         "război", "conflict", "militar", "armată", "trupe", "armă",
@@ -134,7 +159,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "matovič", "igor matovič", "hnutie slovensko", "oľano", "poslanec", 
         "poslanci", "národná rada", "nrsr", "parlamentná schôdza", "štátny sviatok", 
         "voľno", "pracovný deň", "zákonodarca","sas", "sloboda a solidarita", "branislav gröhling", "veronika remišová", 
-        "za ľudí", "uznesenie", "prenasledovanie opozície",
+        "za ľudí", "uznesenie", "prenasledovanie opozície","kaliňák", "kaliňáka",
         # RO
         "alegeri", "vot", "președinte", "prim-ministru", "parlament",
         "guvern", "ministru", "partid", "coaliție", "opoziție",
@@ -192,7 +217,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "fico", "robert fico", "putin", "vladimir putin", "moskva", "rusko", 
         "kremeľ", "ruská federácia", "rokovanie", "stretnutie", "bilaterálna spolupráca",
         "ušakov", "jurij ušakov", "západné sankcie", "európske obmedzenia",
-        "spojenci", "kolaborácia", "jednotný postoj", "ruská imperiálna politika",
+        "spojenci", "kolaborácia", "jednotný postoj", "ruská imperiálna politika","izrael", "izraelský", "blízkom", "východe",
         # RO
         "nato", "uniunea europeană", "ue", "consiliul european", "summit",
         "politică externă", "diplomație", "ambasador", "bilateral",
@@ -526,7 +551,23 @@ class BM25ScoringService(IScoringService):
         else:
             raw_score = self._bm25_score(text)
 
-        logger.info("BM25: score=%.3f", raw_score)
+        # ── Антислова ─────────────────────────────────────────────────────────
+        text_lower = text.lower()
+        
+        neg_hits = sum(1 for kw in _NEGATIVE_KEYWORDS if kw in text_lower)
+        if neg_hits >= 2:
+            # Якщо багато антислів — повний reject
+            logger.info("BM25: negative keyword reject (hits=%d)", neg_hits)
+            return 0.0
+        if neg_hits == 1:
+            raw_score = max(0.0, raw_score - _NEGATIVE_PENALTY)
+
+        # ── Буст-слова ────────────────────────────────────────────────────────
+        boost_hits = sum(1 for kw in _BOOST_KEYWORDS if kw in text_lower)
+        if boost_hits > 0:
+            raw_score = min(1.0, raw_score + _BOOST_BONUS * min(boost_hits, 3))
+
+        logger.info("BM25: score=%.3f neg_hits=%d boost_hits=%d", raw_score, neg_hits, boost_hits)
         return raw_score
 
     def _bm25_score(self, text: str) -> float:

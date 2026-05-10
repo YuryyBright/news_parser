@@ -187,35 +187,46 @@ class Container:
         logger.info("Azure Translator initialized (target=%s)", cfg.azure_translator.target_language)
     async def _init_llm_client(self) -> None:
         cfg = get_settings()
-        openrouter_cfg = cfg.openrouter
         
-        # Тимчасово для діагностики
-        logger.info(
-            "OpenRouter config: enabled=%s, api_key_set=%s, model=%s",
-            openrouter_cfg.enabled,
-            bool(openrouter_cfg.api_key),
-            openrouter_cfg.model,
-        )
-        
-        if openrouter_cfg and openrouter_cfg.enabled and openrouter_cfg.api_key:
-                from src.infrastructure.llm.openrouter_client import OpenRouterClient
-                self._llm_client = OpenRouterClient(
-                    api_key=openrouter_cfg.api_key,
-                    model=openrouter_cfg.model,
-                    timeout=openrouter_cfg.timeout,
-                    temperature=openrouter_cfg.temperature,
-                )
-                ok = await self._llm_client.health_check()
-                if ok:
-                    logger.info("OpenRouter client initialized: model=%s", openrouter_cfg.model)
-                else:
-                    logger.warning("OpenRouter initialized but health check failed")
+        # ── 1. Спроба підключити локальний LLM (Ollama / vLLM) ──
+        vllm_cfg = getattr(cfg, "vllm", None)
+        if vllm_cfg and getattr(vllm_cfg, "enabled", False):
+            from src.infrastructure.llm.vllm_client import VLLMClient
+            self._llm_client = VLLMClient(
+                base_url=vllm_cfg.base_url,    # має бути http://localhost:11434
+                model=vllm_cfg.model,          # має бути qwen3.5:9b
+                timeout=getattr(vllm_cfg, "timeout", 1440.0),
+                temperature=getattr(vllm_cfg, "temperature", 0.7),
+            )
+            ok = await self._llm_client.health_check()
+            if ok:
+                logger.info("Local LLM initialized: model=%s at %s", vllm_cfg.model, vllm_cfg.base_url)
+                return
+            else:
+                logger.warning("Local LLM enabled but health check failed. Checking OpenRouter...")
+
+        # ── 2. Фолбек на OpenRouter ──
+        openrouter_cfg = getattr(cfg, "openrouter", None)
+        if openrouter_cfg and getattr(openrouter_cfg, "enabled", False) and getattr(openrouter_cfg, "api_key", None):
+            from src.infrastructure.llm.openrouter_client import OpenRouterClient
+            self._llm_client = OpenRouterClient(
+                api_key=openrouter_cfg.api_key,
+                model=openrouter_cfg.model,
+                timeout=getattr(openrouter_cfg, "timeout", 60.0),
+                temperature=getattr(openrouter_cfg, "temperature", 0.7),
+            )
+            ok = await self._llm_client.health_check()
+            if ok:
+                logger.info("OpenRouter client initialized: model=%s", openrouter_cfg.model)
+                return
+            else:
+                logger.warning("OpenRouter initialized but health check failed")
                 return
     
         logger.warning(
-                "No LLM client configured. "
-                "Set vllm.enabled=true or ANTHROPIC_API_KEY to enable news generation."
-            )
+            "No LLM client configured. "
+            "Set vllm.enabled=true or openrouter.enabled=true to enable news generation."
+        )
 
     async def _init_scoring_pipeline(self, chroma_client=None) -> None:
         """

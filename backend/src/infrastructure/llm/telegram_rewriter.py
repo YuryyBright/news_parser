@@ -1,14 +1,13 @@
-from __future__ import annotations
 import logging
+import urllib.parse
+from datetime import datetime
 from src.application.ports.llm_rewriter import ILLMRewriter
 
 logger = logging.getLogger(__name__)
 
 class TelegramLLMRewriter(ILLMRewriter):
     """
-    Реалізує ILLMRewriter через будь-який ILLMClient
-    (VLLMClient або AnthropicLLMClient — взаємозамінні).
-
+    Реалізує ILLMRewriter через будь-який ILLMClient.
     Всі помилки перехоплюються всередині — повертає "" як fallback.
     """
 
@@ -22,41 +21,49 @@ class TelegramLLMRewriter(ILLMRewriter):
         url: str,
         style_context: str = "",
     ) -> str:
-        """
-        LLM-рерайт статті в стилі попередніх публікацій.
-
-        Якщо llm_client=None або LLM впав — повертає порожній рядок,
-        тоді TelegramNotifierAdapter показує звичайний RSS body як fallback.
-        """
         if self._llm is None:
             return ""
 
+        # Витягуємо домен для підпису (наприклад: pravda.sk, mti.hu)
+        try:
+            domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
+        except Exception:
+            domain = "unknown"
+
+        # Поточна дата для підпису у форматі DD.MM.YYYY
+        current_date = datetime.now().strftime("%d.%m.%Y")
+
         system = (
-            "You are an analytical assistant. Your task is to rewrite the news into a concise, dry, and formal official summary. "
-            "The output MUST be strictly in Ukrainian. "
-            "Use a strict official-business style, completely devoid of emotional coloring, metaphors, or subjective assessments. "
-            "Provide ONLY the final rewritten text, without any explanations, titles, or markdown formatting."
-            "Use This format this text only as template: За повідомленням «Угорської телеграфної агенції» (МТІ) від 31.03.2026, заступник голови угорської опозиційної політичної партії «Демократична коаліція» Шандор Ронаї закликав до відставки міністра закордонних справ та зовнішньої торгівлі Угорщини Петера Сійярто, у зв’язку з проведення ним перемовин з міністром закордонних справ рф сергієм лавровим. Згідно заяви партії, телефонні переговори підтверджують, що П. Сійярто вчинив державну зраду.  Партія зазначає також, що П. Сійярто як член уряду Угорщини, виконував вказівки російського президента володимира путіна, а безпосередньо керував ним по телефону російський міністр закордонних справ. Наголошено, що відставка політика не врятує уряд В. Орбана на виборах 12.04.2026, але Угорщина повинна якомога швидше позбутись російських шпигунів, які працюють на керівних посадах."
+            "You are an expert intelligence analyst and translator. Your task is to translate and rewrite the provided news article into a strict official-business summary in Ukrainian.\n\n"
+            "REQUIREMENTS:\n"
+            "1. The style MUST be extremely dry, formal, and completely devoid of emotional coloring, metaphors, or subjective assessments.\n"
+            f"2. ALWAYS start the first sentence with the date and the source of the information. Use the format: 'DD.MM.YYYY за повідомленням [Назва ресурсу/агентства], ...' or 'За повідомленням [Назва ресурсу/агентства] від DD.MM.YYYY, ...'. Use the domain '{domain}' or the specific agency mentioned in the text.\n"
+            "3. IF the text mentions specialized military terminology, weapons, technical equipment (e.g., drones, vehicles), or complex legal/political procedures, you MUST add a reference section below the source attribution starting with 'Довідково:'.\n"
+            "4. Output ONLY the finalized Ukrainian text. Do NOT use markdown formatting (like ** or #), do not add titles, and do not include any introductions.\n\n"
+            "TEMPLATE EXAMPLES:\n"
+            f"14.04.2026 за повідомленням Інтернет-ресурсу «{domain}», міністр оборони СР Роберт Каліняк повідомив...\n"
+            f"За повідомленням агентства «Bloomberg» від 29.04.2026, майбутній прем’єр-міністр Угорщини...\n"
+            "Довідково: SERE Charlie (або Рівень C) — це найвищий та найінтенсивніший рівень підготовки військовослужбовців..."
         )
 
-        # context_block = (
-        #     f"Style examples (top-5 relevant publications):\n{style_context}\n\n---\n\n"
-        #     if style_context else ""
-        # )
-
         user = (
-            # f"{context_block}"
             f"Title: {title}\n\n"
             f"Text: {full_text[:3000]}\n\n"
             f"Source URL: {url}\n\n"
-            "Rewrite the text as a concise, formal official summary in Ukrainian."
+            "Translate and rewrite the text strictly following the official summary requirements and the template."
         )
 
         try:
-            resp = await self._llm.complete(system, user, max_tokens=4096)
+            # Використовуємо no_think параметри для блокування reasoning процесу
+            resp = await self._llm.complete(system, user, max_tokens=8192)
+            
+            # Очищуємо від можливих тегів <think>, якщо вони все ж просочилися
             rewritten = resp.text.strip()
+            import re
+            rewritten = re.sub(r'<think>.*?</think>', '', rewritten, flags=re.DOTALL).strip()
+
             logger.info(
-                "LLM rewrite done: urLM rewrite done: url=%s chars=%d",
+                "LLM rewrite done: url=%s chars=%d",
                 url, len(rewritten),
             )
             return rewritten

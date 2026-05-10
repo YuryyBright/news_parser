@@ -149,7 +149,7 @@ class GenerateNewsUseCase:
             llm_response = await self._llm.complete(
                 system_prompt=SYSTEM_PROMPT,
                 user_prompt=user_prompt,
-                max_tokens=1200,
+                max_tokens=8192,
             )
             logger.info(
                 "[generate] LLM responded: model=%s tokens_in=%d tokens_out=%d",
