@@ -1,56 +1,153 @@
+from __future__ import annotations
+
 import json
 import uuid
 from pathlib import Path
 
 
 class TelegramUserRepository:
-    def __init__(self, path: str = "./data/telegram_subscribers.json"):
+    """
+    Зберігає підписників у JSON-файлі.
+
+    Формат файлу:
+    {
+        "user_map": {
+            "<chat_id>": {
+                "uuid": "...",
+                "langs": ["uk", "en"]   // порожній список = всі мови
+            }
+        }
+    }
+    """
+
+    def __init__(self, path: str = "./data/telegram_subscribers.json") -> None:
         self._path = Path(path)
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._data: dict = self._load()   # {"subscribers": [...], "user_map": {...}}
+        # chat_id (int) -> {"uuid": str, "langs": set[str]}
+        self._users: dict[int, dict] = self._load()
 
-    def _load(self) -> dict:
-        if self._path.exists():
-            try:
-                data = json.loads(self._path.read_text())
-                # backward compat: старий формат був просто списком
-                if isinstance(data, list):
-                    return {"subscribers": data, "user_map": {}}
-                return data
-            except Exception:
-                pass
-        return {"subscribers": [], "user_map": {}}
+    # ── persistence ───────────────────────────────────────────────────────────
+
+    def _load(self) -> dict[int, dict]:
+        if not self._path.exists():
+            return {}
+        try:
+            raw = json.loads(self._path.read_text())
+        except Exception:
+            return {}
+
+        # ── backward compat ───────────────────────────────────────────────────
+        # Старий формат 1: просто список chat_id
+        if isinstance(raw, list):
+            return {
+                cid: {
+                    "uuid": str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{cid}")),
+                    "langs": set(),
+                }
+                for cid in raw
+            }
+
+        # Старий формат 2: {"subscribers": [...], "user_map": {...}}
+        if "subscribers" in raw:
+            umap = raw.get("user_map", {})
+            users: dict[int, dict] = {}
+            for cid in raw["subscribers"]:
+                icid = int(cid)
+                users[icid] = {
+                    "uuid": umap.get(
+                        str(cid),
+                        str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{cid}"))
+                    ),
+                    "langs": set(),
+                }
+            return users
+
+        # Новий формат: {"user_map": {"<chat_id>": {"uuid": ..., "langs": [...]}}}
+        users = {}
+        for key, entry in raw.get("user_map", {}).items():
+            icid = int(key)
+            users[icid] = {
+                "uuid":  entry.get(
+                    "uuid",
+                    str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{icid}"))
+                ),
+                "langs": set(entry.get("langs", [])),
+            }
+        return users
 
     def _save(self) -> None:
-        self._path.write_text(json.dumps(self._data))
+        payload = {
+            "user_map": {
+                str(cid): {
+                    "uuid":  entry["uuid"],
+                    "langs": sorted(entry["langs"]),   # set -> sorted list для JSON
+                }
+                for cid, entry in self._users.items()
+            }
+        }
+        self._path.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+
+    # ── підписка ──────────────────────────────────────────────────────────────
 
     def add(self, chat_id: int) -> bool:
-        subs = self._data["subscribers"]
-        is_new = chat_id not in subs
-        if is_new:
-            subs.append(chat_id)
-        # Генеруємо детермінований UUID якщо ще немає
-        umap = self._data.setdefault("user_map", {})
-        if str(chat_id) not in umap:
-            umap[str(chat_id)] = str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{chat_id}"))
+        """Додає підписника. Повертає True якщо юзер новий."""
+        if chat_id in self._users:
+            return False
+        self._users[chat_id] = {
+            "uuid":  str(uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{chat_id}")),
+            "langs": set(),
+        }
         self._save()
-        return is_new
+        return True
 
     def remove(self, chat_id: int) -> None:
-        self._data["subscribers"].discard  # set-compatible
-        subs = self._data["subscribers"]
-        if chat_id in subs:
-            subs.remove(chat_id)
-        self._save()
+        if chat_id in self._users:
+            del self._users[chat_id]
+            self._save()
 
     def all(self) -> list[int]:
-        return list(self._data["subscribers"])
+        return list(self._users.keys())
+
+    # ── мовні фільтри ─────────────────────────────────────────────────────────
+
+    def get_langs(self, chat_id: int) -> set[str]:
+        """Повертає вибрані мови. Порожня множина = всі."""
+        entry = self._users.get(chat_id)
+        return set(entry["langs"]) if entry else set()
+
+    def set_langs(self, chat_id: int, langs: set[str]) -> None:
+        """Встановлює мовний фільтр. langs=set() означає 'all'."""
+        self.add(chat_id)   # no-op якщо вже є
+        self._users[chat_id]["langs"] = set(langs)
+        self._save()
+
+    def toggle_lang(self, chat_id: int, lang: str) -> set[str]:
+        """
+        Додає мову якщо її немає, прибирає якщо вже є.
+        Повертає актуальний набір після зміни.
+        """
+        self.add(chat_id)   # no-op якщо вже є
+        langs = self._users[chat_id]["langs"]
+        if lang in langs:
+            langs.discard(lang)
+        else:
+            langs.add(lang)
+        self._save()
+        return set(langs)
+
+    def subscribers_for_lang(self, lang: str) -> list[int]:
+        """
+        Повертає chat_id підписників, яким потрібна ця мова.
+        Юзери з порожнім фільтром (all) отримують усі мови.
+        """
+        return [
+            cid for cid, entry in self._users.items()
+            if not entry["langs"] or lang in entry["langs"]
+        ]
+
+    # ── uuid ──────────────────────────────────────────────────────────────────
 
     def get_user_uuid(self, chat_id: int) -> uuid.UUID:
         """Повертає стабільний UUID для telegram chat_id."""
-        umap = self._data.get("user_map", {})
-        raw = umap.get(str(chat_id))
-        if raw:
-            return uuid.UUID(raw)
-        # fallback — детермінований
-        return uuid.uuid5(uuid.NAMESPACE_URL, f"tg:{chat_id}")
+        self.add(chat_id)   # no-op якщо вже є
+        return uuid.UUID(self._users[chat_id]["uuid"])

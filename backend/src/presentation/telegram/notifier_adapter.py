@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import datetime
 
 import httpx
 
 from src.application.ports.telegram_notifier import ArticleNotification, ITelegramNotifier
 from src.presentation.telegram.user_repo import TelegramUserRepository
-from datetime import datetime
+
 logger = logging.getLogger(__name__)
 
 _SCORE_BAR_LEN = 10
@@ -23,41 +24,37 @@ def _escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _format_date(dt: datetime | None) -> str:
+    if dt is None:
+        return ""
+    return dt.strftime("%d.%m.%Y, %H:%M")
+
 
 def _build_message(article: ArticleNotification) -> str:
     lines = []
 
-    # 1. БЛОК 1: Офіційне зведення від LLM (якщо є)
-    if article.rewritten_text:
-        lines.append("📄 <b>Текст згенерований ШІ (натисніть, щоб скопіювати):</b>")
-        
-        # Обгортаємо текст у тег <code> для автоматичного копіювання по кліку
-        escaped_rewritten = _escape(article.rewritten_text.strip())
-        lines.append(f"<code>{escaped_rewritten}</code>")
-        
-        lines.append("")
-        lines.append("—" * 20)  # Розділювач
-        lines.append("")
-
-    # 2. БЛОК 2: Базовий переклад статті (title + body)
     if article.title or article.body:
         lines.append("📝 <b>Фрагмент новини:</b>")
-        
+
         if article.title:
             lines.append(f"<b>{_escape(article.title)}</b>\n")
-            
+
         if article.body:
-            # Telegram має жорсткий ліміт у 4096 символів на повідомлення.
-            # Оскільки ми вже додали рерайт, обрізаємо базовий переклад, 
-            # щоб повідомлення гарантовано відправилось.
             raw_body = article.body.strip().replace("\n", " ")
             if len(raw_body) > 1500:
                 raw_body = raw_body[:1500].rsplit(" ", 1)[0] + "…"
-            
             lines.append(_escape(raw_body))
             lines.append("")
 
-    # 3. БЛОК 3: Метадані (Скоринг, Теги, Дата, Мова)
+        if article.rewritten_text:
+            lines.append("—" * 20)
+            escaped_rewritten = _escape(article.rewritten_text.strip())
+            escaped_url = _escape(article.url)
+            lines.append(f"<code>{escaped_rewritten}\n{escaped_url}</code>")
+            lines.append("")
+            lines.append("—" * 20)
+            lines.append("")
+
     bar = _score_bar(article.score)
     pct = int(article.score * 100)
     tags = "  ".join(f"#{_escape(t)}" for t in article.tags[:5]) if article.tags else ""
@@ -65,7 +62,7 @@ def _build_message(article: ArticleNotification) -> str:
     date_str = _format_date(article.published_at)
 
     lines.append(f"<code>{bar}</code> {pct}%")
-    
+
     if date_str:
         lines.append(f"🗓 {date_str}")
     if lang:
@@ -74,11 +71,9 @@ def _build_message(article: ArticleNotification) -> str:
         lines.append(tags)
 
     return "\n".join(lines)
+
+
 def _inline_keyboard(url: str, article_id: str) -> dict:
-    """
-    Перший ряд: 👍 Like  👎 Dislike
-    Другий ряд: Читати статтю →  (тільки якщо є валідний URL)
-    """
     rows = [
         [
             {"text": "👍", "callback_data": f"like:{article_id}"},
@@ -89,11 +84,7 @@ def _inline_keyboard(url: str, article_id: str) -> dict:
         rows.append([{"text": "Читати статтю →", "url": url}])
     return {"inline_keyboard": rows}
 
-def _format_date(dt: datetime | None) -> str:
-    if dt is None:
-        return ""
-    return dt.strftime("%d.%m.%Y, %H:%M")
-    # На Windows: dt.strftime("%#d %b %Y, %H:%M")
+
 class TelegramNotifierAdapter(ITelegramNotifier):
 
     def __init__(
@@ -108,9 +99,15 @@ class TelegramNotifierAdapter(ITelegramNotifier):
         self._timeout   = timeout
 
     async def notify_all(self, article: ArticleNotification) -> int:
-        subscribers = self._user_repo.all()
+        # Беремо тільки тих підписників, які хочуть цю мову
+        lang = (article.language or "unknown").lower()
+        subscribers = self._user_repo.subscribers_for_lang(lang)
+
         if not subscribers:
-            logger.info("telegram: no subscribers, skip notify")
+            logger.info(
+                "telegram: no subscribers for lang=%s, skip notify (url=%s)",
+                lang, article.url,
+            )
             return 0
 
         text     = _build_message(article)
@@ -127,8 +124,8 @@ class TelegramNotifierAdapter(ITelegramNotifier):
                 await asyncio.sleep(_SEND_DELAY)
 
         logger.info(
-            "telegram: notified %d/%d for url=%s",
-            sent, len(subscribers), article.url,
+            "telegram: notified %d/%d for lang=%s url=%s",
+            sent, len(subscribers), lang, article.url,
         )
         return sent
 
@@ -148,5 +145,8 @@ class TelegramNotifierAdapter(ITelegramNotifier):
         }
         resp = await client.post(f"{self._base_url}/sendMessage", json=payload)
         if resp.status_code != 200:
-            logger.warning("telegram API error: status=%d body=%s", resp.status_code, resp.text)
+            logger.warning(
+                "telegram API error: status=%d body=%s",
+                resp.status_code, resp.text,
+            )
         resp.raise_for_status()

@@ -10,7 +10,7 @@ Application визначає ці DTO — presentation і infrastructure їх в
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from uuid import UUID
 
@@ -22,6 +22,7 @@ class AddSourceCommand:
     url: str
     source_type: str                 # "rss" | "web" | "api" | "telegram"
     fetch_interval_seconds: int = 300
+    config: dict = field(default_factory=dict) 
 
 
 @dataclass(frozen=True)
@@ -37,3 +38,4 @@ class SourceView:
     fetch_interval_seconds: int
     is_active: bool
     created_at: datetime
+    config: dict = field(default_factory=dict) 

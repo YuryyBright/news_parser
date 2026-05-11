@@ -323,6 +323,7 @@ class SqlAlchemyArticleRepository(IArticleRepository):
                 or_(
                     ArticleModel.title.ilike(search_term),
                     ArticleModel.body.ilike(search_term),
+                    ArticleModel.url.ilike(search_term),
                 )
             )
             stmt = stmt.order_by(ArticleModel.relevance_score.desc())
@@ -351,6 +352,76 @@ class SqlAlchemyArticleRepository(IArticleRepository):
         return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
 
     # ─── Теги ─────────────────────────────────────────────────────────────────
+    async def find_excluding(
+        self,
+        status: "ArticleStatus",
+        min_score: float,
+        exclude_ids: list[str],
+        user_id: "UUID | None" = None,
+        limit: int = 600,
+        sort_by: str = "published_at",
+        sort_dir: str = "desc",
+    ) -> list["Article"]:
+        """
+        Повертає статті з вказаним статусом та мінімальним score,
+        виключаючи вже відомі article_id та дизлайкнуті юзером.
+ 
+        Один SQL-запит замість пагінаційного циклу.
+ 
+        Args:
+            status:      фільтр статусу (ArticleStatus.ACCEPTED).
+            min_score:   мінімальний relevance_score.
+            exclude_ids: список str(UUID) статей, яких вже є у snapshot.
+            user_id:     якщо переданий — також виключає дизлайкнуті статті.
+            limit:       максимальна кількість результатів.
+            sort_by:     поле сортування ('published_at' | 'created_at' | 'relevance_score').
+            sort_dir:    напрям сортування ('asc' | 'desc').
+        """
+        from sqlalchemy import select, and_
+        from src.infrastructure.persistence.models import UserFeedbackModel
+        from src.infrastructure.persistence.mappers.article_mapper import ArticleMapper
+ 
+        stmt = (
+            select(ArticleModel)
+            .options(selectinload(ArticleModel.tags))
+            .where(
+                ArticleModel.status == status.value,
+                ArticleModel.relevance_score >= min_score,
+            )
+            .limit(limit)
+        )
+ 
+        # Виключаємо вже наявні у snapshot статті
+        if exclude_ids:
+            stmt = stmt.where(ArticleModel.id.not_in(exclude_ids))
+ 
+        # Виключаємо дизлайкнуті юзером
+        if user_id is not None:
+            disliked_subquery = (
+                select(UserFeedbackModel.article_id)
+                .where(
+                    and_(
+                        UserFeedbackModel.user_id == str(user_id),
+                        UserFeedbackModel.liked == False,   # noqa: E712
+                    )
+                )
+            ).scalar_subquery()
+            stmt = stmt.where(ArticleModel.id.not_in(disliked_subquery))
+ 
+        # Сортування
+        sort_col = {
+            "published_at":    ArticleModel.published_at,
+            "created_at":      ArticleModel.created_at,
+            "relevance_score": ArticleModel.relevance_score,
+        }.get(sort_by, ArticleModel.published_at)
+ 
+        if sort_dir == "asc":
+            stmt = stmt.order_by(sort_col.asc().nullslast())
+        else:
+            stmt = stmt.order_by(sort_col.desc().nullsfirst())
+ 
+        result = await self._session.execute(stmt)
+        return [ArticleMapper.to_domain(m) for m in result.scalars().all()]
 
     async def _sync_tags(self, article: Article) -> None:
         if not article.tags:

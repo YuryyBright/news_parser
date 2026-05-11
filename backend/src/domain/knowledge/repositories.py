@@ -65,6 +65,19 @@ class IArticleRepository(IRepository[Article]):
         language: str | None = None,
         status: ArticleStatus | None = None,     
     ) -> list[Article]: ...
+
+    @abstractmethod
+    async def find_excluding(
+        self,
+        status: "ArticleStatus",
+        min_score: float,
+        exclude_ids: list[str],
+        user_id: "UUID | None" = None,
+        limit: int = 600,
+        sort_by: str = "published_at",
+        sort_dir: str = "desc",
+    ) -> list["Article"]:
+        ...
     
 
 

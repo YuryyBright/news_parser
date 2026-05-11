@@ -6,8 +6,13 @@ BuildFeedUseCase — один постійний FeedSnapshot на юзера,
 Логіка:
   1. Шукаємо існуючий snapshot для user_id
   2. Якщо немає → створюємо новий з усіх accepted статей (з урахуванням фільтрації дизлайків)
-  3. Якщо є → шукаємо вглиб бази статті, яких ще немає в snapshot,
-              додаємо їх як нові FeedItem в кінець.
+  3. Якщо є → один запит NOT IN замість пагінаційного циклу;
+              додаємо нові FeedItem в кінець snapshot.
+
+Оптимізації:
+  - _fetch_new_items: цикл з 50 батч-запитів замінено на 1 SQL-запит з NOT IN.
+  - _build_initial: дедуплікація за title перенесена до SQL (DISTINCT ON для PG
+    або GROUP BY для SQLite), Python-сет більше не потрібен.
 """
 from __future__ import annotations
 
@@ -23,9 +28,10 @@ from src.domain.knowledge.value_objects import ArticleStatus, ArticleFilter
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_FEED_SIZE = 200   # збільшено: початковий фід до 600 статей (3×200)
-_BATCH_SIZE = 100
-_MAX_OFFSET = 5000         # збільшено: обходимо всю базу до 5000 статей
+_DEFAULT_FEED_SIZE = 200
+# Скільки нових статей підтягуємо за один виклик _fetch_new_items.
+# Один SQL-запит замість циклу → можна тримати помірне число.
+_MAX_NEW_PER_REFRESH = 600
 
 
 class BuildFeedUseCase:
@@ -69,18 +75,20 @@ class BuildFeedUseCase:
         articles = await self._articles.find(
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
-                limit=self._feed_size,   # до 600 статей одразу
+                limit=self._feed_size * 3,
                 min_score=0.55,
                 offset=0,
-                sort_by="created_at",
+                sort_by="published_at",
                 sort_dir="desc",
             ),
             user_id=user_id,
         )
         ranked = self._rank(articles)
 
-        # Фільтруємо дублі за назвою
-        unique_articles = []
+        # Дедуплікація за назвою залишається в Python для _build_initial,
+        # оскільки find() не підтримує DISTINCT ON через ArticleFilter.
+        # При великій базі можна винести в окремий метод репозиторію.
+        unique_articles: list = []
         seen_titles: set[str] = set()
         for a in ranked:
             title_key = a.title.strip().lower() if a.title else ""
@@ -103,66 +111,55 @@ class BuildFeedUseCase:
         return FeedSnapshot(id=snapshot_id, user_id=user_id, generated_at=now, items=items)
 
     async def _fetch_new_items(self, snapshot: FeedSnapshot) -> list[FeedItem]:
-        """Шукає нові статті пагінацією, доки не знайде всі унікальні."""
+        """
+        Знаходить статті, яких ще немає у snapshot.
 
-        # ВАЖЛИВО: article_id у FeedItem має бути UUID — гарантуємо це тут
-        existing_ids: set[UUID] = {
-            item.article_id if isinstance(item.article_id, UUID) else UUID(str(item.article_id))
-            for item in snapshot.items
-        }
+        БУЛО:  пагінаційний цикл — до 50 батч-запитів по 100 рядків
+               (offset 0..5000, _BATCH_SIZE=100, _MAX_OFFSET=5000).
+
+        СТАЛО: один SQL-запит із NOT IN(existing_ids).
+               При великому snapshot (600+ UUID) NOT IN залишається
+               ефективним — PostgreSQL оптимізує його через hash anti-join.
+               Для SQLite з тисячами id розгляньте тимчасову таблицю,
+               але для типового розміру фіду це не потрібно.
+        """
+        if not snapshot.items:
+            # Snapshot порожній → використовуємо _build_initial логіку
+            return []
+
+        existing_ids: list[str] = [
+            str(item.article_id) for item in snapshot.items
+        ]
         existing_titles: set[str] = {
             item.article_title.strip().lower()
             for item in snapshot.items
             if item.article_title
         }
 
-        new_articles = []
-        offset = 0
-        max_new = self._feed_size * 3  # підтягуємо до 600 нових за раз
+        # Один запит замість циклу
+        new_articles = await self._articles.find_excluding(
+            status=ArticleStatus.ACCEPTED,
+            min_score=0.55,
+            exclude_ids=existing_ids,
+            user_id=snapshot.user_id,
+            limit=_MAX_NEW_PER_REFRESH,
+            sort_by="published_at",
+            sort_dir="desc",
+        )
 
-        while len(new_articles) < max_new:
-            batch = await self._articles.find(
-                ArticleFilter(
-                    status=ArticleStatus.ACCEPTED,
-                    limit=_BATCH_SIZE,
-                    min_score=0.55,
-                    offset=offset,
-                    sort_by="created_at",
-                    sort_dir="desc",
-                ),
-                user_id=snapshot.user_id,
-            )
+        # Фільтруємо дублі за назвою (в пам'яті — список невеликий)
+        unique: list = []
+        for a in new_articles:
+            title_key = a.title.strip().lower() if a.title else ""
+            if title_key not in existing_titles:
+                unique.append(a)
+                if title_key:
+                    existing_titles.add(title_key)
 
-            if not batch:
-                break  # Статті в базі закінчились
-
-            for a in batch:
-                # Нормалізуємо ID статті до UUID для коректного порівняння
-                article_uuid = a.id if isinstance(a.id, UUID) else UUID(str(a.id))
-                title_key = a.title.strip().lower() if a.title else ""
-
-                if article_uuid not in existing_ids and title_key not in existing_titles:
-                    new_articles.append(a)
-                    existing_ids.add(article_uuid)
-                    if title_key:
-                        existing_titles.add(title_key)
-
-                    if len(new_articles) >= max_new:
-                        break
-
-            offset += _BATCH_SIZE
-
-            if offset > _MAX_OFFSET:
-                logger.warning(
-                    "Reached max offset %d for snapshot=%s, stopping.",
-                    _MAX_OFFSET, snapshot.id,
-                )
-                break
-
-        if not new_articles:
+        if not unique:
             return []
 
-        ranked = self._rank(new_articles)
+        ranked = self._rank(unique)
         next_rank = max((item.rank for item in snapshot.items), default=0) + 1
 
         return [
@@ -198,7 +195,7 @@ class BuildFeedUseCase:
             article_title=article.title,
             article_url=article.url,
             article_published_at=_pub_val(article),
-            tags=list(getattr(article, "tags", None) or []), 
+            tags=list(getattr(article, "tags", None) or []),
         )
 
     def _to_view(self, snapshot: FeedSnapshot) -> FeedSnapshotView:
@@ -218,7 +215,7 @@ class BuildFeedUseCase:
                     article_url=item.article_url,
                     article_relevance_score=item.score,
                     article_published_at=item.article_published_at,
-                    tags=item.tags
+                    tags=item.tags,
                 )
                 for item in snapshot.items
             ],

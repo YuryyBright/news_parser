@@ -56,6 +56,7 @@ _BOOST_KEYWORDS: list[str] = [
     "ukraine", "ukrajna", "slovensko", "románia", "ungaria",
     "zelenskyy", "zelenski", "putin", "orban", "fico",
     "nato", "eu", "sanctions", "szankció", "sankcie", "sancțiuni",
+    "românia", "mapn", "armata româniei",
 ]
 
 _NEGATIVE_PENALTY = 0.35   # відніміємо від нормалізованого score
@@ -106,6 +107,14 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "recrutare", "blindat", "tanc", "bombardament", "ocupație",
         "invazie", "armistițiu", "menținerea păcii", "ajutor militar",
         "muniție", "apărare aeriană", "prizonier de război",
+        "rezerviști", "rezervist", "exercițiu de mobilizare", "mobex",
+        "convocare", "ordin de chemare", "unitate militară",
+        "poligon de tragere", "instruire militară", "pregătire pentru apărare",
+        "apărare teritorială", "ministerul apărării naționale", "mapn",
+        "administrația rezervelor de stat", "pregătirea teritoriului",
+        "pregătirea economiei", "apărare națională",
+        "exercițiu militar", "soldați rezervă", "capacitate de apărare",
+        "interoperabilitate", "forțe de rezervă", "armata româniei",
     ],
 
     # ── 1. politics_government ────────────────────────────────────────────────

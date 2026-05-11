@@ -15,6 +15,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import update
 
 from src.domain.ingestion.entities import Source
 from src.domain.ingestion.repositories import ISourceRepository
@@ -34,13 +35,13 @@ class SqlAlchemySourceRepository(ISourceRepository):
         return SourceMapper.to_domain(model) if model else None
 
     async def save(self, source: Source) -> None:
-        """Upsert: якщо є — оновити поля, якщо ні — вставити."""
         existing = await self._session.get(SourceModel, str(source.id))
         if existing:
             existing.name = source.name
             existing.url = source.config.url
             existing.source_type = source.config.source_type.value
             existing.fetch_interval_sec = source.config.fetch_interval_seconds
+            existing.config = getattr(source.config, "extra", {}) or {}  # ← add this
             existing.is_active = source.is_active
         else:
             self._session.add(SourceMapper.to_model(source))
@@ -75,3 +76,7 @@ class SqlAlchemySourceRepository(ISourceRepository):
         )
         model = result.scalar_one_or_none()
         return SourceMapper.to_domain(model) if model else None
+    async def deactivate_all(self) -> None:
+        await self._session.execute(
+            update(SourceModel).values(is_active=False)
+        )

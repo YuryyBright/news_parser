@@ -9,7 +9,7 @@ from datetime import datetime
 
 from src.domain.shared.base_value_object import ValueObject
 from src.domain.shared.exceptions import ValidationError
-
+from dataclasses import dataclass, field
 
 class SourceType(StrEnum):
     TELEGRAM = "telegram"
@@ -24,7 +24,7 @@ class SourceConfig(ValueObject):
     source_type: SourceType
     fetch_interval_seconds: int = 300
     headers: dict | None = None
-
+    extra: dict = field(default_factory=dict)
     def _validate(self) -> None:
         if not self.url.strip():
             raise ValidationError("SourceConfig.url cannot be empty")

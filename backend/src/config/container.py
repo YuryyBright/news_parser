@@ -350,22 +350,18 @@ class Container:
     # ── Ingestion pipeline ────────────────────────────────────────────────────
 
     def ingest_source_uc(self, session: AsyncSession):
-        """
-        IngestSourceUseCase — завантажити сирі статті для одного джерела.
-        Використовується в handle_ingest_source worker'і.
-        """
         from src.application.use_cases.ingest_source import IngestSourceUseCase
-        from src.infrastructure.parsers.rss_parser import RssFetcher
         from src.infrastructure.persistence.repositories.fetch_job_repo import SqlAlchemyFetchJobRepository
         from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
         from src.infrastructure.persistence.repositories.source_repo import SqlAlchemySourceRepository
+        from src.infrastructure.parsers.fetcher_factory import build_fetcher 
+
         return IngestSourceUseCase(
             source_repo=SqlAlchemySourceRepository(session),
             raw_article_repo=SqlAlchemyRawArticleRepository(session),
             fetch_job_repo=SqlAlchemyFetchJobRepository(session),
-            fetcher=RssFetcher(),
+            fetcher_factory=build_fetcher, 
         )
-
     def process_articles_uc_standalone(self):
         """
         Версія для worker'а — кожна стаття обробляється в окремій транзакції.

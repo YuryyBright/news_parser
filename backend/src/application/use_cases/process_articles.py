@@ -53,7 +53,7 @@ from src.application.ports.llm_rewriter import ILLMRewriter
 logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 100
-
+MIN_TEXT_LENGTH = 500
 
 # ─── Порт для implicit feedback ──────────────────────────────────────────────
 
@@ -173,13 +173,21 @@ class ProcessArticlesUseCase:
     async def _process_one(self, session, raw: RawArticle) -> str:
         article_repo = self._article_repo_factory(session)
         raw_repo     = self._raw_repo_factory(session)
+        # ── 0. Перевірка свіжості статті ─────────────────────────────────────
+        if _is_too_old(raw, max_age_days=7):
+            await raw_repo.mark_processed(raw.id)
+            logger.info(
+                "Skipping (too old): raw_id=%s url=%s published_at=%s",
+                raw.id, raw.content.url, raw.content.published_at,
+            )
+            return "skipped"
 
         # ── 1. Detect language ────────────────────────────────────────────────
         language = await self._detect_language(raw)
 
         # ── 1.5. Fetch full text тільки якщо RSS текст замалий ───────────────
         rss_full_text = raw.content.full_text()
-        MIN_TEXT_LENGTH = 500
+
 
         if len(rss_full_text) < MIN_TEXT_LENGTH:
             fetched_text = await self._fetch_raw_full_text(raw.content.url, rss_full_text)
@@ -287,18 +295,17 @@ class ProcessArticlesUseCase:
 
     # ─── Telegram pipeline ────────────────────────────────────────────────────
     async def _fetch_raw_full_text(self, url: str, fallback: str) -> str:
-        """
-        Отримує повний текст статті ДО scoring.
-        Не залежить від _notify_telegram pipeline.
-        На відміну від _fetch_full_text — не логує як 'Full text fetched',
-        бо це частина основного pipeline, а не Telegram pipeline.
-        """
         if self._content_fetcher is None:
+            return fallback
+
+        # WebPageFetcher вже витягнув повний текст під час інгесту —
+        # якщо body вже достатньо довге, не ходимо ще раз
+        if len(fallback) >= MIN_TEXT_LENGTH:
             return fallback
 
         try:
             fetched = await self._content_fetcher.fetch_full_text(url)
-            if fetched and len(fetched) > 200:  # мінімальний поріг якості
+            if fetched and len(fetched) > 200:
                 logger.debug(
                     "Pre-scoring full text fetched: url=%s chars=%d (rss=%d)",
                     url, len(fetched), len(fallback),
@@ -580,7 +587,24 @@ def _inject_language(content, language: str) -> None:
     except Exception as exc:
         logger.debug("Could not inject language into content: %s", exc)
 
-
+def _is_too_old(raw: RawArticle, max_age_days: int = 7) -> bool:
+    """Повертає True якщо стаття старіша за max_age_days."""
+    published_at = getattr(raw.content, "published_at", None)
+    if not published_at:
+        return False  # невідома дата — пропускаємо далі
+    
+    from datetime import datetime, timezone, timedelta
+    if isinstance(published_at, str):
+        try:
+            from dateutil.parser import parse
+            published_at = parse(published_at)
+        except Exception:
+            return False
+    
+    if published_at.tzinfo is None:
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    
+    return datetime.now(timezone.utc) - published_at > timedelta(days=max_age_days)
 def _build_article(
     raw: RawArticle,
     language: str,

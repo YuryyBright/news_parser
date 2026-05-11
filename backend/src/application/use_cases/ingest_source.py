@@ -1,4 +1,4 @@
-# application/use_cases/ingest_source.py
+# src/application/use_cases/ingest_source.py
 """
 IngestSourceUseCase — завантажує і зберігає сирі статті для одного джерела.
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Callable
 from uuid import UUID
 
 from src.application.ports.fetcher import IFetcher
@@ -48,13 +49,19 @@ class IngestSourceUseCase:
         source_repo: ISourceRepository,
         raw_article_repo: IRawArticleRepository,
         fetch_job_repo: IFetchJobRepository,
-        fetcher: IFetcher,
+        # ── ЗМІНА: приймаємо або конкретний фетчер, або фабрику ─────────────
+        fetcher_factory: Callable[[Source], IFetcher] | None = None,
     ) -> None:
-        self._sources    = source_repo
-        self._raw        = raw_article_repo
-        self._jobs       = fetch_job_repo
-        self._fetcher    = fetcher
-        self._domain_svc = IngestionDomainService()
+        self._sources         = source_repo
+        self._raw             = raw_article_repo
+        self._jobs            = fetch_job_repo
+        self._fetcher_factory = fetcher_factory   # None якщо передано конкретний фетчер
+        self._domain_svc      = IngestionDomainService()
+
+    def _get_fetcher(self, source: Source) -> IFetcher:
+        if self._fetcher_factory is None:
+            raise RuntimeError("fetcher_factory is not configured")
+        return self._fetcher_factory(source)
 
     async def execute(self, source_id: UUID) -> IngestSourceResult:
         result = IngestSourceResult(source_id=source_id)
@@ -76,8 +83,16 @@ class IngestSourceUseCase:
         await self._jobs.update(job)
 
         # ── 3. Fetch ──────────────────────────────────────────────────────────
+        fetcher = self._get_fetcher(source)  # ← вибір за source.source_type
+        logger.info(
+            "ingest_source: source=%s type=%s fetcher=%s",
+            source_id,
+            getattr(source.config, "source_type", "rss"),
+            type(fetcher).__name__,
+        )
+
         try:
-            parsed_contents = await self._fetcher.fetch(source)
+            parsed_contents = await fetcher.fetch(source)
         except (SourceUnreachable, ParseError) as exc:
             job.fail(str(exc))
             await self._jobs.update(job)
@@ -96,17 +111,14 @@ class IngestSourceUseCase:
 
         # ── 4. Dedup + Save ───────────────────────────────────────────────────
         for content in parsed_contents:
-            # Dedup рівень 1: URL
             if await self._raw.exists_by_url(content.url):
                 result.skipped_duplicates += 1
                 continue
 
-            # Dedup рівень 2: content hash (обчислюється в ParsedContent)
             if await self._raw.exists_by_hash(content.content_hash):
                 result.skipped_duplicates += 1
                 continue
 
-            # Доменний сервіс створює RawArticle і генерує подію ArticleIngested
             raw_article = self._domain_svc.create_raw_article(
                 source_id=source.id,
                 content=content,

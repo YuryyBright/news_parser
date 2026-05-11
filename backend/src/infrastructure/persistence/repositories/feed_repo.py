@@ -37,57 +37,51 @@ class SqlAlchemyFeedRepository(IFeedRepository):
         if snap_row is None:
             return None
 
-        read_history_exists = (
-            select(1)
-            .select_from(ReadHistoryModel)
-            .where(
-                and_(
-                    ReadHistoryModel.article_id == FeedItemModel.article_id,
-                    ReadHistoryModel.user_id == str(user_id),
-                )
-            )
-            .correlate(FeedItemModel)
-            .exists()
-        )
+        # ─── ОПТИМІЗАЦІЯ: два плоских батч-запити замість N×2 корельованих ──
+        #
+        # БУЛО: для кожного FeedItem у SELECT виконувалось 2 корельованих
+        #       підзапити (read_history_exists, past_read_exists).
+        #       При 200 статтях → 400 окремих SQL-запитів.
+        #
+        # СТАЛО: 2 батч-запити до всієї таблиці, результат — python set.
+        #        Перевірка "прочитано?" → O(1) пошук у множині.
+        #        Загалом: 3 запити замість 400+.
 
-        PastFeedItem = aliased(FeedItemModel)
-        PastFeedSnapshot = aliased(FeedSnapshotModel)
-        past_read_exists = (
-            select(1)
-            .select_from(PastFeedItem)
-            .join(PastFeedSnapshot, PastFeedItem.snapshot_id == PastFeedSnapshot.id)
-            .where(
-                and_(
-                    PastFeedSnapshot.user_id == str(user_id),
-                    PastFeedItem.article_id == FeedItemModel.article_id,
-                    PastFeedItem.status == "read",
-                )
-            )
-            .correlate(FeedItemModel)
-            .exists()
+        # 1. Всі article_id з ReadHistory для цього юзера
+        history_result = await self._session.execute(
+            select(ReadHistoryModel.article_id)
+            .where(ReadHistoryModel.user_id == str(user_id))
         )
+        read_article_ids: set[str] = {row[0] for row in history_result.all()}
 
+        # 2. Всі article_id, позначені "read" у будь-якому snapshot цього юзера
+        past_read_result = await self._session.execute(
+            select(FeedItemModel.article_id)
+            .join(FeedSnapshotModel, FeedItemModel.snapshot_id == FeedSnapshotModel.id)
+            .where(
+                FeedSnapshotModel.user_id == str(user_id),
+                FeedItemModel.status == "read",
+            )
+        )
+        read_article_ids.update(row[0] for row in past_read_result.all())
+
+        # 3. Основний запит — без підзапитів у SELECT, тільки JOIN
         items_result = await self._session.execute(
-            select(
-                FeedItemModel,
-                ArticleModel,
-                read_history_exists.label("in_history"),
-                past_read_exists.label("in_past_feed"),
-            )
+            select(FeedItemModel, ArticleModel)
             .join(ArticleModel, FeedItemModel.article_id == ArticleModel.id)
             .where(FeedItemModel.snapshot_id == snap_row.id)
             .order_by(FeedItemModel.rank)
-            .options(selectinload(ArticleModel.tags)) 
+            .options(selectinload(ArticleModel.tags))
         )
 
         items = []
-        for item, article, in_history, in_past_feed in items_result.all():
-            is_actually_read = item.status == "read" or in_history or in_past_feed
+        for item, article in items_result.all():
+            is_actually_read = item.status == "read" or item.article_id in read_article_ids
             items.append(
                 FeedItem(
-                    id=UUID(item.id),                       # ← str → UUID
-                    snapshot_id=UUID(item.snapshot_id),     # ← str → UUID
-                    article_id=UUID(item.article_id),       # ← str → UUID  (ГОЛОВНИЙ ФІХ)
+                    id=UUID(item.id),
+                    snapshot_id=UUID(item.snapshot_id),
+                    article_id=UUID(item.article_id),
                     rank=item.rank,
                     score=item.score,
                     language=getattr(article, "language", "") or "",
@@ -95,7 +89,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
                     article_title=article.title or "",
                     article_url=article.url or "",
                     article_published_at=getattr(article, "published_at", None),
-                    tags=[t.name for t in (article.tags or [])], 
+                    tags=[t.name for t in (article.tags or [])],
                 )
             )
 
@@ -127,7 +121,6 @@ class SqlAlchemyFeedRepository(IFeedRepository):
         if not items:
             return
 
-        # Беремо article_id які вже є в цьому snapshot — захист від race condition
         existing = await self._session.execute(
             select(FeedItemModel.article_id)
             .where(FeedItemModel.snapshot_id == str(snapshot_id))
@@ -141,7 +134,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
         if new_items:
             await self._session.flush()
             logger.debug("Appended %d items to snapshot=%s (skipped %d dupes)",
-                        len(new_items), snapshot_id, len(items) - len(new_items))
+                         len(new_items), snapshot_id, len(items) - len(new_items))
 
     # ─── дії ─────────────────────────────────────────────────────────────────
 

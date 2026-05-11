@@ -22,27 +22,28 @@ class SourceMapper:
 
     @staticmethod
     def to_model(source: Source) -> SourceModel:
-        """Domain entity → ORM model (для збереження в БД)."""
         return SourceModel(
             id=str(source.id),
             name=source.name,
             url=source.config.url,
             source_type=source.config.source_type.value,
             fetch_interval_sec=source.config.fetch_interval_seconds,
-            config={},               # розширення для майбутніх полів
+            config=getattr(source.config, "extra", {}) or {},  # ← was hardcoded {}
             is_active=source.is_active,
         )
 
+    # src/infrastructure/persistence/mappers/source_mapper.py
+
     @staticmethod
     def to_domain(model: SourceModel) -> Source:
-        """ORM model → Domain entity (після читання з БД)."""
         return Source(
             id=UUID(model.id),
             name=model.name,
             config=SourceConfig(
                 url=model.url,
-                source_type=SourceType(model.source_type),
+                source_type=SourceType(model.source_type),   # ← was missing
                 fetch_interval_seconds=model.fetch_interval_sec,
+                extra=model.config or {},                    # ← carry url_patterns etc.
             ),
             is_active=model.is_active,
             created_at=model.created_at,
