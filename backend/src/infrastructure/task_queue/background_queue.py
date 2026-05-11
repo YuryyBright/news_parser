@@ -110,7 +110,7 @@ class InMemoryTaskQueue(ITaskQueue):
             name=f"{task_name}:{task_id[:8]}",
         )
 
-        logger.info("Task enqueued: %s id=%s kwargs=%s", task_name, task_id[:8], kwargs)
+        # logger.info("Task enqueued: %s id=%s kwargs=%s", task_name, task_id[:8], kwargs)
         return task_id
 
     async def _run_with_lock(self, task_name: str, record: _TaskRecord, handler, kwargs: dict) -> None:

@@ -34,11 +34,6 @@ def build_fetcher(source: Source) -> IFetcher:
     elif config_obj is not None:
         cfg = getattr(config_obj, "extra", None) or getattr(config_obj, "__dict__", {})
 
-    logger.info(
-        "build_fetcher: source_type=%r cfg=%r",
-        source_type, cfg,
-    )
-
     if source_type == "web":
         from src.infrastructure.parsers.web_fetcher import WebPageFetcher
         return WebPageFetcher(

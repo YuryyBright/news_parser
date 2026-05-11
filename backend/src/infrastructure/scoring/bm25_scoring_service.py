@@ -49,6 +49,14 @@ _NEGATIVE_KEYWORDS: list[str] = [
     "rablás", "lopás", "gyilkosság",
     # реклама / прес-релізи
     "sponsored", "advertisement", "promo",
+     "britain",
+    "british",
+    "united kingdom",
+    "keir starmer",
+    "labour party",
+    "reform uk",
+    "nigel farage",
+    "westminster",
 ]
 
 # ── Буст-слова: якщо є — підняти score ───────────────────────────────────────
@@ -115,6 +123,13 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "pregătirea economiei", "apărare națională",
         "exercițiu militar", "soldați rezervă", "capacitate de apărare",
         "interoperabilitate", "forțe de rezervă", "armata româniei",
+        "flancul estic", "flanc estic", "statul major al apărării", "șef smap",
+        "grup de luptă nato", "battle group", "artilerie caesar", "caesar",
+        "sisteme fără pilot", "comandă și control", "instruire întrunită",
+        "instruire multinațională", "centru de instruire", "cincu", "getica",
+        "dislocat", "dislocare", "capabilități militare", "foc real",
+        "sisteme de artilerie", "combaterea amenințărilor aeriene",
+        "comandamentul corpului multinațional", "mnc-se",
     ],
 
     # ── 1. politics_government ────────────────────────────────────────────────
@@ -181,7 +196,8 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "procent", "rezultate alegeri", "procesare voturi", "listă de candidați",
         "majoritate parlamentară", "acord de coaliție", "psd", "pnl",
         "usr", "aur", "formare guvern", "grup parlamentar", "moțiune de cenzură",
-        "vot de încredere",
+        "vot de încredere","comitetul militar al nato", "flanc estic", "flancul estic",
+
 
     ],
 
@@ -236,6 +252,10 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "parteneriat strategic", "cooperare în apărare",
         "veto", "fonduri ue blocate", "neutralitate", "negocieri de pace",
         "relații cu rusia", "investiții chineze", "parcurs european",
+        "cooperare cu aliații", "structuri aliate", "vizită oficială nato",
+        "interoperabil", "interoperabilitate", "rol strategic",
+        "comandamentul nato", "amiral", "șef stat major",
+        "sibiu nato", "apărare colectivă românia",
     ],
 
     # ── 3. border_migration ───────────────────────────────────────────────────

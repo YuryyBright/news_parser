@@ -47,7 +47,7 @@ class StartupUseCase:
                     "ingest_source",
                     source_id=str(source.id),
                 )
-                logger.info("Enqueued source %s → task %s", source.name, task_id)
+                # logger.info("Enqueued source %s → task %s", source.name, task_id)
                 enqueued += 1
             except Exception as exc:
                 logger.error("Failed to enqueue source %s: %s", source.name, exc)
