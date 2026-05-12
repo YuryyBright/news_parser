@@ -64,7 +64,7 @@ _BOOST_KEYWORDS: list[str] = [
     "ukraine", "ukrajna", "slovensko", "románia", "ungaria",
     "zelenskyy", "zelenski", "putin", "orban", "fico",
     "nato", "eu", "sanctions", "szankció", "sankcie", "sancțiuni",
-    "românia", "mapn", "armata româniei",
+    "românia", "mapn", "armata româniei","vrtuľník", "vrtuľníky", "ministerstvo vnútra", "rezort vnútra", "mv sr",
 ]
 
 _NEGATIVE_PENALTY = 0.35   # відніміємо від нормалізованого score
@@ -107,6 +107,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "prímerie", "mierové sily", "vojenská pomoc", "munícia",
         "protivzdušná obrana", "vojnový zajatec",
         "barak", "batériu", "batéria", "cvičia", "cvičiť", "systému", "systém",
+        "ministerstvo vnútra", "rezort vnútra", "obstarávanie", "tender", 
+        "vrtuľník", "vrtuľníky", "letka", "technika", "modernizácia", 
+        "záchranná služba", "hasiči", "civilná ochrana", "európske fondy"
 
         # RO
         "război", "conflict", "militar", "armată", "trupe", "armă",

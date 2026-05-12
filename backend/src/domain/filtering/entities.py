@@ -28,7 +28,7 @@ class FilterCriteria(AggregateRoot):
     keywords: list[str] = field(default_factory=list)
 
     # Персоналізація
-    threshold: float = 0.40
+    threshold: float = 0.65
     feedback_prior: float = 0.50       # Beta prior, починається нейтрально
     feedback_count: int = 0
 

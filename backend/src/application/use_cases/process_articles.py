@@ -96,7 +96,7 @@ class ProcessArticlesUseCase:
         profile_learner: IProfileLearner,
         dedup_uc=DeduplicationDomainService,
         batch_size: int = _BATCH_SIZE,
-        threshold: float = 0.55,
+        threshold: float = 0.65,
         translator: ITranslator | None = None,
         target_language: str = "uk",
         telegram_notifier: ITelegramNotifier | None = None,
@@ -225,7 +225,7 @@ class ProcessArticlesUseCase:
         # ── 5.5. Переклад — тільки якщо стаття пройде поріг ─────────────────
         should_translate = (
             self._translator is not None
-            and relevance_score >= 0.55
+            and relevance_score >= 0.65
         )
         if should_translate:
             language = await self._translate_content(raw, language)

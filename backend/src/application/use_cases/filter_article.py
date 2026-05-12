@@ -70,7 +70,7 @@ class FilterArticleUseCase:
         self,
         article_repo: IArticleRepository,
         scoring_service: IScoringService,
-        threshold: float = 0.40,
+        threshold: float = 0.65,
     ) -> None:
         self._repo = article_repo
         self._scoring = scoring_service
@@ -136,7 +136,7 @@ class BatchFilterArticleUseCase:
         self,
         article_repo: IArticleRepository,
         scoring_service: IScoringService,
-        threshold: float = 0.40,
+        threshold: float = 0.65,
     ) -> None:
         self._single = FilterArticleUseCase(article_repo, scoring_service, threshold)
 

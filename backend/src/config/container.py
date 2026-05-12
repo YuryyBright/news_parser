@@ -83,6 +83,9 @@ class Container:
         self._telegram_notifier = None   # TelegramNotifier
         self._content_fetcher = None
         self._llm_rewriter = None
+
+        self._controls_repo      = None   # ControlItemsRepository
+        self._controls_report_uc = None   # GenerateControlsReportUseCase
         logger.info("Container initialized (sync). Call init_async() to complete setup.")
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -115,7 +118,32 @@ class Container:
         from src.infrastructure.parsers.trafilatura_fetcher import TrafilaturaContentFetcher
         self._content_fetcher = TrafilaturaContentFetcher(timeout=10.0)
         logger.info("TrafilaturaContentFetcher initialized")
-    
+    # Новий метод — додати після _init_llm_rewriter:
+    async def _init_controls(self) -> None:
+        tg_cfg = get_settings().telegram
+        if not tg_cfg or not getattr(tg_cfg, "enabled", False):
+            logger.info("controls: skipped (telegram disabled)")
+            return
+
+        from src.presentation.telegram.control_items_repo import ControlItemsRepository
+        from src.application.use_cases.generate_controls_report import GenerateControlsReportUseCase
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+
+        controls_path = getattr(get_settings(), "controls_path", "./data/control_items.json")
+        self._controls_repo = ControlItemsRepository(path=controls_path)
+        logger.info("ControlItemsRepository initialized at %s", controls_path)
+
+        if self._llm_client is None:
+            logger.info("controls_report_uc: skipped (no llm_client) — /controls_list still works")
+            return
+
+        self._controls_report_uc = GenerateControlsReportUseCase(
+            session_factory=self._session_factory,
+            article_repo_factory=lambda session: SqlAlchemyArticleRepository(session),
+            llm_client=self._llm_client,
+            controls_repo=self._controls_repo,
+        )
+        logger.info("GenerateControlsReportUseCase initialized")
     async def _init_llm_rewriter(self) -> None:
         if self._llm_client is None:
             logger.info("LLM rewriter skipped (no llm_client)")
@@ -123,13 +151,13 @@ class Container:
         from src.infrastructure.llm.telegram_rewriter import TelegramLLMRewriter
         self._llm_rewriter = TelegramLLMRewriter(llm_client=self._llm_client)
         logger.info("TelegramLLMRewriter initialized")
+    # run_telegram_bot() — повна заміна:
     async def run_telegram_bot(self) -> None:
         if self._telegram_notifier is None:
             return
 
         cfg = get_settings()
 
-        # Фабрика: повертає (session, use_case) як async context manager
         from contextlib import asynccontextmanager
 
         @asynccontextmanager
@@ -137,13 +165,19 @@ class Container:
             async with self.db_session() as session:
                 yield session, self.submit_feedback_uc(session)
 
+        admin_ids: set[int] = set()
+        if hasattr(cfg, "telegram") and hasattr(cfg.telegram, "admin_chat_id"):
+            admin_ids = {cfg.telegram.admin_chat_id}
+
         from src.presentation.telegram.bot import run_bot
         await run_bot(
             token=cfg.telegram.bot_token,
             repo=self._telegram_user_repo,
             feedback_factory=feedback_factory,
+            controls_repo=self._controls_repo,
+            report_use_case=self._controls_report_uc,
+            admin_ids=admin_ids,
         )
-
     async def init_async(self) -> None:
         # WAL mode для SQLite (no-op на PostgreSQL)
         try:
@@ -161,6 +195,7 @@ class Container:
         await self._init_content_fetcher() 
         await self._init_llm_client()
         await self._init_llm_rewriter()
+        await self._init_controls()
 
 
         

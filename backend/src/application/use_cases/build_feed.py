@@ -76,7 +76,7 @@ class BuildFeedUseCase:
             ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
                 limit=self._feed_size * 3,
-                min_score=0.55,
+                min_score=0.6,
                 offset=0,
                 sort_by="published_at",
                 sort_dir="desc",
@@ -139,7 +139,7 @@ class BuildFeedUseCase:
         # Один запит замість циклу
         new_articles = await self._articles.find_excluding(
             status=ArticleStatus.ACCEPTED,
-            min_score=0.55,
+            min_score=0.65,
             exclude_ids=existing_ids,
             user_id=snapshot.user_id,
             limit=_MAX_NEW_PER_REFRESH,

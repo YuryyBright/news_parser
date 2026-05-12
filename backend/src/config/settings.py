@@ -89,14 +89,14 @@ class FilterWeightsSettings(BaseSettings):
 class FeedbackBoostSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FILTERING__FEEDBACK__", extra="ignore")
     min_count_for_boost: int   = 10
-    boost_embedding: float     = 0.5
+    boost_embedding: float     = 0.65
     boost_keyword: float       = 0.20
     boost_feedback: float      = 0.25
 
 
 class FilteringSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FILTERING__", extra="ignore")
-    default_threshold: float        = 0.5
+    default_threshold: float        = 0.65
     cold_start_phrases_count: int   = 8
     weights: FilterWeightsSettings  = Field(default_factory=FilterWeightsSettings)
     feedback: FeedbackBoostSettings = Field(default_factory=FeedbackBoostSettings)
@@ -158,7 +158,7 @@ class ScoringSettings(BaseSettings):
     bm25_min_threshold: float = 0.10
     bm25_weight: float = 0.25
     embed_weight: float = 0.60
-    tagger_threshold: float = 0.40
+    tagger_threshold: float = 0.65
     embed_confidence_threshold: float = 0.89
 class OpenRouterSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="OPENROUTER__", extra="ignore")

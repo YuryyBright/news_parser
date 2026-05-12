@@ -7,7 +7,9 @@ from aiogram.filters import Command
 from aiogram.types import BotCommand, CallbackQuery, Message
 
 from src.presentation.telegram.user_repo import TelegramUserRepository
-
+from src.application.use_cases.generate_controls_report import GenerateControlsReportUseCase
+from src.presentation.telegram.control_items_repo import ControlItemsRepository
+from src.presentation.telegram.controls_router import controls_router, setup_controls
 logger = logging.getLogger(__name__)
 
 router    = Router()
@@ -21,6 +23,41 @@ def setup(repo: TelegramUserRepository, feedback_factory=None) -> None:
     _feedback_factory = feedback_factory
 
 
+async def build_controls(session_factory, article_repo_factory, llm_client, settings):
+    """
+    Будує controls_repo + report_use_case і підключає до роутера.
+ 
+    Виклик: перед запуском бота.
+    """
+    # Репозиторій заходів (JSON-файл)
+    controls_repo = ControlItemsRepository(
+        path=getattr(settings, "controls_path", "./data/control_items.json")
+    )
+ 
+    # Use case потребує article_repo — відкриваємо сесію один раз
+    # (read-only use case, можна тримати у пам'яті)
+    async with session_factory() as session:
+        article_repo = article_repo_factory(session)
+ 
+        report_use_case = GenerateControlsReportUseCase(
+            article_repo=article_repo,
+            llm_client=llm_client,          # ваш існуючий ILLMClient
+            controls_repo=controls_repo,
+            articles_limit=40,              # скільки статей брати як контекст
+        )
+ 
+    # Підключаємо до роутера
+    admin_ids: set[int] = set()
+    if hasattr(settings, "telegram") and hasattr(settings.telegram, "admin_chat_id"):
+        admin_ids = {settings.telegram.admin_chat_id}
+ 
+    setup_controls(
+        controls_repo=controls_repo,
+        report_use_case=report_use_case,
+        admin_ids=admin_ids,
+    )
+ 
+    return controls_repo, report_use_case
 # ── /start ────────────────────────────────────────────────────────────────────
 
 @router.message(Command("start"))
@@ -211,8 +248,20 @@ async def run_bot(
     token: str,
     repo: TelegramUserRepository,
     feedback_factory=None,
+    controls_repo=None,
+    report_use_case=None,
+    admin_ids: set[int] | None = None,
 ) -> None:
     setup(repo, feedback_factory)
+
+    if controls_repo is not None:
+        from src.presentation.telegram.controls_router import setup_controls
+        setup_controls(
+            controls_repo=controls_repo,
+            report_use_case=report_use_case,
+            admin_ids=admin_ids,
+        )
+
     bot = Bot(token=token)
     try:
         me = await bot.get_me()
@@ -222,16 +271,27 @@ async def run_bot(
         return
 
     await bot.set_my_commands([
-        BotCommand(command="start", description="Підписатись на новини"),
-        BotCommand(command="stop",  description="Відписатись"),
-        BotCommand(command="langs", description="Мій поточний фільтр мов"),
-        BotCommand(command="uk",    description="🇺🇦 Увімк/вимк українські новини"),
-        BotCommand(command="en",    description="🇬🇧 Toggle English news"),
-        BotCommand(command="ro",    description="🇷🇴 Toggle știri române"),
-        BotCommand(command="sk",    description="🇸🇰 Toggle slovenské správy"),
-        BotCommand(command="all",   description="🌐 Отримувати всі мови"),
+        BotCommand(command="start",          description="Підписатись на новини"),
+        BotCommand(command="stop",           description="Відписатись"),
+        BotCommand(command="langs",          description="Мій поточний фільтр мов"),
+        BotCommand(command="uk",             description="🇺🇦 Увімк/вимк українські"),
+        BotCommand(command="en",             description="🇬🇧 Toggle English news"),
+        BotCommand(command="ro",             description="🇷🇴 Toggle știri române"),
+        BotCommand(command="sk",             description="🇸🇰 Toggle slovenské správy"),
+        BotCommand(command="all",            description="🌐 Отримувати всі мови"),
+        BotCommand(command="controls",       description="📋 Аналіз заходів (LLM)"),
+        BotCommand(command="controls_list",  description="📋 Список без LLM"),
+        BotCommand(command="add_control",    description="➕ Додати захід"),
+        BotCommand(command="add_controls",   description="➕ Масово додати"),
+        BotCommand(command="del_control",    description="✅ Зняти захід"),
+        BotCommand(command="clear_controls", description="🗑 Очистити всі"),
     ])
 
     dp = Dispatcher()
     dp.include_router(router)
+
+    if controls_repo is not None:
+        from src.presentation.telegram.controls_router import controls_router
+        dp.include_router(controls_router)
+
     await dp.start_polling(bot, allowed_updates=["message", "callback_query"])

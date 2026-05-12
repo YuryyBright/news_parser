@@ -458,7 +458,7 @@ def _apply_filters_to_stmt(stmt, model, f: ArticleFilter, tag: str | None = None
     Використовується в find() і count().
     """
     from sqlalchemy import and_
-
+    from datetime import timedelta
     conditions = []
 
     if f.status is not None:
@@ -473,9 +473,9 @@ def _apply_filters_to_stmt(stmt, model, f: ArticleFilter, tag: str | None = None
     date_from = getattr(f, "date_from", None)
     date_to   = getattr(f, "date_to", None)
     if date_from:
-        conditions.append(model.created_at >= date_from)
+        conditions.append(model.published_at >= date_from)
     if date_to:
-        conditions.append(model.created_at <= date_to)
+        conditions.append(model.published_at < date_to + timedelta(days=1))
 
     published_from = getattr(f, "published_from", None)
     published_to   = getattr(f, "published_to", None)
