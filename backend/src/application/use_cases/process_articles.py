@@ -173,22 +173,20 @@ class ProcessArticlesUseCase:
     async def _process_one(self, session, raw: RawArticle) -> str:
         article_repo = self._article_repo_factory(session)
         raw_repo     = self._raw_repo_factory(session)
-        # ── 0. Перевірка свіжості статті ─────────────────────────────────────
+
         if _is_too_old(raw, max_age_days=7):
             await raw_repo.mark_processed(raw.id)
-            logger.info(
-                "Skipping (too old): raw_id=%s url=%s published_at=%s",
-                raw.id, raw.content.url, raw.content.published_at,
-            )
             return "skipped"
 
-        # ── 1. Detect language ────────────────────────────────────────────────
+        # ── ЗБЕРІГАЄМО ОРИГІНАЛ ОДРАЗУ — до fetch/inject/translate ──────
+        original_title = raw.content.title
+        original_body  = raw.content.body
+
+        # ── 1. Detect language ────────────────────────────────────────────
         language = await self._detect_language(raw)
 
-        # ── 1.5. Fetch full text тільки якщо RSS текст замалий ───────────────
+        # ── 1.5. Fetch full text ──────────────────────────────────────────
         rss_full_text = raw.content.full_text()
-
-
         if len(rss_full_text) < MIN_TEXT_LENGTH:
             fetched_text = await self._fetch_raw_full_text(raw.content.url, rss_full_text)
             if fetched_text != rss_full_text:
@@ -197,18 +195,17 @@ class ProcessArticlesUseCase:
                 except (AttributeError, TypeError):
                     object.__setattr__(raw.content, "body", fetched_text)
 
-        # ── 2. Встановлюємо language в content перед scoring ─────────────────
         _inject_language(raw.content, language)
-
-        # ── 3. Score ──────────────────────────────────────────────────────────
         relevance_score = await self._score(raw)
-        original_full_text = raw.content.full_text()
-        original_title = raw.content.title
-        original_body  = raw.content.body
-
-        # ── 4. Dedup check ────────────────────────────────────────────────────  ← ДОДАНО
+        original_full_text = raw.content.full_text()  # після fetch, до translate
+        dedup_body = raw.content.body 
+        # ── 4. Dedup з ОРИГІНАЛЬНИМИ текстами ────────────────────────────
         dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
-        is_dup, dup_reason = await self._check_dedup(raw, article_repo, raw_repo, dedup_uc)
+        is_dup, dup_reason = await self._check_dedup(
+            raw, article_repo, raw_repo, dedup_uc,
+            original_title=original_title,
+            original_body=dedup_body,
+        )
         if is_dup:
             await raw_repo.mark_processed(raw.id)
             return "dedup"
@@ -315,6 +312,45 @@ class ProcessArticlesUseCase:
             logger.warning("Pre-scoring ContentFetcher failed for url=%s: %s", url, exc)
 
         return fallback
+    async def _build_similar_articles_context(self, full_text: str) -> str:
+        """
+        Шукає топ-5 схожих вже збережених Article через chunk_repo
+        (той самий підхід що у VerifySearchUseCase.execute).
+        Повертає текстовий блок для style_context.
+        """
+        if self._chunk_repo is None or not full_text:
+            return ""
+
+        try:
+            from src.infrastructure.ml.embedder import Embedder
+
+            embedder = Embedder.instance()
+            query_vec = embedder.encode_query(full_text)   # encode_query, як у verify_uc
+            similar = await self._chunk_repo.query_similar(query_vec, n_results=5)
+
+            if not similar:
+                return ""
+
+            parts = []
+            for r in similar:
+                meta     = getattr(r, "metadata", {}) or {}
+                source   = (
+                    meta.get("source_file")
+                    or meta.get("filename")
+                    or meta.get("url")
+                    or "невідомо"
+                )
+                score    = getattr(r, "score", None)
+                header   = f"[{source}]" + (f" score={score:.3f}" if score else "")
+                parts.append(f"{header}\n{r.text}")
+
+            return "\n\n---\n\n".join(parts)
+
+        except Exception as exc:
+            logger.warning("_build_similar_articles_context failed: %s", exc)
+            return ""
+
+
     async def _notify_telegram(
         self,
         article: Article,
@@ -325,26 +361,39 @@ class ProcessArticlesUseCase:
     ) -> None:
         """
         Повний Telegram pipeline:
-          1. Fetch full text (trafilatura) — fallback на RSS текст
-          2. RAG топ-5 схожих чанків для стилістичного контексту
-          3. LLM-рерайт в стилі попередніх публікацій
-          4. Відправка підписникам
+        1. Fetch full text (trafilatura) — fallback на RSS текст
+        2. RAG топ-5 docx-чанків для стилістичного еталону
+        3. Топ-5 схожих збережених статей (як у verify) — додатковий контекст
+        4. LLM-рерайт з об'єднаним контекстом
+        5. Відправка підписникам
         """
-        # ── 1. Повний текст статті ────────────────────────────────────────────
         full_text = original_full_text
 
-        # ── 2. Стилістичний контекст з RAG ───────────────────────────────────
+        # ── 2. Стилістичний контекст з docx-чанків (RAG) ─────────────────────
         style_context = await self._build_style_context(full_text)
 
-        # ── 3. LLM-рерайт ────────────────────────────────────────────────────
+        # ── 3. Схожі збережені статті (verify-підхід) ────────────────────────
+        similar_articles_context = await self._build_similar_articles_context(full_text)
+
+        # Об'єднуємо: docx-еталони йдуть першими, схожі статті — після
+        combined_context = style_context
+        if similar_articles_context:
+            separator = "\n\n═══ СХОЖІ СТАТТІ З АРХІВУ ═══\n\n"
+            combined_context = (
+                f"{style_context}{separator}{similar_articles_context}"
+                if style_context
+                else similar_articles_context
+            )
+
+        # ── 4. LLM-рерайт ────────────────────────────────────────────────────
         rewritten = await self._rewrite_for_telegram(
             title=article.title or "",
             full_text=full_text,
             url=article.url,
-            style_context=style_context,
+            style_context=combined_context,
         )
 
-        # ── 4. Відправка ──────────────────────────────────────────────────────
+        # ── 5. Відправка ──────────────────────────────────────────────────────
         try:
             notification = ArticleNotification(
                 id=article.id,
@@ -354,15 +403,14 @@ class ProcessArticlesUseCase:
                 score=relevance_score,
                 tags=tag_names,
                 language=language,
-                published_at=article.published_at.value if article.published_at else None,  # ← нове
+                published_at=article.published_at.value if article.published_at else None,
                 full_text=full_text,
-                style_context=style_context,
+                style_context=combined_context,
                 rewritten_text=rewritten,
             )
             await self._telegram_notifier.notify_all(notification)
         except Exception as exc:
             logger.warning("TelegramNotifier failed for article=%s: %s", article.id, exc)
-
     async def _fetch_full_text(self, url: str, fallback: str) -> str:
         """
         Завантажує повний текст статті через trafilatura.
@@ -451,25 +499,30 @@ class ProcessArticlesUseCase:
 
     # ─── Dedup helpers ────────────────────────────────────────────────────────
 
-    async def _check_dedup(
-        self,
-        raw: RawArticle,
-        article_repo,
-        raw_repo,
-        dedup_uc=None,
-    ) -> tuple[bool, str | None]:
+    async def _check_dedup(self, raw, article_repo, raw_repo, dedup_uc=None,
+                            original_title=None, original_body=None):
         if dedup_uc is not None:
-            return await self._check_dedup_minhash(raw, dedup_uc)
+            return await self._check_dedup_minhash(
+                raw, dedup_uc,
+                original_title=original_title,
+                original_body=original_body,
+            )
         return await self._check_dedup_primitive(raw, article_repo, raw_repo)
 
     async def _check_dedup_minhash(
-        self,
-        raw: RawArticle,
+        self, 
+        raw, 
         dedup_uc,
+        original_title=None, 
+        original_body=None,
     ) -> tuple[bool, str | None]:
         """MinHash деduplication через DeduplicateRawArticleUseCase."""
         try:
-            result = await dedup_uc.execute(raw.id)
+            result = await dedup_uc.execute(
+                raw.id,
+                original_title=original_title,
+                original_body=original_body,
+            )
         except Exception as exc:
             logger.warning(
                 "Dedup check failed for raw_id=%s, skipping dedup: %s",

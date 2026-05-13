@@ -77,6 +77,7 @@ class GenerateControlsReportUseCase:
             f = ArticleFilter(
                 status=ArticleStatus.ACCEPTED,
                 date_from=today,
+                min_score=0.71,
                 date_to=today,
                 sort_by="created_at",
                 sort_dir="desc",
@@ -146,25 +147,120 @@ def _to_date(value) -> date | None:
 def _build_system_prompt() -> str:
     today_str = datetime.now().strftime("%d.%m.%Y")
     return (
-        "You are an intelligence unit analyst. Your task is to prepare a "
-        "structured report in a strict formal business style in the UKRAINIAN LANGUAGE.\n\n"
-        "REQUIREMENTS:\n"
-        "1. Style — extremely dry, formal, without emotions, metaphors, or subjective assessments.\n"
-        "2. You receive a list of UPCOMING control items (events/tasks planned for the future). "
-        "Your task is to check whether today's news contains any information relevant to these items.\n"
-        "3. For each control item: if relevant news exists — cite the source and date in the format "
-        "'за повідомленням [domain] від [date]' and briefly summarize (1–3 sentences). "
-        "Then provide a brief situational assessment.\n"
-        "4. If NO relevant news is found for an item — state explicitly: "
-        "'Релевантних повідомлень за звітний період не виявлено.'\n"
-        "5. IMPORTANT: Do NOT report on events that have already occurred or were mentioned as "
-        "happening today. Focus ONLY on upcoming scheduled events and ongoing monitoring tasks.\n"
-        f"6. Start the report with: 'ЗАХОДИ НА КОНТРОЛІ — зведення станом на {today_str}'\n"
-        "7. DO NOT use markdown formatting (** # etc.). "
-        "DO NOT add introductions or conclusions — output the report body ONLY.\n"
-        "8. Group items by country exactly as presented in the input data.\n"
+        "You are an intelligence unit analyst preparing a formal daily briefing "
+        "in UKRAINIAN LANGUAGE.\n\n"
+        "INPUT DATA:\n"
+        "A) A structured list of control items grouped by country. Each item is either:\n"
+        "   — A SCHEDULED EVENT with a specific date/date-range (e.g. '11-15.05.2026 проведення навчань...')\n"
+        "   — A MONITORING TASK without a date (e.g. 'відстеження можливого візиту...')\n"
+        "B) Today's news articles with source domain and date.\n\n"
+        "YOUR TASK:\n"
+        "For EACH control item (both scheduled events and monitoring tasks), search today's "
+        "news for any directly relevant information and produce a structured report.\n\n"
+        "OUTPUT FORMAT — strict, for each item:\n"
+        "• Repeat the original item text exactly as given (with date if present).\n"
+        "• If relevant news found: on the next line write 'За повідомленням [domain] від [date]: "
+        "[1–3 sentences of factual substance directly related to this item].'\n"
+        "  If multiple relevant articles exist — cite each on a separate line.\n"
+        "• If no relevant news found: write 'Релевантних повідомлень за звітний період не виявлено.'\n\n"
+        "RULES:\n"
+        f"1. Start with header: 'ЗАХОДИ НА КОНТРОЛІ — зведення станом на {today_str}'\n"
+        "2. Group items by country exactly as in the input. Country name as a standalone header.\n"
+        "3. Preserve the original order of items within each country.\n"
+        "4. Include ALL items — both dated events and monitoring tasks.\n"
+        "   EXCEPTION: exclude dated events whose date has completely passed before today "
+        f"(i.e. end date < {today_str}). Include ongoing date ranges and future dates.\n"
+        "5. NO markdown (no **, no #, no bullet symbols from markdown). Use plain text.\n"
+        "6. Style: extremely dry, formal, factual. No emotions, no own assessments.\n"
+        "7. No intro text, no conclusion, no commentary outside the report structure.\n"
+        "8. Use separate lines for each item.\n"
     )
 
+def _build_user_prompt(articles: list) -> str:
+    today = date.today()
+    lines: list[str] = []
+
+    lines.append("=== TODAY'S NEWS ===\n")
+
+    if not articles:
+        lines.append("(no news available for today)\n")
+    else:
+        for i, article in enumerate(articles, 1):
+            pub_date = ""
+            if article.published_at:
+                try:
+                    dt = (
+                        article.published_at.value
+                        if hasattr(article.published_at, "value")
+                        else article.published_at
+                    )
+                    pub_date = dt.strftime("%d.%m.%Y") if dt else ""
+                except Exception:
+                    pass
+
+            try:
+                domain = urllib.parse.urlparse(article.url).netloc.replace("www.", "")
+            except Exception:
+                domain = "unknown"
+
+            body = (article.body or "").strip().replace("\n", " ")
+            if len(body) > _MAX_ARTICLE_CHARS:
+                body = body[:_MAX_ARTICLE_CHARS] + "…"
+
+            lines.append(
+                f"[{i}] {pub_date} | {domain}\n"
+                f"Title: {article.title or '—'}\n"
+                f"Text: {body}\n"
+            )
+
+    # ── Блок 3: Завдання ──────────────────────────────────────────────────────
+
+    lines.append("=== TASK ===")
+    lines.append(
+        "Go through EACH item in the CONTROL ITEMS list above, country by country, "
+        "item by item, in the original order.\n"
+        "For each item:\n"
+        "1. Repeat the item text exactly.\n"
+        "2. Find in TODAY'S NEWS any articles that are directly relevant to this specific item.\n"
+        "3. If found — cite: 'За повідомленням [domain] від [date]: [factual summary 1-3 sentences].'\n"
+        "4. If not found — write: 'Релевантних повідомлень за звітний період не виявлено.'\n"
+        "Exclude only events whose date has fully passed. Include all monitoring tasks."
+    )
+
+    return "\n".join(lines)
+
+
+def _parse_control_date(date_str: str) -> date | None:
+    """
+    Парсить дати у форматах: '27.04.2026', '27-29.04.2026', '20-30.04.2026'.
+    Повертає останній день діапазону (щоб не відкидати багатоденні заходи передчасно).
+    """
+    if not date_str:
+        return None
+    date_str = date_str.strip()
+    # Діапазон: 27-29.04.2026 або 20-30.04.2026
+    range_match = re.match(r"(\d{1,2})-(\d{1,2})\.(\d{2})\.(\d{4})", date_str)
+    if range_match:
+        try:
+            return date(
+                int(range_match.group(4)),
+                int(range_match.group(3)),
+                int(range_match.group(2)),  # кінець діапазону
+            )
+        except ValueError:
+            pass
+    # Одна дата: 27.04.2026
+    single_match = re.match(r"(\d{1,2})\.(\d{2})\.(\d{4})", date_str)
+    if single_match:
+        try:
+            return date(
+                int(single_match.group(3)),
+                int(single_match.group(2)),
+                int(single_match.group(1)),
+            )
+        except ValueError:
+            pass
+    return None
 
 def _build_user_prompt(articles: list) -> str:
     lines: list[str] = []

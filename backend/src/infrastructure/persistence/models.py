@@ -174,7 +174,19 @@ class ArticleTagModel(Base):
     article_id: Mapped[str] = mapped_column(ForeignKey("articles.id", ondelete="CASCADE"), primary_key=True)
     tag_id:     Mapped[str] = mapped_column(ForeignKey("tags.id",     ondelete="CASCADE"), primary_key=True)
 
+class MinHashSignatureModel(Base):
+    __tablename__ = "minhash_signatures"
+    __table_args__ = (
+        Index("ix_minhash_created", "created_at"),
+    )
 
+    raw_article_id: Mapped[str] = mapped_column(
+        ForeignKey("raw_articles.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    signature:  Mapped[list] = mapped_column(JSON, nullable=False)   # list[int]
+    num_perm:   Mapped[int]  = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP, default=utcnow)
 # ══════════════════════════════════════════════════════════════════════════════
 # USER PROFILE & FILTERING
 # ══════════════════════════════════════════════════════════════════════════════

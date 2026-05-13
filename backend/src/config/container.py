@@ -428,17 +428,15 @@ class Container:
         # в рамках тієї самої сесії що й article_repo / raw_repo.
         #
         # ВАЖЛИВО: dedup_uc і репозиторії мають бути в ОДНІЙ сесії —
-        # інакше mark_deduplicated не побачить щойно збережені записи.
- 
-        minhash_repo = self._get_minhash_repo()
- 
         def build_dedup_uc(session):
             from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
             from src.domain.deduplication.services import DeduplicationDomainService
+            from src.infrastructure.dedup.minhash_repo import SqlAlchemyMinHashRepository  # ← додати
+
             return DeduplicateRawArticleUseCase(
                 raw_repo=SqlAlchemyRawArticleRepository(session),
                 article_repo=SqlAlchemyArticleRepository(session),
-                minhash_repo=minhash_repo,   # singleton — shared між сесіями
+                minhash_repo=SqlAlchemyMinHashRepository(session),  # ← per-session, не singleton
                 dedup_service=DeduplicationDomainService(
                     num_perm=cfg.dedup.minhash_num_perm,
                 ),
@@ -659,18 +657,9 @@ class Container:
 
     # ── Deduplication ─────────────────────────────────────────────────────────
 
-    def _get_minhash_repo(self):
-        from src.config.settings import get_settings
-        settings = get_settings()
-
-        if settings.is_dev:
-            from src.infrastructure.dedup.minhash_repo import InMemoryMinHashRepository
-            if not hasattr(self, "_minhash_repo_instance"):
-                self._minhash_repo_instance = InMemoryMinHashRepository()
-            return self._minhash_repo_instance
-        else:
-            from src.infrastructure.dedup.minhash_repo import RedisMinHashRepository
-            return RedisMinHashRepository(self._redis)
+    def _get_minhash_repo(self, session: AsyncSession):
+        from src.infrastructure.dedup.minhash_repo import SqlAlchemyMinHashRepository
+        return SqlAlchemyMinHashRepository(session)
 
     def deduplicate_uc(self, session: AsyncSession):
         from src.application.use_cases.deduplicate_article import DeduplicateRawArticleUseCase
@@ -678,18 +667,17 @@ class Container:
         from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings
-
+ 
         cfg = get_settings()
         return DeduplicateRawArticleUseCase(
             raw_repo=SqlAlchemyRawArticleRepository(session),
             article_repo=SqlAlchemyArticleRepository(session),
-            minhash_repo=self._get_minhash_repo(),
+            minhash_repo=self._get_minhash_repo(session),   
             dedup_service=DeduplicationDomainService(
                 num_perm=cfg.dedup.minhash_num_perm,
             ),
             minhash_threshold=cfg.dedup.minhash_threshold,
         )
-
     def batch_deduplicate_uc(self, session: AsyncSession):
         from src.application.use_cases.deduplicate_article import BatchDeduplicateUseCase
         return BatchDeduplicateUseCase(
@@ -697,19 +685,8 @@ class Container:
         )
     @cached_property
     def _rag_embedder(self):
-        """
-        SentenceTransformer embedder для RAG (окремий від Embedder scoring pipeline).
-        Якщо хочете використовувати той самий Embedder.instance() — замініть тут.
-        """
-        from src.infrastructure.scoring.embedding_service import (
-            SentenceTransformerEmbeddingService,
-        )
-        cfg = get_settings()
-        emb_cfg = cfg.embedding
-        return SentenceTransformerEmbeddingService(
-            model_name=getattr(emb_cfg, "model_name", "BAAI/bge-m3"),
-            device=getattr(emb_cfg, "device", None),
-        )
+        from src.infrastructure.ml.embedder import Embedder
+        return Embedder.instance()
  
     @cached_property
     def _chunk_repo(self):
@@ -726,6 +703,43 @@ class Container:
             collection_name=col_name,
             dimensions=dimensions,
         )
+    def check_duplicate_uc(self, session: AsyncSession):
+        from src.application.use_cases.check_article_similarity import CheckDuplicateUseCase
+        from src.domain.deduplication.services import DeduplicationDomainService
+        from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
+        from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
+ 
+        cfg = get_settings()
+        return CheckDuplicateUseCase(
+            raw_repo=SqlAlchemyRawArticleRepository(session),
+            article_repo=SqlAlchemyArticleRepository(session),
+            minhash_repo=self._get_minhash_repo(session),   
+            dedup_service=DeduplicationDomainService(
+                num_perm=cfg.dedup.minhash_num_perm,
+            ),
+            minhash_threshold=cfg.dedup.minhash_threshold,
+        )
+ 
+    def find_similar_uc(self):
+        """
+        FindSimilarArticlesUseCase — векторний пошук схожих статей.
+        Використовується з POST /articles/similar.
+        Не приймає session — тільки embedder + chunk_repo (singleton).
+        Вимагає init_async().
+        """
+        from src.application.use_cases.check_article_similarity import FindSimilarArticlesUseCase
+ 
+        if self._chroma_client is None:
+            raise RuntimeError(
+                "ChromaDB not initialized. "
+                "Ensure `await container.init_async()` is called in lifespan."
+            )
+        return FindSimilarArticlesUseCase(
+            embedder=self._rag_embedder,
+            chunk_repo=self._chunk_repo,
+            default_top_n=5,
+        )
+
     def generated_news_repo(self, session: AsyncSession):
         from src.infrastructure.persistence.repositories.generated_news_repo import SqlAlchemyGeneratedNewsRepository
         return SqlAlchemyGeneratedNewsRepository(session)

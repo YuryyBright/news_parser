@@ -56,7 +56,7 @@ class DeduplicationDomainService:
 
     MIN_TITLE_LEN = 5
     MIN_BODY_LEN  = 50
-    NGRAM_SIZE    = 3  # tri-gram shingles
+    WORD_NGRAM_SIZE     = 2  # tri-gram shingles
 
     def __init__(self, num_perm: int = 128) -> None:
         self._num_perm = num_perm
@@ -110,7 +110,7 @@ class DeduplicationDomainService:
           3. Результат — вектор з num_perm мінімумів
         """
         text = _normalize_for_minhash(f"{title} {body}")
-        shingles = _get_shingles(text, self.NGRAM_SIZE)
+        shingles = _get_word_shingles(text, self.WORD_NGRAM_SIZE) 
 
         if not shingles:
             # Якщо текст занадто короткий — повертаємо нульовий підпис
@@ -160,16 +160,27 @@ def _normalize_for_minhash(text: str) -> str:
     return text
 
 
-def _get_shingles(text: str, n: int) -> set[int]:
+def _get_word_shingles(text: str, n: int = 2) -> set[int]:
     """
-    Отримати множину n-gram shingles як хеші.
-
-    "hello world" з n=3 → {"hel", "ell", "llo", "lo ", ...}
-    Хешуємо рядки в int для ефективності.
+    Словесні n-gram shingles.
+    
+    "росія завдала удару" з n=2 → {"росія завдала", "завдала удару"}
+    
+    Набагато точніше для новинних текстів ніж символьні 3-грами:
+    - символьні 3-грами: будь-які два укр. тексти мають схожість 0.4+
+      бо всі використовують ті самі літери/склади
+    - словесні 2-грами: схожі тексти 0.6+, різні теми ~0.0
     """
-    if len(text) < n:
-        return {hash(text)}
-    return {hash(text[i:i+n]) & 0xFFFFFFFF for i in range(len(text) - n + 1)}
+    words = text.split()
+    if not words:
+        return {0}
+    if len(words) < n:
+        # Текст коротший за n слів — використовуємо як один шингл
+        return {hash(" ".join(words)) & 0xFFFFFFFF}
+    return {
+        hash(" ".join(words[i : i + n])) & 0xFFFFFFFF
+        for i in range(len(words) - n + 1)
+    }
 
 
 def _generate_hash_params(num_perm: int) -> tuple[list[int], list[int]]:

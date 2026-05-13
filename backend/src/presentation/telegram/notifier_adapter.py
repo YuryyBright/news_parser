@@ -13,7 +13,75 @@ logger = logging.getLogger(__name__)
 
 _SCORE_BAR_LEN = 10
 _SEND_DELAY    = 0.05
+_MAX_TELEGRAM_LEN = 4096
+_REWRITTEN_CAP    = 2800   # leaves ~1200 for title/body/meta
 
+
+def _build_message(article: ArticleNotification) -> str:
+    lines = []
+
+    if article.title or article.body:
+        lines.append("📝 <b>Фрагмент новини:</b>")
+
+        if article.title:
+            lines.append(f"<b>{_escape(article.title)}</b>\n")
+
+        if article.body:
+            raw_body = article.body.strip().replace("\n", " ")
+            if len(raw_body) > 1500:
+                raw_body = raw_body[:1500].rsplit(" ", 1)[0] + "…"
+            lines.append(_escape(raw_body))
+            lines.append("")
+
+        if article.rewritten_text:
+            rewritten = article.rewritten_text.strip()
+            # ── FIX 1: cap rewritten text so the whole message fits ──────
+            if len(rewritten) > _REWRITTEN_CAP:
+                rewritten = rewritten[:_REWRITTEN_CAP].rsplit("\n", 1)[0] + "\n…"
+            lines.append("—" * 20)
+            escaped_rewritten = _escape(rewritten)
+            escaped_url = _escape(article.url)
+            lines.append(f"<code>{escaped_rewritten}\n{escaped_url}</code>")
+            lines.append("")
+            lines.append("—" * 20)
+            lines.append("")
+
+    bar = _score_bar(article.score)
+    pct = int(article.score * 100)
+    tags = "  ".join(f"#{_escape(t)}" for t in article.tags[:5]) if article.tags else ""
+    lang = article.language.upper() if article.language != "unknown" else ""
+    date_str = _format_date(article.published_at)
+
+    lines.append(f"<code>{bar}</code> {pct}%")
+
+    if date_str:
+        lines.append(f"🗓 {date_str}")
+    if lang:
+        lines.append(f"🌐 Джерело: {lang}")
+    if tags:
+        lines.append(tags)
+
+    return "\n".join(lines)
+
+
+def _split_message(text: str, max_len: int = _MAX_TELEGRAM_LEN) -> list[str]:
+    """Split at paragraph → newline → space boundary. Safety net for FIX 1 misses."""
+    if len(text) <= max_len:
+        return [text]
+    chunks = []
+    while text:
+        if len(text) <= max_len:
+            chunks.append(text)
+            break
+        for sep in ("\n\n", "\n", " "):
+            pos = text.rfind(sep, 0, max_len)
+            if pos != -1:
+                break
+        else:
+            pos = max_len
+        chunks.append(text[:pos].strip())
+        text = text[pos:].strip()
+    return chunks
 
 def _score_bar(score: float) -> str:
     filled = round(score * _SCORE_BAR_LEN)
@@ -136,17 +204,22 @@ class TelegramNotifierAdapter(ITelegramNotifier):
         text: str,
         keyboard: dict,
     ) -> None:
-        payload = {
-            "chat_id":                  chat_id,
-            "text":                     text,
-            "parse_mode":               "HTML",
-            "disable_web_page_preview": False,
-            "reply_markup":             keyboard,
-        }
-        resp = await client.post(f"{self._base_url}/sendMessage", json=payload)
-        if resp.status_code != 200:
-            logger.warning(
-                "telegram API error: status=%d body=%s",
-                resp.status_code, resp.text,
-            )
-        resp.raise_for_status()
+        chunks = _split_message(text)
+        for i, chunk in enumerate(chunks):
+            # Only attach the keyboard (like/dislike + read link) to the last chunk
+            payload = {
+                "chat_id":                  chat_id,
+                "text":                     chunk,
+                "parse_mode":               "HTML",
+                "disable_web_page_preview": False,
+                "reply_markup":             keyboard if i == len(chunks) - 1 else {},
+            }
+            resp = await client.post(f"{self._base_url}/sendMessage", json=payload)
+            if resp.status_code != 200:
+                logger.warning(
+                    "telegram API error: status=%d body=%s",
+                    resp.status_code, resp.text,
+                )
+            resp.raise_for_status()
+            if i < len(chunks) - 1:
+                await asyncio.sleep(0.3)   # avoid hitting Telegram's rate limit

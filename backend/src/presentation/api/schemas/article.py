@@ -13,6 +13,9 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import AnyHttpUrl, BaseModel, Field
+from pydantic import BaseModel, Field
+from uuid import UUID
+from typing import Optional
 
 
 # ── Responses ─────────────────────────────────────────────────────────────────
@@ -72,3 +75,37 @@ class FeedbackCreateRequest(BaseModel):
 class FeedbackResponse(BaseModel):
     status: str
     liked: bool
+
+
+class CheckDuplicateRequest(BaseModel):
+    title: str = Field(..., min_length=1, description="Заголовок статті")
+    body: str  = Field(..., min_length=1, description="Текст статті")
+ 
+ 
+class CheckDuplicateResponse(BaseModel):
+    is_duplicate: bool
+    reason: Optional[str] = None          # "exact_raw" | "exact_article" | "near_similar"
+    existing_id: Optional[UUID] = None    # UUID знайденого дубліката
+    similarity: Optional[float] = None    # тільки для near_similar
+    content_hash: Optional[str] = None    # sha256 (для діагностики)
+ 
+ 
+class FindSimilarRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+    body: str  = Field(default="", description="Текст статті (опціонально)")
+    top_n: int = Field(default=5, ge=1, le=50)
+    language: Optional[str] = Field(default=None, description="Фільтр мови, напр. 'uk'")
+ 
+ 
+class SimilarArticleItemResponse(BaseModel):
+    chunk_id: str
+    text: str
+    score: float
+    source: Optional[str] = None
+    article_id: Optional[UUID] = None
+ 
+ 
+class FindSimilarResponse(BaseModel):
+    query_title: str
+    total_found: int
+    items: list[SimilarArticleItemResponse]

@@ -56,6 +56,11 @@ from src.presentation.api.schemas.article import (
     FeedbackResponse,
     TagsAddRequest,
     TagsResponse,
+    CheckDuplicateRequest,
+    CheckDuplicateResponse,
+    FindSimilarRequest,
+    FindSimilarResponse,
+    SimilarArticleItemResponse
 )
 
 router = APIRouter()
@@ -122,6 +127,70 @@ async def list_articles(
         "pages": (total + page_size - 1) // page_size,
     }
 
+@router.post(
+    "/check-duplicate",
+    response_model=CheckDuplicateResponse,
+    summary="Перевірити чи є дублікат (exact hash + MinHash near-duplicate)",
+    description=(
+        "Приймає title + body, перевіряє:\n"
+        "1. Exact SHA-256 hash → raw_articles\n"
+        "2. Exact SHA-256 hash → articles\n"
+        "3. Near-duplicate via MinHash Jaccard similarity\n\n"
+        "НЕ зберігає нічого в БД — лише читання."
+    ),
+)
+async def check_duplicate(
+    payload: CheckDuplicateRequest,
+    container: Container = Depends(get_container),
+) -> CheckDuplicateResponse:
+    async with container.db_session() as session:
+        uc = container.check_duplicate_uc(session)
+        result = await uc.execute(title=payload.title, body=payload.body)
+ 
+    return CheckDuplicateResponse(
+        is_duplicate=result.is_duplicate,
+        reason=result.reason,
+        existing_id=result.existing_id,
+        similarity=result.similarity,
+        content_hash=result.content_hash,
+    )
+ 
+@router.post(
+    "/similar",
+    response_model=FindSimilarResponse,
+    summary="Знайти схожі статті через векторний пошук (як RAG verify)",
+    description=(
+        "Приймає title + body, кодує в embedding і шукає найближчі чанки "
+        "в chunk_repo (ChromaDB). Той самий механізм що `rag_cli.py verify`.\n\n"
+        "Повертає топ-N фрагментів з найближчих статей з cosine similarity score."
+    ),
+)
+async def find_similar(
+    payload: FindSimilarRequest,
+    container: Container = Depends(get_container),
+) -> FindSimilarResponse:
+    uc = container.find_similar_uc()
+    result = await uc.execute(
+        title=payload.title,
+        body=payload.body,
+        top_n=payload.top_n,
+        language_filter=payload.language,
+    )
+
+    return FindSimilarResponse(
+        query_title=result.query_title,
+        total_found=result.total_found,
+        items=[
+            SimilarArticleItemResponse(
+                chunk_id=item.chunk_id,
+                text=item.text,
+                score=item.score,
+                source=item.source,
+                article_id=item.article_id,
+            )
+            for item in result.items
+        ],
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SEARCH

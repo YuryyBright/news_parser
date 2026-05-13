@@ -78,14 +78,18 @@ class DeduplicateRawArticleUseCase:
         self._svc          = dedup_service
         self._threshold    = minhash_threshold
 
-    async def execute(self, raw_article_id: UUID) -> DeduplicationResult:
+    async def execute(self,
+                    raw_article_id: UUID, 
+                    original_title: str | None = None,
+                    original_body: str | None = None,
+                    ) -> DeduplicationResult:
         # ── 0. Завантажити raw article ────────────────────────────────────────
         raw = await self._raw_repo.get(raw_article_id)
         if raw is None:
             raise ValueError(f"RawArticle not found: {raw_article_id}")
 
-        title = raw.content.title
-        body  = raw.content.body
+        title = original_title if original_title is not None else raw.content.title
+        body  = original_body  if original_body  is not None else raw.content.body
 
         # ── 1. Валідація мінімального контенту ───────────────────────────────
         try:

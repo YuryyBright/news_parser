@@ -2,61 +2,59 @@
 """
 Реалізації IMinHashRepository.
 
-InMemoryMinHashRepository  — для dev/тестів (втрачається при рестарті)
-RedisMinHashRepository     — для production (персистентне зберігання)
+InMemoryMinHashRepository    — для unit тестів (ізольовано, без I/O)
+SqlAlchemyMinHashRepository  — для dev і production (таблиця minhash_signatures)
 
-Схема зберігання в Redis:
-  Key:   "minhash:{raw_article_id}"
-  Value: JSON {"signature": [...], "num_perm": 128}
-  TTL:   7 днів (статті старші 7 днів не будуть дублікатами)
+Схема зберігання в БД:
+  Таблиця: minhash_signatures
+  Колонки: raw_article_id (PK, FK → raw_articles), signature (JSON), num_perm, created_at
 
 Пошук near-duplicate:
-  InMemory — O(N) брутфорс по всіх збережених підписах.
-  Redis    — теж O(N) через SCAN + GET, але зі стороннього процесу.
+  WHERE created_at >= now() - 3 days  →  завантажуємо підписи
+  Jaccard O(N) в пам'яті.
 
-  Для production з великою базою (100k+ статей) можна замінити на
-  Redis з LSH buckets або PostgreSQL + pgvector. Але для старту
-  O(N) цілком прийнятний — MinHash порівняння дуже дешеве (побітове).
+  Оцінка: 3 дні × ~500 статей = ~1500 рядків.
+  1500 × 128 int × 8 bytes ≈ 1.5MB — цілком прийнятно.
+  При зростанні до 10k+ статей/день — замінити на LSH або pgvector.
 
-  Оцінка: 10k статей × 128 int = ~1.3MB в пам'яті, ~5ms на повний скан.
+ВИДАЛЕНО: RedisMinHashRepository (не потрібен — вся персистентність в БД).
 """
 from __future__ import annotations
 
-import json
 import logging
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.deduplication.repositories import IMinHashRepository
 from src.domain.deduplication.services import MinHashSignature
 
 logger = logging.getLogger(__name__)
 
-_REDIS_KEY_PREFIX = "minhash:"
-_REDIS_TTL_SECONDS = 7 * 24 * 3600  # 7 днів
+_DB_WINDOW_DAYS = 3  # порівнюємо тільки зі статтями за останні 3 дні
 
 
-# ── InMemory (dev / тести) ─────────────────────────────────────────────────────
+# ── InMemory (тільки для unit тестів) ─────────────────────────────────────────
 
 class InMemoryMinHashRepository(IMinHashRepository):
     """
     Зберігає підписи в пам'яті процесу.
 
-    Ідеально для:
-      - dev-сервера (швидкий старт, без Redis)
-      - unit тестів (ізольовано, без I/O)
+    Підходить ТІЛЬКИ для:
+      - unit тестів (ізольовано, без I/O, без БД)
 
-    НЕ підходить для:
-      - production (втрачається при рестарті)
-      - кількох worker-процесів (кожен має свою копію)
+    НЕ використовувати для:
+      - dev-сервера (є SqlAlchemyMinHashRepository)
+      - production
     """
 
     def __init__(self) -> None:
-        # {raw_article_id: MinHashSignature}
         self._store: dict[UUID, MinHashSignature] = {}
 
     async def save(self, raw_id: UUID, signature: MinHashSignature) -> None:
         self._store[raw_id] = signature
-        logger.debug("MinHash saved (memory): raw_id=%s", raw_id)
 
     async def find_similar(
         self,
@@ -64,15 +62,10 @@ class InMemoryMinHashRepository(IMinHashRepository):
         threshold: float,
         limit: int = 5,
     ) -> list[tuple[UUID, float]]:
-        """
-        Брутфорс O(N) по всіх збережених підписах.
-        Повертає список (raw_id, similarity) відсортований DESC.
-        """
         results: list[tuple[UUID, float]] = []
 
         for stored_id, stored_sig in self._store.items():
             if stored_sig.num_perm != signature.num_perm:
-                # Підписи несумісні (різні num_perm) — пропускаємо
                 logger.warning(
                     "MinHash num_perm mismatch: stored=%d query=%d, skipping raw_id=%s",
                     stored_sig.num_perm, signature.num_perm, stored_id,
@@ -83,7 +76,6 @@ class InMemoryMinHashRepository(IMinHashRepository):
             if similarity >= threshold:
                 results.append((stored_id, similarity))
 
-        # Сортуємо за similarity DESC, беремо перші limit
         results.sort(key=lambda x: x[1], reverse=True)
         return results[:limit]
 
@@ -92,53 +84,44 @@ class InMemoryMinHashRepository(IMinHashRepository):
         logger.debug("MinHash deleted (memory): raw_id=%s", raw_id)
 
     def __len__(self) -> int:
-        """Для моніторингу і тестів."""
         return len(self._store)
 
 
-# ── Redis (production) ────────────────────────────────────────────────────────
+# ── SqlAlchemy (dev + production) ─────────────────────────────────────────────
 
-class RedisMinHashRepository(IMinHashRepository):
+class SqlAlchemyMinHashRepository(IMinHashRepository):
     """
-    Зберігає підписи в Redis як JSON.
+    Зберігає MinHash підписи в таблиці minhash_signatures.
+
+    Near-duplicate пошук обмежений вікном _DB_WINDOW_DAYS (3 дні):
+      - статті старші 3 днів не можуть бути "свіжими дублікатами"
+      - WHERE created_at >= cutoff + індекс ix_minhash_created → швидко
 
     Args:
-        redis: aioredis.Redis або redis.asyncio.Redis клієнт.
-               Передається з container.py де він вже ініціалізований.
+        session: AsyncSession — той самий що у raw_repo і article_repo,
+                 тобто всі зміни в одній транзакції.
 
-    TTL: _REDIS_TTL_SECONDS (7 днів) — після цього підпис автоматично видаляється.
-    Це доцільно бо 7-денні статті вже не потраплять в feed в будь-якому разі.
-
-    Пошук: SCAN + MGET — отримуємо всі ключі "minhash:*" і порівнюємо.
-    Для 100k ключів це ~100-200ms. Якщо стане bottleneck — перейти на LSH.
+    Переваги над Redis:
+      - не потрібен окремий сервіс
+      - дані не втрачаються при рестарті
+      - вікно керується через SQL, а не TTL
+      - ON DELETE CASCADE автоматично чистить підписи видалених статей
     """
 
-    def __init__(self, redis) -> None:
-        self._redis = redis
-
-    def _key(self, raw_id: UUID) -> str:
-        return f"{_REDIS_KEY_PREFIX}{raw_id}"
-
-    def _serialize(self, signature: MinHashSignature) -> str:
-        return json.dumps({
-            "signature": signature.signature,
-            "num_perm": signature.num_perm,
-        })
-
-    def _deserialize(self, data: str | bytes) -> MinHashSignature:
-        if isinstance(data, bytes):
-            data = data.decode("utf-8")
-        parsed = json.loads(data)
-        return MinHashSignature(
-            signature=parsed["signature"],
-            num_perm=parsed["num_perm"],
-        )
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
 
     async def save(self, raw_id: UUID, signature: MinHashSignature) -> None:
-        key = self._key(raw_id)
-        value = self._serialize(signature)
-        await self._redis.setex(key, _REDIS_TTL_SECONDS, value)
-        logger.debug("MinHash saved (redis): raw_id=%s ttl=%ds", raw_id, _REDIS_TTL_SECONDS)
+        from src.infrastructure.persistence.models import MinHashSignatureModel
+
+        model = MinHashSignatureModel(
+            raw_article_id=str(raw_id),
+            signature=signature.signature,
+            num_perm=signature.num_perm,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        logger.debug("MinHash saved (db): raw_id=%s", raw_id)
 
     async def find_similar(
         self,
@@ -147,70 +130,49 @@ class RedisMinHashRepository(IMinHashRepository):
         limit: int = 5,
     ) -> list[tuple[UUID, float]]:
         """
-        SCAN по всіх ключах "minhash:*" + порівняння Jaccard.
+        Завантажує підписи за останні _DB_WINDOW_DAYS днів, порівнює Jaccard.
 
-        Підхід:
-          1. SCAN щоб отримати всі ключі (не блокує Redis на відміну від KEYS)
-          2. MGET батчем щоб мінімізувати round-trips
-          3. Jaccard порівняння для кожного підпису
+        SQL:
+          SELECT * FROM minhash_signatures
+          WHERE created_at >= :cutoff
+          -- індекс ix_minhash_created покриває цей фільтр
         """
-        results: list[tuple[UUID, float]] = []
-        batch_size = 200  # MGET батч
+        from src.infrastructure.persistence.models import MinHashSignatureModel
 
-        # Збираємо всі ключі через SCAN (non-blocking)
-        all_keys: list[str] = []
-        cursor = 0
-        pattern = f"{_REDIS_KEY_PREFIX}*"
+        cutoff = datetime.now(timezone.utc) - timedelta(days=_DB_WINDOW_DAYS)
 
-        while True:
-            cursor, keys = await self._redis.scan(
-                cursor=cursor,
-                match=pattern,
-                count=100,
+        result = await self._session.execute(
+            select(MinHashSignatureModel).where(
+                MinHashSignatureModel.created_at >= cutoff
             )
-            all_keys.extend(keys)
-            if cursor == 0:
-                break
+        )
+        rows = result.scalars().all()
 
-        if not all_keys:
-            return []
+        matches: list[tuple[UUID, float]] = []
+        for row in rows:
+            if row.num_perm != signature.num_perm:
+                logger.warning(
+                    "MinHash num_perm mismatch: stored=%d query=%d, skipping raw_id=%s",
+                    row.num_perm, signature.num_perm, row.raw_article_id,
+                )
+                continue
 
-        # MGET батчами щоб не перевантажити Redis одним запитом
-        for i in range(0, len(all_keys), batch_size):
-            batch_keys = all_keys[i:i + batch_size]
-            values = await self._redis.mget(*batch_keys)
+            stored = MinHashSignature(
+                signature=row.signature,
+                num_perm=row.num_perm,
+            )
+            sim = signature.jaccard(stored)
+            if sim >= threshold:
+                matches.append((UUID(row.raw_article_id), sim))
 
-            for key, value in zip(batch_keys, values):
-                if value is None:
-                    # TTL вже вийшов між SCAN і MGET — нормально
-                    continue
-
-                try:
-                    stored_sig = self._deserialize(value)
-                except (json.JSONDecodeError, KeyError) as exc:
-                    logger.warning("Corrupt MinHash entry key=%s: %s", key, exc)
-                    continue
-
-                if stored_sig.num_perm != signature.num_perm:
-                    continue
-
-                similarity = signature.jaccard(stored_sig)
-                if similarity >= threshold:
-                    # Витягуємо UUID з ключа: "minhash:{uuid}" → "{uuid}"
-                    raw_id_str = key
-                    if isinstance(key, bytes):
-                        raw_id_str = key.decode("utf-8")
-                    raw_id_str = raw_id_str.removeprefix(_REDIS_KEY_PREFIX)
-
-                    try:
-                        results.append((UUID(raw_id_str), similarity))
-                    except ValueError:
-                        logger.warning("Invalid UUID in Redis key: %s", raw_id_str)
-                        continue
-
-        results.sort(key=lambda x: x[1], reverse=True)
-        return results[:limit]
+        matches.sort(key=lambda x: x[1], reverse=True)
+        return matches[:limit]
 
     async def delete(self, raw_id: UUID) -> None:
-        await self._redis.delete(self._key(raw_id))
-        logger.debug("MinHash deleted (redis): raw_id=%s", raw_id)
+        from src.infrastructure.persistence.models import MinHashSignatureModel
+
+        model = await self._session.get(MinHashSignatureModel, str(raw_id))
+        if model:
+            await self._session.delete(model)
+            await self._session.flush()
+        logger.debug("MinHash deleted (db): raw_id=%s", raw_id)

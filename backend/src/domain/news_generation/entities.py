@@ -59,6 +59,7 @@ class SearchResult:
     source: str
     language: str
     metadata: dict = field(default_factory=dict)
+    score: float = 0.0
 
     @property
     def passes_threshold(self, threshold: float = 0.85) -> bool:
