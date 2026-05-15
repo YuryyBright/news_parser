@@ -28,11 +28,20 @@ _MULTIPLIERS = {
     "млрд": 1_000_000_000,
     "mld": 1_000_000_000,
     "billion": 1_000_000_000,
+    "milliárd": 1_000_000_000, # Угорська
+    "miliarde": 1_000_000_000, # Румунська
+    "miliarda": 1_000_000_000, # Словацька
     "млн": 1_000_000,
     "mln": 1_000_000,
     "million": 1_000_000,
+    "millió": 1_000_000,       # Угорська
+    "milioane": 1_000_000,     # Румунська
+    "milión": 1_000_000,       # Словацька
     "тис": 1_000,
     "thousand": 1_000,
+    "ezer": 1_000,             # Угорська
+    "mii": 1_000,              # Румунська
+    "tisíc": 1_000,            # Словацька
 }
 
 # ─── NBU API ──────────────────────────────────────────────────────────────────
@@ -106,35 +115,23 @@ def _format_uah(amount: float) -> str:
 
 
 def _build_currency_pattern() -> re.Pattern:
-    """
-    Будує один regex для всіх валют.
-
-    Групи: (amount_str)(multiplier)?(currency_marker)
-    Або:   (currency_marker)(amount_str)(multiplier)?  — для $ перед числом
-
-    Підтримує формати:
-      10 млн EUR   |   €10 млн   |   $1.5 billion   |   100 000 USD
-    """
     mult_pat = r"(?P<mult>" + "|".join(_MULTIPLIERS.keys()) + r")"
-    num_pat  = r"(?P<amount>[\d\s,.]+)"
+    
+    # ОНОВЛЕНО: Дозволяємо числам мати всередині дефіс або тире (наприклад: "4-5", "4 - 5.5")
+    num_pat = r"(?P<amount>\d[\d\s,.]*(?:[-–—]\s*\d[\d\s,.]*)?)"
 
-    # Збираємо всі маркери валют
     all_markers: list[str] = []
     for iso, (markers, _) in _CURRENCY_CONFIG.items():
         for m in markers:
             all_markers.append(re.escape(m) if not m.startswith("(") and not m.endswith(")") else m)
 
-    # Сортуємо від довших до коротших щоб уникнути часткових збігів
     all_markers.sort(key=len, reverse=True)
     currency_pat = r"(?P<currency>" + "|".join(all_markers) + r")"
 
-    # Два варіанти: ЧИСЛО [MULT] ВАЛЮТА  або  ВАЛЮТА ЧИСЛО [MULT]
     pattern = (
         r"(?:"
-        # 10 млн EUR / 10 EUR / 10.5 million USD
         r"(?:" + num_pat + r"\s*" + mult_pat + r"?\s*" + currency_pat + r")"
         r"|"
-        # $10 млн / €500 / £1.2 billion
         r"(?:" + currency_pat.replace("currency", "currency2") +
         r"\s*" + num_pat.replace("amount", "amount2") +
         r"\s*" + mult_pat.replace("mult", "mult2") + r"?)"
@@ -153,19 +150,32 @@ def _get_currency_re() -> re.Pattern:
     return _CURRENCY_RE
 
 
-def _parse_amount(amount_str: str) -> Optional[float]:
-    """Перетворює рядок типу '1 500 000' або '1.5' або '1,5' в float."""
-    cleaned = amount_str.strip().replace(" ", "").replace("\xa0", "")
-    # Якщо є і кома і крапка — визначаємо розділовий знак
-    if "." in cleaned and "," in cleaned:
-        # '1,500.00' → крапка як десятковий
-        cleaned = cleaned.replace(",", "")
-    elif "," in cleaned:
-        cleaned = cleaned.replace(",", ".")
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+def _parse_amount(amount_str: str) -> list[float]:
+    """
+    Перетворює рядок типу '1 500 000', '1.5' або '4-5' у список float.
+    Повертає [1500000.0] або [4.0, 5.0].
+    """
+    # Розбиваємо по дефісу або тире
+    parts = re.split(r'[-–—]', amount_str)
+    parsed = []
+    
+    for p in parts:
+        cleaned = p.strip().replace(" ", "").replace("\xa0", "")
+        if not cleaned:
+            continue
+            
+        # Логіка визначення десяткового розділювача
+        if "." in cleaned and "," in cleaned:
+            cleaned = cleaned.replace(",", "")
+        elif "," in cleaned:
+            cleaned = cleaned.replace(",", ".")
+            
+        try:
+            parsed.append(float(cleaned))
+        except ValueError:
+            pass
+            
+    return parsed
 
 
 def _detect_iso(marker: str) -> Optional[str]:
@@ -192,60 +202,36 @@ async def convert_currencies_in_text(text: str) -> tuple[str, dict[str, float]]:
     if not rates:
         return text, {}
 
-    pattern = _get_currency_re()
     used_rates: dict[str, float] = {}
-    offset = 0
-    result = list(text)
-
-    for m in pattern.finditer(text):
-        # Витягуємо групи (перший або другий варіант)
-        amount_str = m.group("amount") or m.group("amount2") or ""
-        mult_str   = m.group("mult")   or m.group("mult2")   or ""
-        curr_str   = m.group("currency") or m.group("currency2") or ""
-
-        if not amount_str or not curr_str:
-            continue
-
-        amount = _parse_amount(amount_str)
-        if amount is None or amount <= 0:
-            continue
-
-        multiplier = 1
-        if mult_str:
-            mult_key = mult_str.lower().rstrip(".")
-            multiplier = next(
-                (v for k, v in _MULTIPLIERS.items() if k.lower() == mult_key),
-                1,
-            )
-
-        iso = _detect_iso(curr_str)
-        if not iso or iso not in rates:
-            continue
-
-        rate = rates[iso]
-        uah_amount = amount * multiplier * rate
-        uah_str = _format_uah(uah_amount)
-        used_rates[iso] = rate
-
-        # Вставляємо " (X грн)" одразу після знайденого збігу
-        insert_pos = m.end() + offset
-        insertion = f" ({uah_str})"
-        result.insert(insert_pos, insertion)
-        # result — список, тому вставляємо як елемент і потім join
-        # Але зручніше працювати зі зміщенням у рядку
-        offset += len(insertion)
-
-    # Перезбираємо — result містить і вихідний рядок і вставки
-    # Простіший підхід: замінюємо через str.replace з позиціями
-    # Redo з чистішим підходом:
+    
+    # Delegating all the regex sub and mathematical logic to the helper
     converted_text = _apply_currency_replacements(text, rates, used_rates)
+    
     return converted_text, used_rates
 
+
+def _format_uah_range(uah_amounts: list[float]) -> str:
+    """Форматує список сум у гривнях, склеюючи діапазони."""
+    formatted = [_format_uah(a) for a in uah_amounts]
+    
+    if len(formatted) == 1:
+        return formatted[0]
+        
+    if len(formatted) == 2:
+        # Спроба зробити "16,8–21 млн грн" замість "16,8 млн грн – 21 млн грн"
+        parts0 = formatted[0].split(' ', 1) # ['16,8', 'млн грн']
+        parts1 = formatted[1].split(' ', 1) # ['21', 'млн грн']
+        
+        if len(parts0) == 2 and len(parts1) == 2 and parts0[1] == parts1[1]:
+            # Якщо суфікси (тис/млн/млрд) однакові
+            return f"{parts0[0]}–{formatted[1]}"
+            
+    # Якщо різні (напр. '800 тис. грн – 1,2 млн грн')
+    return " – ".join(formatted)
 
 def _apply_currency_replacements(
     text: str, rates: dict[str, float], used_rates: dict[str, float]
 ) -> str:
-    """Чиста реалізація через re.sub з підрахунком зміщень."""
     pattern = _get_currency_re()
 
     def replacer(m: re.Match) -> str:
@@ -256,8 +242,9 @@ def _apply_currency_replacements(
         if not amount_str or not curr_str:
             return m.group(0)
 
-        amount = _parse_amount(amount_str)
-        if amount is None or amount <= 0:
+        # Тепер отримуємо список значень
+        amounts = _parse_amount(amount_str)
+        if not amounts:
             return m.group(0)
 
         multiplier = 1
@@ -272,9 +259,11 @@ def _apply_currency_replacements(
             return m.group(0)
 
         rate = rates[iso]
-        uah_amount = amount * multiplier * rate
-        uah_str = _format_uah(uah_amount)
         used_rates[iso] = rate
+        
+        # Рахуємо UAH для кожного числа в діапазоні
+        uah_amounts = [amt * multiplier * rate for amt in amounts]
+        uah_str = _format_uah_range(uah_amounts)
 
         return f"{m.group(0)} ({uah_str})"
 
