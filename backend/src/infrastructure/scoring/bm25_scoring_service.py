@@ -115,6 +115,7 @@ _BOOST_KEYWORDS: list[str] = [
     "magyar", "péter", "anita", "varsó", "lengyelország",
     "röszke", "röszkei", "embercsempészés",
     "ficovi", "putinom",
+    "kábítószer", "kábítószergyanús", "cigaretta", "csempészáru", "lefoglaltak"
     
 ]
 
@@ -314,6 +315,11 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
 
         "poľského", "poľský", "poľsko", "sejm", "sejmu", "bratislave", "bratislava",
         "varšava", "stretávať", "vyhol", "ficovi", "putinom",
+        "číny", "čínskej", "čínou", "čínu", "pekingu", "si ťin-pchinga", 
+        "partnerstva", "spolupráca", "spoluprácu", "dialog", "bezvízovej",
+        "investičné", "investície", "investičnej", "obchodným", "partnerom", 
+        "ekonomiku", "inobat", "gotion", "volvo", "geely", "baterkáreň",
+        "číny", "čínskej", "čína", "peking",
         # RO
         "nato", "uniunea europeană", "ue", "consiliul european", "summit",
         "politică externă", "diplomație", "ambasador", "bilateral",
@@ -363,6 +369,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "határrendészet", "határrendészeti", "határrendészek", "határátkelőhelyen", 
         "határsértőt", "határsértő", "illegális belépésben", "embercsempészés", 
         "tiltott határátlépés", "kilépésre",
+        "kábítószer", "cigarettacsempészet", "kábítószer-kereskedelem", "bűnbanda",
         # SK
         "hranica", "hraničný priechod", "kontrolný bod", "migrácia",
         "migrant", "utečenec", "azyl", "žiadateľ o azyl", "tranzit",
@@ -609,6 +616,32 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "unhcr", "crucea roșie", "ong", "responsabilitate", "justiție",
         "deportarea copiilor", "copii furați", "confiscarea activelor rusești",
         "reparații", "fond de reconstrucție ucraina", "deminare", "ecocid",
+    ],
+
+    # ── 8. cross_border_crime_smuggling ──────────────────────────────────────
+    # Транскордонна злочинність, контрабанда (сигарети, наркотики, зброя), митниця, ОЗГ
+    [
+        # EN
+        "smuggling", "contraband", "trafficking", "organized crime", 
+        "illicit goods", "drug seizure", "customs", "cartel", "narcotics",
+        "counterfeit", "illicit tobacco", "border patrol bust", "illegal goods",
+        "confiscated", "seized",
+        
+        # HU
+        "csempészet", "csempészáru", "embercsempész", "kábítószer", 
+        "cigarettacsempészet", "kábítószer-kereskedelem", "bűnszervezet", 
+        "bűnbanda", "vámosok", "vámhivatal", "lefoglaltak", "illegális áru", 
+        "kábítószergyanús", "drogfogás", "zárjegy nélküli", "razzia",
+        
+        # SK
+        "pašovanie", "kontraband", "pašerák", "drogy", "cigarety", 
+        "organizovaný zločin", "zhabaný", "colníci", "colný úrad", 
+        "nelegálny tovar", "pašované", "kokaín", "marihuana", "zadržali",
+        
+        # RO
+        "contrabandă", "trafic", "traficant", "droguri", "țigări de contrabandă", 
+        "crimă organizată", "bunuri ilicite", "captură", "vameși", "vamă", 
+        "mărfuri de contrabandă", "confiscat", "stupefiante", "grupare infracțională",
     ],
 ]
 

@@ -380,6 +380,7 @@ class TelegramLLMRewriter(ILLMRewriter):
                 "  - Cover: main topic, key actors (persons/organizations), country, sector "
                 "(e.g. #економіка #політика #військо #енергетика), and any specific event type\n"
                 "  - Do NOT use generic tags like #новини or #стаття\n\n"
+                "Use names of organizations or persons in Ukrainian as they are written in template examples below.\n\n"
                 "TEMPLATE EXAMPLES:\n"
                 f"12.04.2024 за повідомленням Інтернет-ресурсу «{domain}», міністр оборони...\n"
                 f"За повідомленням агентства «Bloomberg» від {current_date}, "

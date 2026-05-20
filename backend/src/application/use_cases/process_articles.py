@@ -178,7 +178,7 @@ class ProcessArticlesUseCase:
             await raw_repo.mark_processed(raw.id)
             return "skipped"
 
-        # ── ЗБЕРІГАЄМО ОРИГІНАЛ ОДРАЗУ — до fetch/inject/translate ──────
+        # ── Зберігаємо оригінал до будь-яких змін ────────────────────────
         original_title = raw.content.title
         original_body  = raw.content.body
 
@@ -195,11 +195,8 @@ class ProcessArticlesUseCase:
                 except (AttributeError, TypeError):
                     object.__setattr__(raw.content, "body", fetched_text)
 
-        _inject_language(raw.content, language)
-        relevance_score = await self._score(raw)
-        original_full_text = raw.content.full_text()  # після fetch, до translate
-        dedup_body = raw.content.body 
-        # ── 4. Dedup з ОРИГІНАЛЬНИМИ текстами ────────────────────────────
+        # ── 2. Dedup по оригінальному тексту (до translate) ──────────────
+        dedup_body = raw.content.body
         dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
         is_dup, dup_reason = await self._check_dedup(
             raw, article_repo, raw_repo, dedup_uc,
@@ -210,7 +207,18 @@ class ProcessArticlesUseCase:
             await raw_repo.mark_processed(raw.id)
             return "dedup"
 
-        # ── 5. Reject якщо score нижче threshold ──────────────────────────────  ← ДОДАНО
+        # ── 3. Переклад ДО scoring ────────────────────────────────────────
+        _inject_language(raw.content, language)
+        if self._translator is not None:
+            language = await self._translate_content(raw, language)
+
+        original_full_text = raw.content.full_text()  # після fetch+translate
+
+        # ── 4. Score по перекладеному тексту ─────────────────────────────
+        _inject_language(raw.content, language)  # після translate може змінитись
+        relevance_score = await self._score(raw)
+
+        # ── 5. Reject якщо score нижче threshold ─────────────────────────
         if relevance_score < self._threshold:
             await raw_repo.mark_processed(raw.id)
             logger.info(
@@ -219,15 +227,7 @@ class ProcessArticlesUseCase:
             )
             return "rejected"
 
-        # ── 5.5. Переклад — тільки якщо стаття пройде поріг ─────────────────
-        should_translate = (
-            self._translator is not None
-            and relevance_score >= 0.65
-        )
-        if should_translate:
-            language = await self._translate_content(raw, language)
-
-        # ── 6. Тегування ──────────────────────────────────────────────────────
+        # ── 6. Тегування по перекладеному тексту ─────────────────────────
         translated_full_text = raw.content.full_text()
         tag_names = self._tagger.tag(translated_full_text)
 
@@ -471,6 +471,7 @@ class ProcessArticlesUseCase:
         full_text: str,
         url: str,
         style_context: str,
+        published_at,
     ) -> str:
         if self._llm_rewriter is None:
             return ""
@@ -479,6 +480,7 @@ class ProcessArticlesUseCase:
             full_text=full_text,
             url=url,
             style_context=style_context,
+            published_at=published_at,
         )
 
     # ─── mark_processed safe ─────────────────────────────────────────────────
