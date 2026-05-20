@@ -54,7 +54,16 @@ class Embedder:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+    def embed_one(self, text: str, is_query: bool = True) -> np.ndarray:
+        """
+        Backward-compatible single text embedding.
 
+        By default treats input as query.
+        """
+        if is_query:
+            return self.encode_query(text)
+
+        return self.encode_passage(text)
     def encode_passage(self, text: str) -> np.ndarray:
         """
         Кодує документ/статтю.
@@ -68,7 +77,13 @@ class Embedder:
             show_progress_bar=False,
         )
         return np.array(vec, dtype=np.float32)
+    def embed(self, texts: list[str]) -> np.ndarray:
+        """
+        Backward-compatible wrapper.
 
+        Alias for encode_batch(..., is_query=False)
+        """
+        return self.encode_batch(texts, is_query=False)
     def encode_query(self, text: str) -> np.ndarray:
         """
         Кодує запит/тему/фразу.

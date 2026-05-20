@@ -174,7 +174,7 @@ class ProcessArticlesUseCase:
         article_repo = self._article_repo_factory(session)
         raw_repo     = self._raw_repo_factory(session)
 
-        if _is_too_old(raw, max_age_days=7):
+        if _is_too_old(raw, max_age_days=2):
             await raw_repo.mark_processed(raw.id)
             return "skipped"
 
@@ -286,6 +286,7 @@ class ProcessArticlesUseCase:
                 relevance_score=relevance_score,
                 tag_names=tag_names,
                 language=language,
+                published_at=article.published_at.value if article.published_at else None,  # ← додати
             )
 
         return "accepted"
@@ -358,6 +359,7 @@ class ProcessArticlesUseCase:
         relevance_score: float,
         tag_names: list[str],
         language: str,
+        published_at=None,
     ) -> None:
         """
         Повний Telegram pipeline:
@@ -375,6 +377,10 @@ class ProcessArticlesUseCase:
         # ── 3. Схожі збережені статті (verify-підхід) ────────────────────────
         similar_articles_context = await self._build_similar_articles_context(full_text)
 
+        logger.info(
+            "Similar articles context: %s", similar_articles_context
+        )
+
         # Об'єднуємо: docx-еталони йдуть першими, схожі статті — після
         combined_context = style_context
         if similar_articles_context:
@@ -391,6 +397,7 @@ class ProcessArticlesUseCase:
             full_text=full_text,
             url=article.url,
             style_context=combined_context,
+            published_at=published_at,
         )
 
         # ── 5. Відправка ──────────────────────────────────────────────────────

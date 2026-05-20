@@ -149,7 +149,7 @@ class IngestDocxUseCase:
                 batch_start, batch_start + len(batch_texts), len(texts),
             )
 
-            embeddings = await self._embedder.embed(batch_texts)
+            embeddings = self._embedder.embed(batch_texts)
 
             for chunk, embedding in zip(batch_chunks, embeddings):
                 chunk_id = _make_chunk_id(source_name, chunk.chunk_index)

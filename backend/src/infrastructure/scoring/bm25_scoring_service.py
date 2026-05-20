@@ -38,25 +38,69 @@ from src.domain.ingestion.value_objects import ParsedContent
 logger = logging.getLogger(__name__)
 
 _NEGATIVE_KEYWORDS: list[str] = [
-    # спорт
-    "football", "soccer", "basketball", "tennis", "f1", "formula 1",
-    "labdarúgás", "futbal", "fotbal",
-    # культура / розваги
-    "concert", "festival", "cinema", "theater", "exhibition",
-    "koncert", "kiállítás", "divadlo", "festivalul",
-    # кримінал без політики
-    "robbery", "theft", "murder", "burglary",
-    "rablás", "lopás", "gyilkosság",
-    # реклама / прес-релізи
-    "sponsored", "advertisement", "promo",
-     "britain",
-    "british",
-    "united kingdom",
-    "keir starmer",
-    "labour party",
-    "reform uk",
-    "nigel farage",
-    "westminster",
+    # ── Спорт (матчі, турніри, результати) ──────────────────────────────────
+    # EN
+    "football", "soccer", "basketball", "tennis", "f1", "formula 1", 
+    "championship", "tournament", "olympics", "match", "athlete", "hockey",
+    # HU
+    "labdarúgás", "futball", "foci", "bajnokság", "mérkőzés", "olimpia", 
+    "sportoló", "jégkorong", "kézilabda", "vízilabda",
+    # SK
+    "futbal", "hokej", "zápas", "majstrovstvá", "turnaj", "olympiáda", 
+    "tenis", "športovec",
+    # RO
+    "fotbal", "meci", "campionat", "turneu", "jocurile olimpice", 
+    "sportiv", "baschet", "tenis",
+
+    # ── Культура / Розваги (кіно, музика, виставки, шоу-бізнес) ──────────────
+    # EN
+    "concert", "festival", "cinema", "theater", "exhibition", "movie", 
+    "music", "art", "museum", "celebrity", "hollywood",
+    # HU
+    "koncert", "kiállítás", "fesztivál", "színház", "mozi", "zene", 
+    "művészet", "múzeum", "film", "színész", "rendező",
+    # SK
+    "divadlo", "festival", "koncert", "kino", "výstava", "umenie", 
+    "film", "hudba", "múzeum", "herec",
+    # RO
+    "festivalul", "concert", "cinema", "teatru", "expoziție", "film", 
+    "muzică", "artă", "muzeu", "actor", "spectacol",
+
+    # ── Кримінал / ДТП без політики (побутові вбивства, крадіжки, аварії) ────
+    # EN
+    "robbery", "theft", "murder", "burglary", "homicide", "stabbing", 
+    "domestic violence", "car crash", "accident", "fraud",
+    # HU
+    "rablás", "lopás", "gyilkosság", "betörés", "késelés", "csalás", 
+    "baleset", "karambol", "bántalmazás", "halálos baleset",
+    # SK
+    "lúpež", "krádež", "vražda", "vlámanie", "podvod", "napadnutie", 
+    "bodnutie", "nehoda", "havária", "dopravná nehoda",
+    # RO
+    "jaf", "furt", "crimă", "spargere", "omor", "înjunghiere", 
+    "fraudă", "accident", "accident rutier", "violență domestică",
+
+    # ── Реклама / Прес-релізи / Комерція (знижки, акції) ────────────────────
+    # EN
+    "sponsored", "advertisement", "promo", "discount", "sale", "marketing",
+    # HU
+    "hirdetés", "reklám", "szponzorált", "akció", "kedvezmény", "promóció",
+    # SK
+    "reklama", "sponzorované", "zľava", "akcia", "promócia", "inzercia",
+    # RO
+    "sponsorizat", "reclamă", "reducere", "promoție", "publicitate",
+
+    # ── Віддалена геополітика (UK, яка не стосується регіону) ───────────────
+    # EN
+    "britain", "british", "united kingdom", "keir starmer", "labour party", 
+    "reform uk", "nigel farage", "westminster", "rishi sunak", "london", 
+    "tories", "conservative party",
+    # HU
+    "nagy-britannia", "brit", "egyesült királyság", "londoni",
+    # SK
+    "veľká británia", "britský", "spojené kráľovstvo", "londýn",
+    # RO
+    "marea britanie", "britanic", "regatul unit", "londra",
 ]
 
 # ── Буст-слова: якщо є — підняти score ───────────────────────────────────────
@@ -65,6 +109,13 @@ _BOOST_KEYWORDS: list[str] = [
     "zelenskyy", "zelenski", "putin", "orban", "fico",
     "nato", "eu", "sanctions", "szankció", "sankcie", "sancțiuni",
     "românia", "mapn", "armata româniei","vrtuľník", "vrtuľníky", "ministerstvo vnútra", "rezort vnútra", "mv sr",
+    "apărării", "militari",
+
+    "tulcea", "ismail", "ro-alert", "drone",
+    "magyar", "péter", "anita", "varsó", "lengyelország",
+    "röszke", "röszkei", "embercsempészés",
+    "ficovi", "putinom",
+    
 ]
 
 _NEGATIVE_PENALTY = 0.35   # відніміємо від нормалізованого score
@@ -133,6 +184,10 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "dislocat", "dislocare", "capabilități militare", "foc real",
         "sisteme de artilerie", "combaterea amenințărilor aeriene",
         "comandamentul corpului multinațional", "mnc-se",
+        "militari", "muniției", "poligonul", "apărării", "naționale", 
+        "forțelor", "aeriene", "răniți", "rănit", "aeronavă", "incidentului",
+        "ruse", "atacuri", "drone", "aeronave", "radarele", "radar", 
+        "aeriană", "aerian", "alertare", "aliate",
     ],
 
     # ── 1. politics_government ────────────────────────────────────────────────
@@ -169,7 +224,10 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "fegyverszállítás", "hadiállapot", "védelmi kiadások", "hadkötelezettség",
         "katonai kivonulás", "fegyverszünet",
         "szuverenista", "békepárti", "háborúpárti", "Brüsszel-ellenes",
-        "nemzeti konzultáció", "Stop Brüsszel", "rezsicsökkentés"
+        "nemzeti konzultáció", "Stop Brüsszel", "rezsicsökkentés",
+        "miniszterelnök", "miniszterelnökkel", "miniszterelnökre", "külügyminiszter", 
+        "tiszás", "politikus", "kormány",
+        
         # SK
         "voľby", "hlasovanie", "prezident", "predseda vlády", "parlament",
         "vláda", "minister", "strana", "koalícia", "opozícia",
@@ -187,6 +245,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "poslanci", "národná rada", "nrsr", "parlamentná schôdza", "štátny sviatok", 
         "voľno", "pracovný deň", "zákonodarca","sas", "sloboda a solidarita", "branislav gröhling", "veronika remišová", 
         "za ľudí", "uznesenie", "prenasledovanie opozície","kaliňák", "kaliňáka",
+        "politik", "politici", "demokratického", "demokratický", "tábora",
         # RO
         "alegeri", "vot", "președinte", "prim-ministru", "parlament",
         "guvern", "ministru", "partid", "coaliție", "opoziție",
@@ -232,6 +291,12 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "kínai kapcsolatok", "Brics", "semlegesség", "béketárgyalások",
         "közvetítés", "keleti nyitás", "szuverenitásvédelem",
         "Budapest-Washington", "magyarország-oroszország kapcsolat",
+        "nagykövet", "nagykövetét", "nagykövetet", "nagykövete", "nagykövetség",
+        "varsói", "varsóba", "lengyel", "hazarendeli", "diplomáciáért",
+        "kapcsolat", "kapcsolatok", "találkozó",
+        "nagykövet", "nagykövetét", "nagykövetet", "nagykövete", "nagykövetség",
+        "varsói", "varsóba", "lengyel", "hazarendeli", "diplomáciáért",
+        "kapcsolat", "kapcsolatok", "találkozó",
 
         # SK
         "nato", "európska únia", "eú", "európska rada", "samit",
@@ -246,6 +311,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "kremeľ", "ruská federácia", "rokovanie", "stretnutie", "bilaterálna spolupráca",
         "ušakov", "jurij ušakov", "západné sankcie", "európske obmedzenia",
         "spojenci", "kolaborácia", "jednotný postoj", "ruská imperiálna politika","izrael", "izraelský", "blízkom", "východe",
+
+        "poľského", "poľský", "poľsko", "sejm", "sejmu", "bratislave", "bratislava",
+        "varšava", "stretávať", "vyhol", "ficovi", "putinom",
         # RO
         "nato", "uniunea europeană", "ue", "consiliul european", "summit",
         "politică externă", "diplomație", "ambasador", "bilateral",
@@ -292,6 +360,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "kárpátaljai határátkelő", "záhony átkelő", "beregsurány átkelő",
         "katonaköteles férfiak", "ukrajna utazási tilalom",
         "határvárakozás", "átkelési idő", "illegális határátlépés",
+        "határrendészet", "határrendészeti", "határrendészek", "határátkelőhelyen", 
+        "határsértőt", "határsértő", "illegális belépésben", "embercsempészés", 
+        "tiltott határátlépés", "kilépésre",
         # SK
         "hranica", "hraničný priechod", "kontrolný bod", "migrácia",
         "migrant", "utečenec", "azyl", "žiadateľ o azyl", "tranzit",
@@ -318,6 +389,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "evaziune de la mobilizare", "dezertor militar",
         "punctul siret", "punctul isaccea", "punctul porubne",
         "bărbați de vârstă militară", "interdicție de călătorie ucraina",
+        "frontierei", "fluviale", "tulcea", "ismail",
     ],
 
     # ── 4. economy_energy_sanctions ───────────────────────────────────────────
@@ -407,6 +479,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "orosz ügynök", "külföldi ügynök törvény", "állami médiakapture",
         "oligarcha", "pénzmosás", "Pegasus kémprogram",
         "választási manipuláció", "médiabefolyásolás",
+        "lőfegyver", "lőfegyverrel", "maroklőfegyvert", "fegyvereket",
         # SK
         "spravodajstvo", "tajná služba", "kontrarozviedka",
         "hybridná vojna", "špionáž", "špión", "sabotáž",

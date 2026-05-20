@@ -297,6 +297,7 @@ class TelegramLLMRewriter(ILLMRewriter):
         full_text: str,
         url: str,
         style_context: str = "",
+        published_at=None
     ) -> str:
         if self._llm is None:
             return ""
@@ -305,7 +306,14 @@ class TelegramLLMRewriter(ILLMRewriter):
         enriched_text, used_rates = await convert_currencies_in_text(
             full_text[:6000]  # беремо більше тексту бо після конвертації може збільшитись
         )
-
+        if published_at:
+            from datetime import datetime
+            if isinstance(published_at, str):
+                article_date = published_at
+            else:
+                article_date = published_at.strftime("%d.%m.%Y")
+        else:
+            article_date = current_date
         # ── 2. Метадані для промпту ───────────────────────────────────────────
         try:
             domain = urllib.parse.urlparse(url).netloc.replace("www.", "")
@@ -336,37 +344,47 @@ class TelegramLLMRewriter(ILLMRewriter):
 
         # ── 5. System prompt ──────────────────────────────────────────────────
         system = (
-            "You are an expert intelligence analyst and translator. "
-            "Your task is to translate and rewrite the provided news article "
-            "into a strict official-business summary in Ukrainian.\n\n"
-            "REQUIREMENTS:\n"
-            "1. The style MUST be extremely dry, formal, and completely devoid of emotional "
-            "coloring, metaphors, or subjective assessments.\n"
-            "2. Identify the original publication date from the provided text. "
-            "Format it as DD.MM.YYYY. "
-            f"If NO date is mentioned in the text, use the current processing date: {current_date}.\n"
-            f"3. ALWAYS start the first sentence with the date and the source. "
-            f"Use the format: '[Дата] за повідомленням [Назва ресурсу]' "
-            f"or 'За повідомленням [Назва ресурсу] від [Дата]'. "
-            f"Use the domain '{domain}'.\n"
-            "4. MONETARY AMOUNTS: The source text already contains UAH equivalents in parentheses "
-            "(e.g. '10 млн EUR (420 млн грн)'). PRESERVE these parenthetical UAH amounts in your "
-            "output — do not remove or recalculate them.\n"
-            "5. IF the text mentions specialized military terminology, weapons, technical equipment "
-            "(e.g., drones, vehicles), or complex legal/political procedures, you MUST add a "
-            "reference section below the main text starting with 'Довідково:'.\n"
-            "6. Output ONLY the finalized Ukrainian text. Do NOT use markdown formatting "
-            "(like ** or #), do not add titles, and do not include any introductions.\n"
-            "7. TRANSLITERATION AND PROPER NOUNS: All proper nouns MUST be translated or "
-            "transliterated into their officially accepted Ukrainian equivalents according to "
-            "phonetic rules. Do NOT leave them in the original Latin alphabet. "
-            "Pay special attention to specific phonetics "
-            "(e.g., Slovak 'c' is 'ц', so 'Fico' → 'Фіцо'; Hungarian 'sz' is 'с', etc.).\n\n"
-            "TEMPLATE EXAMPLES:\n"
-            f"12.04.2024 за повідомленням Інтернет-ресурсу «{domain}», міністр оборони...\n"
-            f"За повідомленням агентства «Bloomberg» від {current_date}, "
-            f"майбутній прем'єр-міністр..."
-        )
+                "You are an expert intelligence analyst and translator. "
+                "Your task is to translate and rewrite the provided news article "
+                "into a strict official-business summary in Ukrainian.\n\n"
+                "REQUIREMENTS:\n"
+                "1. The style MUST be extremely dry, formal, and completely devoid of emotional "
+                "coloring, metaphors, or subjective assessments.\n"
+                "2. Identify the original publication date from the provided text. "
+                "Format it as DD.MM.YYYY. "
+                f"The article was published on {article_date}. Use this date unless the text explicitly mentions a different date."
+                f"3. ALWAYS start the first sentence with the date and the source. "
+                f"Use the format: '[Дата] за повідомленням [Назва ресурсу]' "
+                f"or 'За повідомленням [Назва ресурсу] від [Дата]'. "
+                f"Use the domain '{domain}'.\n"
+                "4. MONETARY AMOUNTS: The source text already contains UAH equivalents in parentheses "
+                "(e.g. '10 млн EUR (420 млн грн)'). PRESERVE these parenthetical UAH amounts in your "
+                "output — do not remove or recalculate them.\n"
+                "5. IF the text mentions specialized military terminology, weapons, technical equipment "
+                "(e.g., drones, vehicles), or complex legal/political procedures, you MUST add a "
+                "reference section below the main text starting with 'Довідково:'.\n"
+                "6. Output ONLY the finalized Ukrainian text. Do NOT use markdown formatting "
+                "(like ** or #), do not add titles, and do not include any introductions.\n"
+                "7. TRANSLITERATION AND PROPER NOUNS: All proper nouns MUST be translated or "
+                "transliterated into their officially accepted Ukrainian equivalents according to "
+                "phonetic rules. Do NOT leave them in the original Latin alphabet. "
+                "Pay special attention to specific phonetics "
+                "(e.g., Slovak 'c' is 'ц', so 'Fico' → 'Фіцо'; Hungarian 'sz' is 'с', etc.).\n\n"
+                "8. KEY TAGS: After the main text add on a new line:\n"
+                "Ключові теги: #[tag1] #[tag2] ...\n"
+                "5 to 10 tags in Ukrainian, camelCase compounds, no #новини or #стаття."
+                "Rules for tags:\n"
+                "  - 5 to 10 tags per article\n"
+                "  - Tags MUST be in Ukrainian, written as a single word or compound without spaces "
+                "(use camelCase for compounds, e.g. #державнефінансування)\n"
+                "  - Cover: main topic, key actors (persons/organizations), country, sector "
+                "(e.g. #економіка #політика #військо #енергетика), and any specific event type\n"
+                "  - Do NOT use generic tags like #новини or #стаття\n\n"
+                "TEMPLATE EXAMPLES:\n"
+                f"12.04.2024 за повідомленням Інтернет-ресурсу «{domain}», міністр оборони...\n"
+                f"За повідомленням агентства «Bloomberg» від {current_date}, "
+                f"майбутній прем'єр-міністр...\n\n"
+            )
 
         # ── 6. User prompt ────────────────────────────────────────────────────
         user = (

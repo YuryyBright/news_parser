@@ -87,7 +87,7 @@ class VerifySearchUseCase:
         logger.info("[verify] Query: %r  top_n=%d  lang=%s", query, n, language_filter)
 
         # 1. Embed
-        query_vector = await self._embedder.embed_one(query)
+        query_vector = self._embedder.embed_one(query)
 
         # 2. Кількість чанків у БД (для контексту)
         total = await self._repo.count()

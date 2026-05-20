@@ -115,9 +115,15 @@ def _build_message(article: ArticleNotification) -> str:
             lines.append("")
 
         if article.rewritten_text:
+            rewritten = article.rewritten_text.strip()
+            # ── FIX 1: cap rewritten text so the whole message fits ──────
+            if len(rewritten) > _REWRITTEN_CAP:
+                rewritten = rewritten[:_REWRITTEN_CAP].rsplit("\n", 1)[0] + "\n…"
             lines.append("—" * 20)
-            escaped_rewritten = _escape(article.rewritten_text.strip())
+            escaped_rewritten = _escape(rewritten)
             escaped_url = _escape(article.url)
+            
+            # Now this tag will safely stay inside a single Telegram message
             lines.append(f"<code>{escaped_rewritten}\n{escaped_url}</code>")
             lines.append("")
             lines.append("—" * 20)
