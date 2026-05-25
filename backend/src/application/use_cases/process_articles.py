@@ -206,19 +206,11 @@ class ProcessArticlesUseCase:
         if is_dup:
             await raw_repo.mark_processed(raw.id)
             return "dedup"
-
-        # ── 3. Переклад ДО scoring ────────────────────────────────────────
+        # ── 3. Score по оригінальному тексту (до перекладу) ──────────────
         _inject_language(raw.content, language)
-        if self._translator is not None:
-            language = await self._translate_content(raw, language)
-
-        original_full_text = raw.content.full_text()  # після fetch+translate
-
-        # ── 4. Score по перекладеному тексту ─────────────────────────────
-        _inject_language(raw.content, language)  # після translate може змінитись
         relevance_score = await self._score(raw)
 
-        # ── 5. Reject якщо score нижче threshold ─────────────────────────
+        # ── 4. Reject якщо score нижче threshold ─────────────────────────
         if relevance_score < self._threshold:
             await raw_repo.mark_processed(raw.id)
             logger.info(
@@ -226,6 +218,13 @@ class ProcessArticlesUseCase:
                 raw.id, raw.content.url, relevance_score, self._threshold,
             )
             return "rejected"
+
+        # ── 5. Переклад тільки для прийнятих статей ──────────────────────
+        if self._translator is not None:
+            language = await self._translate_content(raw, language)
+
+        original_full_text = raw.content.full_text()  # після fetch+translate
+        _inject_language(raw.content, language)  # після translate може змінитись
 
         # ── 6. Тегування по перекладеному тексту ─────────────────────────
         translated_full_text = raw.content.full_text()
@@ -377,9 +376,7 @@ class ProcessArticlesUseCase:
         # ── 3. Схожі збережені статті (verify-підхід) ────────────────────────
         similar_articles_context = await self._build_similar_articles_context(full_text)
 
-        logger.info(
-            "Similar articles context: %s", similar_articles_context
-        )
+
 
         # Об'єднуємо: docx-еталони йдуть першими, схожі статті — після
         combined_context = style_context

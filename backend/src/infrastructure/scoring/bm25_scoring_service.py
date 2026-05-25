@@ -12,7 +12,7 @@ BM25ScoringService — перший шар scoring (pre-filter).
   - кримінальна хроніка без політичного контексту
   - місцеві новини без регіонального/міжнародного виміру
 
-Теми (8 категорій):
+Теми (9 категорій):
   0. war_conflict          — армія, фронт, зброя, мобілізація
   1. politics_government   — вибори, уряд, президент, парламент, корупція
   2. foreign_policy_nato   — НАТО, ЄС, двосторонні відносини, саміти
@@ -21,6 +21,7 @@ BM25ScoringService — перший шар scoring (pre-filter).
   5. security_intelligence — спецслужби, гібридна війна, шпигунство, тероризм
   6. minority_rights       — права меншин, мовний закон, автономія (HU↔UA/SK/RO контекст)
   7. humanitarian_warcrimes— воєнні злочини, біженці з UA, гуманітарна допомога
+  8. cross_border_crime    — контрабанда, наркотики, зброя, ОЗГ, митниця
 
 Бібліотека: rank_bm25 (pip install rank-bm25)
   Якщо недоступна — fallback на SimpleKeywordScoring.
@@ -37,70 +38,75 @@ from src.domain.ingestion.value_objects import ParsedContent
 
 logger = logging.getLogger(__name__)
 
+# ─── Негативні ключові слова (відфільтровують нерелевантний контент) ──────────
+# УВАГА: не додавати слова, які можуть з'являтися в корупційних/кримінально-
+# політичних статтях (fraud, bribery тощо) — вони потраплять під penalty.
 _NEGATIVE_KEYWORDS: list[str] = [
     # ── Спорт (матчі, турніри, результати) ──────────────────────────────────
     # EN
-    "football", "soccer", "basketball", "tennis", "f1", "formula 1", 
+    "football", "soccer", "basketball", "tennis", "f1", "formula 1",
     "championship", "tournament", "olympics", "match", "athlete", "hockey",
     # HU
-    "labdarúgás", "futball", "foci", "bajnokság", "mérkőzés", "olimpia", 
+    "labdarúgás", "futball", "foci", "bajnokság", "mérkőzés", "olimpia",
     "sportoló", "jégkorong", "kézilabda", "vízilabda",
     # SK
-    "futbal", "hokej", "zápas", "majstrovstvá", "turnaj", "olympiáda", 
+    "futbal", "hokej", "zápas", "majstrovstvá", "turnaj", "olympiáda",
     "tenis", "športovec",
     # RO
-    "fotbal", "meci", "campionat", "turneu", "jocurile olimpice", 
+    "fotbal", "meci", "campionat", "turneu", "jocurile olimpice",
     "sportiv", "baschet", "tenis",
 
-    # ── Культура / Розваги (кіно, музика, виставки, шоу-бізнес) ──────────────
+    # ── Культура / Розваги (кіно, музика, виставки, шоу-бізнес) ─────────────
     # EN
-    "concert", "festival", "cinema", "theater", "exhibition", "movie", 
+    "concert", "cinema", "theater", "exhibition", "movie",
     "music", "art", "museum", "celebrity", "hollywood",
-    # HU
-    "koncert", "kiállítás", "fesztivál", "színház", "mozi", "zene", 
+    # HU — "fesztivál" видалено: конфліктує з політичними фестивалями
+    "koncert", "kiállítás", "színház", "mozi", "zene",
     "művészet", "múzeum", "film", "színész", "rendező",
-    # SK
-    "divadlo", "festival", "koncert", "kino", "výstava", "umenie", 
-    "film", "hudba", "múzeum", "herec",
+    # SK — "festival" видалено з негативних: "festival demokracie" є релевантним
+    "divadlo", "kino", "výstava", "umenie",
+    "hudba", "múzeum", "herec",
     # RO
-    "festivalul", "concert", "cinema", "teatru", "expoziție", "film", 
+    "festivalul", "concert", "cinema", "teatru", "expoziție",
     "muzică", "artă", "muzeu", "actor", "spectacol",
 
-    # ── Кримінал / ДТП без політики (побутові вбивства, крадіжки, аварії) ────
+    # ── Кримінал / ДТП без політики (побутові події) ─────────────────────────
+    # Виключено: "fraud" / "podvod" / "fraudă" — занадто часто з'являються
+    # в корупційних статтях (cat 1, cat 5) і спричиняють хибний penalty.
     # EN
-    "robbery", "theft", "murder", "burglary", "homicide", "stabbing", 
-    "domestic violence", "car crash", "accident", "fraud",
+    "robbery", "theft", "murder", "burglary", "homicide", "stabbing",
+    "domestic violence", "car crash",
     # HU
-    "rablás", "lopás", "gyilkosság", "betörés", "késelés", "csalás", 
+    "rablás", "lopás", "gyilkosság", "betörés", "késelés",
     "baleset", "karambol", "bántalmazás", "halálos baleset",
     # SK
-    "lúpež", "krádež", "vražda", "vlámanie", "podvod", "napadnutie", 
+    "lúpež", "krádež", "vražda", "vlámanie", "napadnutie",
     "bodnutie", "nehoda", "havária", "dopravná nehoda",
     # RO
-    "jaf", "furt", "crimă", "spargere", "omor", "înjunghiere", 
-    "fraudă", "accident", "accident rutier", "violență domestică",
+    "jaf", "furt", "crimă", "spargere", "omor", "înjunghiere",
+    "accident rutier", "violență domestică",
 
-    # ── Реклама / Прес-релізи / Комерція (знижки, акції) ────────────────────
+    # ── Реклама / Прес-релізи / Комерція ────────────────────────────────────
     # EN
     "sponsored", "advertisement", "promo", "discount", "sale", "marketing",
     # HU
     "hirdetés", "reklám", "szponzorált", "akció", "kedvezmény", "promóció",
     # SK
-    "reklama", "sponzorované", "zľava", "akcia", "promócia", "inzercia",
+    "reklama", "sponzorované", "zľava", "promócia", "inzercia",
     # RO
     "sponsorizat", "reclamă", "reducere", "promoție", "publicitate",
 
-    # ── Віддалена геополітика (UK, яка не стосується регіону) ───────────────
+    # ── Геополітика поза регіоном (Велика Британія) ─────────────────────────
     # EN
-    "britain", "british", "united kingdom", "keir starmer", "labour party", 
-    "reform uk", "nigel farage", "westminster", "rishi sunak", "london", 
+    "britain", "british", "united kingdom", "keir starmer", "labour party",
+    "reform uk", "nigel farage", "westminster", "rishi sunak",
     "tories", "conservative party",
     # HU
     "nagy-britannia", "brit", "egyesült királyság", "londoni",
     # SK
-    "veľká británia", "britský", "spojené kráľovstvo", "londýn",
+    "veľká británia", "britský", "spojené kráľovstvo",
     # RO
-    "marea britanie", "britanic", "regatul unit", "londra",
+    "marea britanie", "britanic", "regatul unit",
 ]
 
 # ── Буст-слова: якщо є — підняти score ───────────────────────────────────────
@@ -108,25 +114,34 @@ _BOOST_KEYWORDS: list[str] = [
     "ukraine", "ukrajna", "slovensko", "románia", "ungaria",
     "zelenskyy", "zelenski", "putin", "orban", "fico",
     "nato", "eu", "sanctions", "szankció", "sankcie", "sancțiuni",
-    "românia", "mapn", "armata româniei","vrtuľník", "vrtuľníky", "ministerstvo vnútra", "rezort vnútra", "mv sr",
+    "românia", "mapn", "armata româniei",
+    "vrtuľník", "vrtuľníky", "ministerstvo vnútra", "rezort vnútra", "mv sr",
     "apărării", "militari",
-
     "tulcea", "ismail", "ro-alert", "drone",
     "magyar", "péter", "anita", "varsó", "lengyelország",
     "röszke", "röszkei", "embercsempészés",
     "ficovi", "putinom",
-    "kábítószer", "kábítószergyanús", "cigaretta", "csempészáru", "lefoglaltak"
+    "kábítószer", "kábítószergyanús", "cigaretta", "csempészáru", "lefoglaltak",
+    "delta program", "nyírbátor", "szabolcs", "kerítő", "drogdíler",
+    "šimečka", "demokrati", "varšava",
+    "vyhostenie", "vyhostili", "vyhostený",
+    "sulyok", "novák", "kegyelmi", "vizsgálóbizottság", "sándor-palota",
+    "safe", "programul safe", "înzestrare", "anti-dronă",
+    "industria de apărare", "miliarde euro",
+    
     
 ]
 
-_NEGATIVE_PENALTY = 0.35   # відніміємо від нормалізованого score
+_NEGATIVE_PENALTY = 0.20   # зменшено: 0.35 було надто агресивним
 _BOOST_BONUS      = 0.10   # додаємо, але не вище 1.0
 
 # ─── Корпус тем ───────────────────────────────────────────────────────────────
 _TOPIC_CORPUS_RAW: list[list[str]] = [
 
     # ── 0. war_conflict ───────────────────────────────────────────────────────
-    # Армія, фронт, зброя, мобілізація — регіональний контекст (HU/SK/RO/EN)
+    # Армія, фронт, зброя, мобілізація — регіональний контекст (HU/SK/RO/EN).
+    # Тут лише регіон UA/HU/SK/RO + базова військова лексика.
+    # Глобальна геополітика (Африка, Азія) — не входить.
     [
         # EN
         "war", "conflict", "military", "army", "troops", "weapon", "missile",
@@ -136,20 +151,22 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "occupation", "invasion", "ceasefire", "peacekeeping", "nato forces",
         "military aid", "arms supply", "ammunition", "air defense",
         "prisoner of war", "pow", "minefield", "fortification",
-        "special operations", "military exercise", "interoperability", 
-        "us africom", "sahel region",
-        
+        "special operations", "military exercise", "interoperability",
+        "shahed", "himars", "patriot system", "f-16", "leopard tank",
+        "territorial defense", "volunteer battalion", "mercenary", "wagner group",
+        "war fatigue", "frozen conflict", "demilitarized zone",
+
         # HU
         "háború", "konfliktus", "katoná", "hadsereg", "csapat", "fegyver",
         "rakéta", "támadás", "drón", "tüzérség", "frontvonat", "offenzíva",
         "védelm", "harci", "veszteség", "mozgósítás", "sorozás", "páncélos",
-        "tank", "ágyúzás", "megszállás", "invázió", "tűzszünet", "békefen",
+        "tank", "ágyúzás", "megszállás", "invázió", "tűzszünet", "békefenntartás",
         "katonai segély", "lőszer", "légvédelm", "hadifogoly",
-        "válaszolt a honvéd vezérkar", "honvédség", "kecskemét", "líbia", 
-        "embraer kc-390", "flintlock 26", "különleges műveleti gyakorlat", 
-        "nato", "us africom", "katonai gyakorlat", "száhel-övezet", 
-        "magyar honvédség", "hadgyakorlat", "nemzetközi együttműködés", 
-        "interoperabilitás", 
+        "honvédség", "kecskemét", "magyar honvédség", "hadgyakorlat",
+        "nemzetközi együttműködés", "interoperabilitás",
+        "területvédelem", "önkéntes zászlóalj", "zsoldos",
+        "tűzszünet megsértése", "fegyverszállítás", "hadiállapot",
+        "védelmi kiadások", "hadkötelezettség", "katonai kivonulás", "fegyverszünet",
 
         # SK
         "vojna", "konflikt", "vojenský", "armáda", "vojaci", "zbraň",
@@ -158,10 +175,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "obrnený", "tank", "ostreľovanie", "okupácia", "invázia",
         "prímerie", "mierové sily", "vojenská pomoc", "munícia",
         "protivzdušná obrana", "vojnový zajatec",
-        "barak", "batériu", "batéria", "cvičia", "cvičiť", "systému", "systém",
-        "ministerstvo vnútra", "rezort vnútra", "obstarávanie", "tender", 
-        "vrtuľník", "vrtuľníky", "letka", "technika", "modernizácia", 
-        "záchranná služba", "hasiči", "civilná ochrana", "európske fondy"
+        "batéria", "cvičia", "cvičiť",
+        "vrtuľník", "vrtuľníky", "letka", "modernizácia",
+        "civilná ochrana", "európske fondy",
 
         # RO
         "război", "conflict", "militar", "armată", "trupe", "armă",
@@ -170,29 +186,45 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "recrutare", "blindat", "tanc", "bombardament", "ocupație",
         "invazie", "armistițiu", "menținerea păcii", "ajutor militar",
         "muniție", "apărare aeriană", "prizonier de război",
-        "rezerviști", "rezervist", "exercițiu de mobilizare", "mobex",
-        "convocare", "ordin de chemare", "unitate militară",
-        "poligon de tragere", "instruire militară", "pregătire pentru apărare",
+        "rezerviști", "rezervist", "exercițiu de mobilizare",
+        "unitate militară", "poligon de tragere", "instruire militară",
         "apărare teritorială", "ministerul apărării naționale", "mapn",
-        "administrația rezervelor de stat", "pregătirea teritoriului",
-        "pregătirea economiei", "apărare națională",
+        "pregătire pentru apărare", "apărare națională",
         "exercițiu militar", "soldați rezervă", "capacitate de apărare",
         "interoperabilitate", "forțe de rezervă", "armata româniei",
-        "flancul estic", "flanc estic", "statul major al apărării", "șef smap",
-        "grup de luptă nato", "battle group", "artilerie caesar", "caesar",
+        "flancul estic", "statul major al apărării", "șef smap",
+        "grup de luptă nato", "battle group", "artilerie caesar",
         "sisteme fără pilot", "comandă și control", "instruire întrunită",
         "instruire multinațională", "centru de instruire", "cincu", "getica",
         "dislocat", "dislocare", "capabilități militare", "foc real",
-        "sisteme de artilerie", "combaterea amenințărilor aeriene",
-        "comandamentul corpului multinațional", "mnc-se",
-        "militari", "muniției", "poligonul", "apărării", "naționale", 
-        "forțelor", "aeriene", "răniți", "rănit", "aeronavă", "incidentului",
-        "ruse", "atacuri", "drone", "aeronave", "radarele", "radar", 
-        "aeriană", "aerian", "alertare", "aliate",
+        "combaterea amenințărilor aeriene", "comandamentul corpului multinațional",
+        "militari", "poligonul", "apărării", "forțelor", "aeriene",
+        "aeronavă", "ruse", "atacuri", "drone", "aeronave",
+        "radarele", "radar", "aeriană", "aerian", "alertare", "aliate",
+        # ── Програма SAFE / модернізація / закупівлі ──────────────────────────────
+        "programul safe", "program safe", "safe",
+        "acțiunea pentru securitatea europei",
+        "înzestrare", "înzestrarea armatei",
+        "modernizare armată", "modernizarea armatei",
+        "achiziții de apărare", "achiziții comune",
+        "achiziții individuale",
+        "industria națională de apărare", "industria de apărare",
+        "capabilități de apărare aeriană",
+        "sisteme moderne de apărare antiaeriană",
+        "apărare antiaeriană",
+        "tehnologii anti-dronă", "anti-dronă",
+        "protejarea infrastructurii critice",
+        "reziliența societății",
+        "amenințări emergente",
+        "context de securitate",
+        "proiecte de înzestrare",
+        "cooperare industrială", "cooperare tehnologică",
+        "capacități defensive",
     ],
 
     # ── 1. politics_government ────────────────────────────────────────────────
-    # Вибори, уряд, президент, парламент, корупція — внутрішня політика
+    # Вибори, уряд, президент, парламент, корупція — внутрішня політика.
+    # Військові теми (зброя, системи) перенесені до cat 0.
     [
         # EN
         "election", "vote", "ballot", "president", "prime minister",
@@ -202,33 +234,46 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "democracy", "authoritarianism", "rule of law", "judicial",
         "constitutional", "political crisis", "protest", "demonstration",
         "press freedom", "civil society",
-        "territorial defense", "volunteer battalion", "mercenary", "wagner group",
-        "shahed", "himars", "patriot system", "f-16", "leopard tank",
-        "war fatigue", "frozen conflict", "demilitarized zone",
+
         # HU
         "választás", "szavazat", "elnök", "miniszterelnök", "parlament",
         "kormány", "miniszter", "párt", "koalíció", "ellenzék",
         "korrupció", "botrány", "lemondás", "reform", "jogszabály",
         "törvény", "rendelet", "vétó", "népszavazás", "demokrácia",
         "tekintélyelvűség", "jogállamiság", "bírói", "alkotmányos",
-        "politikai válság", "tüntetés", "sajtószabadság","mandátum", "mandátumok",
-        "százalék", "%",
-        "eredmény", "választási eredmény",
-        "feldolgozottság",
+        "politikai válság", "tüntetés", "sajtószabadság",
+        "mandátum", "mandátumok", "százalék",
+        "eredmény", "választási eredmény", "feldolgozottság",
         "lista", "országos lista",
         "győzelem", "kétharmad", "többség", "fidesz", "tisza párt", "mi hazánk",
-        "ellenzék", "kormánypárt", "mandátumeloszlás",
-        "parlamenti többség",
-        "kormányalakítás","mandátum", "mandátumra", "mandátumot",
-        "frakció",
-        "területvédelem", "önkéntes zászlóalj", "zsoldos", "tűzszünet megsértése",
-        "fegyverszállítás", "hadiállapot", "védelmi kiadások", "hadkötelezettség",
-        "katonai kivonulás", "fegyverszünet",
-        "szuverenista", "békepárti", "háborúpárti", "Brüsszel-ellenes",
-        "nemzeti konzultáció", "Stop Brüsszel", "rezsicsökkentés",
-        "miniszterelnök", "miniszterelnökkel", "miniszterelnökre", "külügyminiszter", 
-        "tiszás", "politikus", "kormány",
-        
+        "kormánypárt", "mandátumeloszlás", "parlamenti többség",
+        "kormányalakítás", "frakció",
+        "szuverenista", "békepárti", "háborúpárti",
+        "nemzeti konzultáció", "rezsicsökkentés",
+        "miniszterelnökkel", "miniszterelnökre", "külügyminiszter",
+        "tiszás", "politikus",
+        "Tisza", "Tisza Párt", "kormányfő", "államfő",
+        "átmeneti kormány", "új kormány", "Tisza-kormány",
+        # ── Kegyelmi ügy / Novák-botrány ──────────────────────────────────────────
+        "kegyelmi ügy", "kegyelmi döntés", "kegyelmi kérelem", "kegyelmet adott",
+        "kegyelem megadása", "kegyelem megtagadása", "kegyelmi előterjesztés",
+        "köztársasági elnök", "köztársasági elnöki", "elnöki kegyelem",
+        "Sándor-palota", "sandor palota",
+        "Novák Katalin", "novák katalin", "novak katalin",
+        "Sulyok Tamás", "sulyok tamás",
+        "Varga Judit", "varga judit",
+        "igazságügyi miniszter", "igazságügyi minisztérium",
+        "ellenjegyzés", "ellenjegyző",
+        "parlamenti vizsgálóbizottság", "vizsgálóbizottság",
+        "lemondás", "lemondott",
+        "pedofil", "pedofília", "gyermekotthon", "bicskei gyermekotthon",
+        "K. Endre", "kegyelmi botrány",
+        "közzétette a dokumentumokat", "hivatalos iratok",
+        "Alkotmányossági és Jogi Igazgatóság",
+        "kabinetfőnök",
+        "pápalátogatás", "pápai kegyelem",
+        "közérdeklődés", "politikai botrány",
+
         # SK
         "voľby", "hlasovanie", "prezident", "predseda vlády", "parlament",
         "vláda", "minister", "strana", "koalícia", "opozícia",
@@ -236,17 +281,21 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "dekrét", "veto", "referendum", "demokracia", "autoritarizmus",
         "právny štát", "súdny", "ústavný", "politická kríza",
         "protest", "sloboda tlače",
-        "územná obrana", "dobrovoľnícky prápor", "žoldnier", "dodávky zbraní",
-        "vojnový stav", "výdavky na obranu", "branná povinnosť",
         "percent", "výsledky volieb", "spracovanosť", "kandidátska listina",
-        "parlamentná väčšina", "koaličná dohoda", "smer", "progresívne slovensko",
-        "hlas", "republika", "kresťanskodemokratické", "opozičný líder",
+        "parlamentná väčšina", "koaličná dohoda",
+        "smer", "progresívne slovensko", "hlas", "republika",
+        "kresťanskodemokratické", "opozičný líder",
         "zostavovanie vlády", "poslanecký klub", "dôvera vláde",
-        "matovič", "igor matovič", "hnutie slovensko", "oľano", "poslanec", 
-        "poslanci", "národná rada", "nrsr", "parlamentná schôdza", "štátny sviatok", 
-        "voľno", "pracovný deň", "zákonodarca","sas", "sloboda a solidarita", "branislav gröhling", "veronika remišová", 
-        "za ľudí", "uznesenie", "prenasledovanie opozície","kaliňák", "kaliňáka",
-        "politik", "politici", "demokratického", "demokratický", "tábora",
+        "matovič", "igor matovič", "hnutie slovensko", "oľano",
+        "poslanec", "poslanci", "národná rada", "nrsr",
+        "parlamentná schôdza", "zákonodarca",
+        "sas", "sloboda a solidarita", "branislav gröhling", "veronika remišová",
+        "za ľudí", "uznesenie", "prenasledovanie opozície",
+        "kaliňák", "kaliňáka",
+        "politik", "politici", "demokratického", "demokratický",
+        "šimečka", "michal šimečka", "demokrati",
+        "richard sulík",
+
         # RO
         "alegeri", "vot", "președinte", "prim-ministru", "parlament",
         "guvern", "ministru", "partid", "coaliție", "opoziție",
@@ -254,14 +303,11 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "decret", "veto", "referendum", "democrație", "autoritarism",
         "statul de drept", "judiciar", "constituțional", "criză politică",
         "protest", "libertatea presei",
-        "apărare teritorială", "batalion de voluntari", "mercenar",
-        "livrări de arme", "stare de război", "cheltuieli de apărare",
         "procent", "rezultate alegeri", "procesare voturi", "listă de candidați",
-        "majoritate parlamentară", "acord de coaliție", "psd", "pnl",
-        "usr", "aur", "formare guvern", "grup parlamentar", "moțiune de cenzură",
-        "vot de încredere","comitetul militar al nato", "flanc estic", "flancul estic",
-
-
+        "majoritate parlamentară", "acord de coaliție",
+        "psd", "pnl", "usr", "aur",
+        "formare guvern", "grup parlamentar", "moțiune de cenzură",
+        "vot de încredere",
     ],
 
     # ── 2. foreign_policy_nato_eu ─────────────────────────────────────────────
@@ -280,6 +326,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "frozen eu funds", "china relations", "belt and road",
         "neutrality", "peace talks", "mediation", "orban", "fico",
         "eu article 7", "democratic backsliding",
+
         # HU
         "nato", "európai unió", "eu", "európai tanács", "csúcstalálkozó",
         "külpolitika", "diplomácia", "nagykövet", "kétoldalú",
@@ -289,15 +336,17 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "uniós finanszírozás", "stratégiai partnerség",
         "védelmi együttműködés", "kollektív védelem",
         "vétó", "uniós alapok befagyasztása", "jogállamisági feltételrendszer",
-        "kínai kapcsolatok", "Brics", "semlegesség", "béketárgyalások",
+        "kínai kapcsolatok", "semlegesség", "béketárgyalások",
         "közvetítés", "keleti nyitás", "szuverenitásvédelem",
-        "Budapest-Washington", "magyarország-oroszország kapcsolat",
-        "nagykövet", "nagykövetét", "nagykövetet", "nagykövete", "nagykövetség",
+        "magyarország-oroszország kapcsolat",
+        "nagykövetét", "nagykövetet", "nagykövete", "nagykövetség",
         "varsói", "varsóba", "lengyel", "hazarendeli", "diplomáciáért",
         "kapcsolat", "kapcsolatok", "találkozó",
-        "nagykövet", "nagykövetét", "nagykövetet", "nagykövete", "nagykövetség",
-        "varsói", "varsóba", "lengyel", "hazarendeli", "diplomáciáért",
-        "kapcsolat", "kapcsolatok", "találkozó",
+        "hivatalos látogatás", "protokoll látogatás",
+        "kétoldalú találkozó", "bilaterális találkozó",
+        "uniós források", "uniós pénzek", "kohéziós alap", "helyreállítási alap",
+        "visegrádi együttműködés", "V4", "visegrád", "brüsszeli egyeztetés",
+        "tárgyalások az uniós forrásokról",
 
         # SK
         "nato", "európska únia", "eú", "európska rada", "samit",
@@ -308,31 +357,46 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "strategické partnerstvo", "obranná spolupráca",
         "veto", "zmrazené fondy eú", "neutralita", "mierové rokovania",
         "fico-orban", "slovensko-ruské vzťahy", "čínske investície",
-        "fico", "robert fico", "putin", "vladimir putin", "moskva", "rusko", 
-        "kremeľ", "ruská federácia", "rokovanie", "stretnutie", "bilaterálna spolupráca",
-        "ušakov", "jurij ušakov", "západné sankcie", "európske obmedzenia",
-        "spojenci", "kolaborácia", "jednotný postoj", "ruská imperiálna politika","izrael", "izraelský", "blízkom", "východe",
+        "fico", "robert fico", "putin", "vladimir putin", "moskva", "rusko",
+        "kremeľ", "ruská federácia", "rokovanie", "stretnutie",
+        "bilaterálna spolupráca", "ušakov", "jurij ušakov",
+        "západné sankcie", "európske obmedzenia",
+        "spojenci", "jednotný postoj",
+        "poľského", "poľský", "poľsko", "sejm", "sejmu",
+        "bratislave", "bratislava", "varšava",
+        "číny", "čínskej", "čínou", "čínu", "pekingu", "si ťin-pchinga",
+        "partnerstva", "spolupráca", "spoluprácu",
+        "investičné", "investície", "obchodným", "partnerom",
+        "inobat", "gotion", "volvo", "geely", "baterkáreň",
+        "vyhostenie", "vyhostili", "vyhostený veľvyslanec",
+        "diplomatický incident", "provokácia", "protest nóta",
+        "predvolanie veľvyslanca", "persona non grata",
+        "varšavský",
 
-        "poľského", "poľský", "poľsko", "sejm", "sejmu", "bratislave", "bratislava",
-        "varšava", "stretávať", "vyhol", "ficovi", "putinom",
-        "číny", "čínskej", "čínou", "čínu", "pekingu", "si ťin-pchinga", 
-        "partnerstva", "spolupráca", "spoluprácu", "dialog", "bezvízovej",
-        "investičné", "investície", "investičnej", "obchodným", "partnerom", 
-        "ekonomiku", "inobat", "gotion", "volvo", "geely", "baterkáreň",
-        "číny", "čínskej", "čína", "peking",
         # RO
         "nato", "uniunea europeană", "ue", "consiliul european", "summit",
         "politică externă", "diplomație", "ambasador", "bilateral",
-        "tratat", "acord", "alianță", "aderare", "membership",
+        "tratat", "acord", "alianță", "aderare",
         "sancțiuni", "onu", "consiliul de securitate", "transatlantic",
         "extindere", "comisia europeană", "fonduri ue",
         "parteneriat strategic", "cooperare în apărare",
         "veto", "fonduri ue blocate", "neutralitate", "negocieri de pace",
         "relații cu rusia", "investiții chineze", "parcurs european",
         "cooperare cu aliații", "structuri aliate", "vizită oficială nato",
-        "interoperabil", "interoperabilitate", "rol strategic",
+        "interoperabilitate", "rol strategic",
         "comandamentul nato", "amiral", "șef stat major",
         "sibiu nato", "apărare colectivă românia",
+        "comitetul militar al nato", "flancul estic",
+        # ── Finanțare UE pentru apărare ───────────────────────────────────────────
+        "programul safe", "acțiunea pentru securitatea europei",
+        "acord de finanțare", "acord de finanțare ue",
+        "comisia europeană apărare",
+        "finanțare apărare", "finanțare europeană apărare",
+        "principal beneficiar", "beneficiar safe",
+        "ratificarea acordului", "ratificare parlament",
+        "cooperare industrială europeană",
+        "cooperare tehnologică europeană",
+        "state membre apărare",
     ],
 
     # ── 3. border_migration ───────────────────────────────────────────────────
@@ -350,7 +414,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "draft evasion", "military desertion", "border evasion",
         "zakarpattia border", "uzhorod crossing", "chop border",
         "berehove crossing", "tibava crossing", "košice corridor",
-        "male crossing", "men of military age", "travel ban ukraine",
+        "men of military age", "travel ban ukraine",
         "border queue", "crossing time",
 
         # HU
@@ -363,13 +427,14 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "határkerítés", "visszatoloncolás", "határincidens",
         "ukrán menekültek", "menekülttábor",
         "katonai szökevény", "mozgósítás elől menekülő",
-        "kárpátaljai határátkelő", "záhony átkelő", "beregsurány átkelő",
+        "záhony átkelő", "beregsurány átkelő",
         "katonaköteles férfiak", "ukrajna utazási tilalom",
         "határvárakozás", "átkelési idő", "illegális határátlépés",
-        "határrendészet", "határrendészeti", "határrendészek", "határátkelőhelyen", 
-        "határsértőt", "határsértő", "illegális belépésben", "embercsempészés", 
-        "tiltott határátlépés", "kilépésre",
-        "kábítószer", "cigarettacsempészet", "kábítószer-kereskedelem", "bűnbanda",
+        "határrendészet", "határrendészeti", "határrendészek",
+        "határátkelőhelyen", "határsértőt", "határsértő",
+        "illegális belépésben", "embercsempészés", "tiltott határátlépés",
+        "kilépésre",
+
         # SK
         "hranica", "hraničný priechod", "kontrolný bod", "migrácia",
         "migrant", "utečenec", "azyl", "žiadateľ o azyl", "tranzit",
@@ -383,6 +448,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "užhorodský priechod", "vyšné nemecké priechod",
         "vojaci v úteku", "zákaz vycestovania ukrajina",
         "čakacia doba na hranici",
+
         # RO
         "frontieră", "punct de trecere", "punct de control", "migrație",
         "migrant", "refugiat", "azil", "solicitant de azil", "tranzit",
@@ -400,7 +466,8 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
     ],
 
     # ── 4. economy_energy_sanctions ───────────────────────────────────────────
-    # ВВП, санкції, торгівля, енергетика, бюджет — економіка регіону
+    # ВВП, санкції, торгівля, енергетика, бюджет — економіка регіону.
+    # Кожна мова в окремому блоці — не змішувати.
     [
         # EN
         "economy", "gdp", "inflation", "budget", "debt", "deficit",
@@ -416,6 +483,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "gas storage", "lng terminal", "nuclear expansion", "paks",
         "household energy", "energy poverty", "carbon tax",
         "cohesion policy", "structural funds", "recovery fund",
+
         # HU
         "gazdaság", "gdp", "infláció", "költségvetés", "adósság",
         "hiány", "befektetés", "kereskedelem", "export", "import",
@@ -429,9 +497,8 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "gázárak", "üzemanyagárak", "energiaszegénység",
         "téli fűtés", "gáztározás", "helyreállítási alap",
         "kohéziós politika", "strukturális alapok", "Via Carpatia",
-        "jadrová energia", "ceny plynu", "ceny pohonných hmôt",
-        "energetická chudoba", "zimné kúrenie", "zásobníky plynu",
-        "fond obnovy", "kohézna politika", "Via Carpatia",
+        "uniós forrás", "uniós támogatás", "kohéziós források",
+
         # SK
         "ekonomika", "hdp", "inflácia", "rozpočet", "dlh",
         "deficit", "investícia", "obchod", "export", "import",
@@ -441,12 +508,13 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "mmf", "svetová banka", "fondy eú", "obnova",
         "finančná pomoc", "mena", "výmenný kurz", "recesia",
         "nezamestnanosť", "mzda", "dotácia",
-        "energie nucleară", "prețuri gaze", "prețuri combustibil",
-        "sărăcie energetică", "încălzire iarnă", "depozite gaz",
-        "fond de redresare", "politică de coeziune", "Via Carpatia",
-        "gazprom", "spp", "slovenský plynárenský priemysel", "družba", 
-        "ropovod družba", "transnefť", "transpetrol", "dodávky plynu", 
-        "dodávky ropy", "obchodné vzťahy","dodávky energie",
+        "jadrová energia", "ceny plynu", "ceny pohonných hmôt",
+        "energetická chudoba", "zimné kúrenie", "zásobníky plynu",
+        "fond obnovy", "kohézna politika",
+        "gazprom", "spp", "slovenský plynárenský priemysel",
+        "ropovod družba", "transnefť", "transpetrol",
+        "dodávky plynu", "dodávky ropy", "dodávky energie",
+
         # RO
         "economie", "pib", "inflație", "buget", "datorie",
         "deficit", "investiție", "comerț", "export", "import",
@@ -456,6 +524,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "fmi", "banca mondială", "fonduri ue", "reconstrucție",
         "ajutor financiar", "monedă", "curs de schimb", "recesiune",
         "șomaj", "salariu", "subvenție",
+        "energie nucleară", "prețuri gaze", "prețuri combustibil",
+        "sărăcie energetică", "încălzire iarnă", "depozite gaz",
+        "fond de redresare", "politică de coeziune", "Via Carpatia",
     ],
 
     # ── 5. security_intelligence_hybrid ──────────────────────────────────────
@@ -487,6 +558,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "oligarcha", "pénzmosás", "Pegasus kémprogram",
         "választási manipuláció", "médiabefolyásolás",
         "lőfegyver", "lőfegyverrel", "maroklőfegyvert", "fegyvereket",
+
         # SK
         "spravodajstvo", "tajná služba", "kontrarozviedka",
         "hybridná vojna", "špionáž", "špión", "sabotáž",
@@ -496,7 +568,11 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "protiteroristický", "odpočúvanie", "tajná operácia",
         "ruský agent", "zákon o zahraničných agentoch", "médiakaptura",
         "oligarcha", "pranie peňazí", "Pegasus spyware",
-        "volebná manipulácia","hybridné útoky", "extrémizmus",
+        "volebná manipulácia", "hybridné útoky", "extrémizmus",
+        "obliali krvou", "fyzický útok na politika",
+        "provokatívny čin", "útok na opozíciu",
+        "ruská provokácia", "hybridná provokácia",
+
         # RO
         "informații", "servicii secrete", "contrainformații",
         "război hibrid", "spionaj", "spion", "sabotaj",
@@ -552,6 +628,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "jazykový zákon ukrajiny", "maďarská menšina na slovensku",
         "SMK", "Most-Híd", "maďarský pas na slovensku",
         "južné slovensko maďari", "dvojjazyčné tabule",
+
         # RO
         "drepturile minorităților", "minoritate etnică",
         "minoritate maghiară", "minoritate slovacă", "lege lingvistică",
@@ -583,6 +660,7 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "sexual violence war", "rape as weapon",
         "mine clearance", "demining", "ecocide",
         "hospital bombing", "school bombing", "cultural heritage destruction",
+
         # HU
         "háborús bűnök", "emberiesség elleni bűnök", "népirtás",
         "nbn", "nemzetközi büntetőbíróság", "törvényszék",
@@ -604,8 +682,9 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
         "zdravotnícka pomoc", "pomoc pri obnove",
         "unhcr", "červený kríž", "mimovládna organizácia", "zodpovednosť",
         "deportácia detí", "ukradnuté deti", "zaistenie ruských aktív",
-        "reparácie", "fond obnovy ukrajiny", "odminovanie", "ecocída",
+        "reparácie", "fond obnovy ukrajiny", "odminovanie",
         "vojnový zločinec", "agresívna vojna",
+
         # RO
         "crime de război", "crime împotriva umanității", "genocid",
         "cpi", "curtea penală internațională", "tribunal",
@@ -619,33 +698,46 @@ _TOPIC_CORPUS_RAW: list[list[str]] = [
     ],
 
     # ── 8. cross_border_crime_smuggling ──────────────────────────────────────
-    # Транскордонна злочинність, контрабанда (сигарети, наркотики, зброя), митниця, ОЗГ
+    # Транскордонна злочинність, контрабанда (сигарети, наркотики, зброя),
+    # митниця, ОЗГ.
+    # Ця категорія є винятком з логіки негативних слів: "krádež", "vražda"
+    # тут нерелевантні, але "pašovanie", "drogy", "csempészet" — в ядрі.
+    # neg_hits-поріг для цієї категорії обробляється окремо в score().
     [
         # EN
-        "smuggling", "contraband", "trafficking", "organized crime", 
+        "smuggling", "contraband", "trafficking", "organized crime",
         "illicit goods", "drug seizure", "customs", "cartel", "narcotics",
         "counterfeit", "illicit tobacco", "border patrol bust", "illegal goods",
         "confiscated", "seized",
-        
+
         # HU
-        "csempészet", "csempészáru", "embercsempész", "kábítószer", 
-        "cigarettacsempészet", "kábítószer-kereskedelem", "bűnszervezet", 
-        "bűnbanda", "vámosok", "vámhivatal", "lefoglaltak", "illegális áru", 
+        "csempészet", "csempészáru", "embercsempész", "kábítószer",
+        "cigarettacsempészet", "kábítószer-kereskedelem", "bűnszervezet",
+        "bűnbanda", "vámosok", "vámhivatal", "lefoglaltak", "illegális áru",
         "kábítószergyanús", "drogfogás", "zárjegy nélküli", "razzia",
-        
+        "díler", "drogdíler", "crack", "heroin", "metamfetamin",
+        "kerítés", "kerítő", "prostitúció", "emberkereskedelem",
+        "nők kizsákmányolása", "DELTA Program", "delta program",
+        "Nyírbátor", "nyírbátori", "Szabolcs", "szabolcsi",
+        "őrizetbe", "letartóztatták", "gyanúsított", "nyomozók",
+        "rendőrkapitányság", "rendőrfőkapitányság",
+
         # SK
-        "pašovanie", "kontraband", "pašerák", "drogy", "cigarety", 
-        "organizovaný zločin", "zhabaný", "colníci", "colný úrad", 
+        "pašovanie", "kontraband", "pašerák", "drogy", "cigarety",
+        "organizovaný zločin", "zhabaný", "colníci", "colný úrad",
         "nelegálny tovar", "pašované", "kokaín", "marihuana", "zadržali",
-        
+
         # RO
-        "contrabandă", "trafic", "traficant", "droguri", "țigări de contrabandă", 
-        "crimă organizată", "bunuri ilicite", "captură", "vameși", "vamă", 
+        "contrabandă", "trafic", "traficant", "droguri", "țigări de contrabandă",
+        "crimă organizată", "bunuri ilicite", "captură", "vameși", "vamă",
         "mărfuri de contrabandă", "confiscat", "stupefiante", "grupare infracțională",
     ],
 ]
 
 _BM25_MAX_SCORE = 8.0
+
+# Індекс категорії cross_border_crime — для пом'якшення neg_hits-порогу
+_CAT_CROSS_BORDER_CRIME = 8
 
 
 def _tokenize(text: str) -> list[str]:
@@ -658,7 +750,7 @@ class BM25ScoringService(IScoringService):
     """
     IScoringService через BM25 без geo-фільтрації.
 
-    Корпус: 8 тем × 4 мови (HU/SK/RO/EN).
+    Корпус: 9 тем × 4 мови (HU/SK/RO/EN).
     Без UA — система орієнтована на регіональні медіа HU/SK/RO
     та англомовні джерела про регіон.
 
@@ -689,14 +781,25 @@ class BM25ScoringService(IScoringService):
         else:
             raw_score = self._bm25_score(text)
 
-        # ── Антислова ─────────────────────────────────────────────────────────
         text_lower = text.lower()
-        
+
+        # ── Визначаємо найкращу категорію ────────────────────────────────────
+        best_cat = self._best_category(text_lower)
+
+        # ── Антислова ─────────────────────────────────────────────────────────
         neg_hits = sum(1 for kw in _NEGATIVE_KEYWORDS if kw in text_lower)
-        if neg_hits >= 2:
-            # Якщо багато антислів — повний reject
-            logger.info("BM25: negative keyword reject (hits=%d)", neg_hits)
+
+        # Для cat 8 (cross_border_crime) поріг вищий: кримінальна лексика
+        # є частиною теми, тому не відхиляємо при 2 хітах.
+        neg_reject_threshold = 4 if best_cat == _CAT_CROSS_BORDER_CRIME else 2
+
+        if neg_hits >= neg_reject_threshold:
+            logger.info(
+                "BM25: negative keyword reject (hits=%d, threshold=%d, cat=%d)",
+                neg_hits, neg_reject_threshold, best_cat,
+            )
             return 0.0
+
         if neg_hits == 1:
             raw_score = max(0.0, raw_score - _NEGATIVE_PENALTY)
 
@@ -705,8 +808,27 @@ class BM25ScoringService(IScoringService):
         if boost_hits > 0:
             raw_score = min(1.0, raw_score + _BOOST_BONUS * min(boost_hits, 3))
 
-        logger.info("BM25: score=%.3f neg_hits=%d boost_hits=%d", raw_score, neg_hits, boost_hits)
+        logger.info(
+            "BM25: score=%.3f neg_hits=%d boost_hits=%d best_cat=%d",
+            raw_score, neg_hits, boost_hits, best_cat,
+        )
         return raw_score
+
+    def _best_category(self, text_lower: str) -> int:
+        """Повертає індекс категорії з найвищим BM25-score для тексту."""
+        if self._backend == "rank_bm25":
+            tokens = _tokenize(text_lower)
+            if not tokens:
+                return 0
+            scores = self._bm25.get_scores(tokens)
+            return int(np.argmax(scores))
+        # fallback: проста перевірка
+        best, best_idx = 0, 0
+        for i, keywords in enumerate(_TOPIC_CORPUS_RAW):
+            hits = sum(1 for kw in keywords if kw in text_lower)
+            if hits > best:
+                best, best_idx = hits, i
+        return best_idx
 
     def _bm25_score(self, text: str) -> float:
         tokens = _tokenize(text)
@@ -733,12 +855,14 @@ class BM25ScoringService(IScoringService):
             )
             if pattern.search(text_lower):
                 matched += 1
-        return min(matched / len(_TOPIC_CORPUS_RAW), 1.0)
+        # Нормалізація сумісна з BM25: хоча б 2 теми = score ~0.5
+        return min(matched / max(len(_TOPIC_CORPUS_RAW) / 2, 1), 1.0)
 
     def calibrate_max_score(self, sample_texts: list[str]) -> float:
         """
         Утиліта для калібрування _BM25_MAX_SCORE.
         Запусти на кількох еталонних статтях щоб знайти реальний max.
+        Автоматично оновлює self._max_score.
         """
         if self._backend != "rank_bm25":
             return self._max_score
@@ -751,5 +875,6 @@ class BM25ScoringService(IScoringService):
             scores = self._bm25.get_scores(tokens)
             max_raw = max(max_raw, float(np.max(scores)))
 
-        logger.info("Calibrated BM25 max score: %.2f", max_raw)
+        logger.info("Calibrated BM25 max score: %.2f (was %.2f)", max_raw, self._max_score)
+        self._max_score = max_raw  # виправлено: тепер застосовується
         return max_raw
