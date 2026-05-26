@@ -72,7 +72,8 @@ class ArticleMapper:
             published_at=PublishedAt(value=model.published_at) if model.published_at else None,
             tags=tags,
             created_at=model.created_at,
-            original_title=model.original_title,  
+            original_title=model.original_title,
+            original_body=model.original_body,  
      
         )
 

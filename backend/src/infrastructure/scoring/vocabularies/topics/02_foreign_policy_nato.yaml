@@ -1,0 +1,256 @@
+# Тема: foreign_policy_nato_eu
+# НАТО, ЄС, двосторонні відносини, саміти, зовнішня політика
+
+meta:
+  id: 2
+  name: foreign_policy_nato
+  description: "НАТО, ЄС, двосторонні відносини, саміти"
+
+keywords:
+  en:
+    - nato
+    - european union
+    - eu
+    - european council
+    - summit
+    - foreign policy
+    - diplomacy
+    - ambassador
+    - bilateral
+    - treaty
+    - agreement
+    - alliance
+    - accession
+    - membership
+    - sanctions
+    - g7
+    - g20
+    - un
+    - united nations
+    - security council
+    - transatlantic
+    - enlargement
+    - european commission
+    - eu funding
+    - cohesion fund
+    - strategic partnership
+    - defense cooperation
+    - article 5
+    - collective defense
+    - veto
+    - blocking
+    - hungary veto
+    - rule of law conditionality
+    - frozen eu funds
+    - china relations
+    - belt and road
+    - neutrality
+    - peace talks
+    - mediation
+    - orban
+    - fico
+    - eu article 7
+    - democratic backsliding
+
+  hu:
+    - nato
+    - európai unió
+    - eu
+    - európai tanács
+    - csúcstalálkozó
+    - külpolitika
+    - diplomácia
+    - nagykövet
+    - kétoldalú
+    - szerződés
+    - megállapodás
+    - szövetség
+    - csatlakozás
+    - tagság
+    - szankciók
+    - ensz
+    - biztonsági tanács
+    - transzatlanti
+    - bővítés
+    - európai bizottság
+    - uniós finanszírozás
+    - stratégiai partnerség
+    - védelmi együttműködés
+    - kollektív védelem
+    - vétó
+    - uniós alapok befagyasztása
+    - jogállamisági feltételrendszer
+    - kínai kapcsolatok
+    - semlegesség
+    - béketárgyalások
+    - közvetítés
+    - keleti nyitás
+    - szuverenitásvédelem
+    - magyarország-oroszország kapcsolat
+    - nagykövetét
+    - nagykövetet
+    - nagykövete
+    - nagykövetség
+    - varsói
+    - varsóba
+    - lengyel
+    - hazarendeli
+    - diplomáciáért
+    - kapcsolat
+    - kapcsolatok
+    - találkozó
+    - hivatalos látogatás
+    - protokoll látogatás
+    - kétoldalú találkozó
+    - bilaterális találkozó
+    - uniós források
+    - uniós pénzek
+    - kohéziós alap
+    - helyreállítási alap
+    - visegrádi együttműködés
+    - V4
+    - visegrád
+    - brüsszeli egyeztetés
+    - tárgyalások az uniós forrásokról
+
+  sk:
+    - nato
+    - európska únia
+    - eú
+    - európska rada
+    - samit
+    - zahraničná politika
+    - diplomacia
+    - veľvyslanec
+    - bilaterálny
+    - zmluva
+    - dohoda
+    - aliancia
+    - pristúpenie
+    - členstvo
+    - sankcie
+    - osn
+    - bezpečnostná rada
+    - transatlantický
+    - rozšírenie
+    - európska komisia
+    - fondy eú
+    - strategické partnerstvo
+    - obranná spolupráca
+    - veto
+    - zmrazené fondy eú
+    - neutralita
+    - mierové rokovania
+    - fico-orban
+    - slovensko-ruské vzťahy
+    - čínske investície
+    - fico
+    - robert fico
+    - putin
+    - vladimir putin
+    - moskva
+    - rusko
+    - kremeľ
+    - ruská federácia
+    - rokovanie
+    - stretnutie
+    - bilaterálna spolupráca
+    - ušakov
+    - jurij ušakov
+    - západné sankcie
+    - európske obmedzenia
+    - spojenci
+    - jednotný postoj
+    - poľského
+    - poľský
+    - poľsko
+    - sejm
+    - sejmu
+    - bratislave
+    - bratislava
+    - varšava
+    - číny
+    - čínskej
+    - čínou
+    - čínu
+    - pekingu
+    - si ťin-pchinga
+    - partnerstva
+    - spolupráca
+    - spoluprácu
+    - investičné
+    - investície
+    - obchodným
+    - partnerom
+    - inobat
+    - gotion
+    - volvo
+    - geely
+    - baterkáreň
+    - vyhostenie
+    - vyhostili
+    - vyhostený veľvyslanec
+    - diplomatický incident
+    - provokácia
+    - protest nóta
+    - predvolanie veľvyslanca
+    - persona non grata
+    - varšavský
+
+  ro:
+    - nato
+    - uniunea europeană
+    - ue
+    - consiliul european
+    - summit
+    - politică externă
+    - diplomație
+    - ambasador
+    - bilateral
+    - tratat
+    - acord
+    - alianță
+    - aderare
+    - sancțiuni
+    - onu
+    - consiliul de securitate
+    - transatlantic
+    - extindere
+    - comisia europeană
+    - fonduri ue
+    - parteneriat strategic
+    - cooperare în apărare
+    - veto
+    - fonduri ue blocate
+    - neutralitate
+    - negocieri de pace
+    - relații cu rusia
+    - investiții chineze
+    - parcurs european
+    - cooperare cu aliații
+    - structuri aliate
+    - vizită oficială nato
+    - interoperabilitate
+    - rol strategic
+    - comandamentul nato
+    - amiral
+    - șef stat major
+    - sibiu nato
+    - apărare colectivă românia
+    - comitetul militar al nato
+    - flancul estic
+    # Finanțare UE pentru apărare
+    - programul safe
+    - acțiunea pentru securitatea europei
+    - acord de finanțare
+    - acord de finanțare ue
+    - comisia europeană apărare
+    - finanțare apărare
+    - finanțare europeană apărare
+    - principal beneficiar
+    - beneficiar safe
+    - ratificarea acordului
+    - ratificare parlament
+    - cooperare industrială europeană
+    - cooperare tehnologică europeană
+    - state membre apărare

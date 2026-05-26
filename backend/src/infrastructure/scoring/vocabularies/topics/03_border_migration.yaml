@@ -1,0 +1,177 @@
+# Тема: border_migration
+# Кордон, міграція, біженці, транзит, пропускний пункт — КЛЮЧОВА тема
+
+meta:
+  id: 3
+  name: border_migration
+  description: "Кордон, міграція, біженці, транзит, пропускний пункт"
+
+keywords:
+  en:
+    - border
+    - border crossing
+    - checkpoint
+    - migration
+    - migrant
+    - refugee
+    - asylum
+    - asylum seeker
+    - transit
+    - smuggling
+    - human trafficking
+    - irregular migration
+    - frontex
+    - border guard
+    - border control
+    - entry ban
+    - visa
+    - residence permit
+    - deportation
+    - expulsion
+    - internally displaced
+    - idp
+    - shelter
+    - reception center
+    - border fence
+    - push back
+    - border incident
+    - ukrainian refugees
+    - refugee camp
+    - draft evasion
+    - military desertion
+    - border evasion
+    - zakarpattia border
+    - uzhorod crossing
+    - chop border
+    - berehove crossing
+    - tibava crossing
+    - košice corridor
+    - men of military age
+    - travel ban ukraine
+    - border queue
+    - crossing time
+
+  hu:
+    - határ
+    - határátkelő
+    - ellenőrzőpont
+    - migráció
+    - migráns
+    - menekült
+    - menedékjog
+    - menedékkérő
+    - tranzit
+    - csempészet
+    - emberkereskedelem
+    - illegális bevándorlás
+    - frontex
+    - határőr
+    - határellenőrzés
+    - belépési tilalom
+    - vízum
+    - tartózkodási engedély
+    - deportálás
+    - kiutasítás
+    - belső menekült
+    - szállás
+    - befogadóközpont
+    - határkerítés
+    - visszatoloncolás
+    - határincidens
+    - ukrán menekültek
+    - menekülttábor
+    - katonai szökevény
+    - mozgósítás elől menekülő
+    - záhony átkelő
+    - beregsurány átkelő
+    - katonaköteles férfiak
+    - ukrajna utazási tilalom
+    - határvárakozás
+    - átkelési idő
+    - illegális határátlépés
+    - határrendészet
+    - határrendészeti
+    - határrendészek
+    - határátkelőhelyen
+    - határsértőt
+    - határsértő
+    - illegális belépésben
+    - embercsempészés
+    - tiltott határátlépés
+    - kilépésre
+
+  sk:
+    - hranica
+    - hraničný priechod
+    - kontrolný bod
+    - migrácia
+    - migrant
+    - utečenec
+    - azyl
+    - žiadateľ o azyl
+    - tranzit
+    - pašovanie
+    - obchodovanie s ľuďmi
+    - nelegálna migrácia
+    - frontex
+    - pohraničná stráž
+    - hraničná kontrola
+    - zákaz vstupu
+    - vízum
+    - povolenie na pobyt
+    - deportácia
+    - vysťahovanie
+    - vnútorne vysídlená osoba
+    - ubytovanie
+    - prijímacie centrum
+    - hraničný plot
+    - pushback
+    - hraničný incident
+    - ukrajinskí utečenci
+    - únik pred mobilizáciou
+    - vojenský dezertér
+    - užhorodský priechod
+    - vyšné nemecké priechod
+    - vojaci v úteku
+    - zákaz vycestovania ukrajina
+    - čakacia doba na hranici
+
+  ro:
+    - frontieră
+    - punct de trecere
+    - punct de control
+    - migrație
+    - migrant
+    - refugiat
+    - azil
+    - solicitant de azil
+    - tranzit
+    - contrabandă
+    - trafic de persoane
+    - migrație ilegală
+    - frontex
+    - poliția de frontieră
+    - control la frontieră
+    - interdicție de intrare
+    - viză
+    - permis de ședere
+    - deportare
+    - expulzare
+    - persoană strămutată intern
+    - adăpost
+    - centru de primire
+    - gard la frontieră
+    - refuzare la frontieră
+    - incident la frontieră
+    - refugiați ucraineni
+    - evaziune de la mobilizare
+    - dezertor militar
+    - punctul siret
+    - punctul isaccea
+    - punctul porubne
+    - bărbați de vârstă militară
+    - interdicție de călătorie ucraina
+    - frontierei
+    - fluviale
+    - tulcea
+    - ismail

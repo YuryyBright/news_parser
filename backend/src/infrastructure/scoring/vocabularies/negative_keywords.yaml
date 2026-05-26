@@ -1,0 +1,203 @@
+# Антислова — відфільтровують нерелевантний контент
+#
+# УВАГА: не додавати слова, які є в корупційних/кримінально-політичних статтях
+# (fraud, bribery тощо) — вони потраплять під penalty і спричинять хибне відхилення.
+#
+# category_overrides дозволяє підвищити reject_threshold для певних категорій,
+# де перетин з негативними словами є структурним (наприклад, cross_border_crime).
+
+penalty: 0.20 # per-hit penalty (зменшено з 0.35 — було надто агресивним)
+reject_threshold: 2 # >= N hits → score 0.0
+
+# Виняток для категорій (підвищений поріг)
+category_overrides:
+  8: # cross_border_crime
+    reject_threshold: 4
+
+keywords:
+  sport:
+    en:
+      - football
+      - soccer
+      - basketball
+      - tennis
+      - f1
+      - formula 1
+      - championship
+      - tournament
+      - olympics
+      - match
+      - athlete
+      - hockey
+    hu:
+      - labdarúgás
+      - futball
+      - foci
+      - bajnokság
+      - mérkőzés
+      - olimpia
+      - sportoló
+      - jégkorong
+      - kézilabda
+      - vízilabda
+    sk:
+      - futbal
+      - hokej
+      - zápas
+      - majstrovstvá
+      - turnaj
+      - olympiáda
+      - tenis
+      - športovec
+    ro:
+      - fotbal
+      - meci
+      - campionat
+      - turneu
+      - jocurile olimpice
+      - sportiv
+      - baschet
+      - tenis
+
+  culture:
+    # УВАГА: "fesztivál" (HU) і "festival" (SK) видалено —
+    # конфліктують з "festival demokracie" та подібними релевантними виразами.
+    en:
+      - concert
+      - cinema
+      - theater
+      - exhibition
+      - movie
+      - music
+      - art
+      - museum
+      - celebrity
+      - hollywood
+    hu:
+      - koncert
+      - kiállítás
+      - színház
+      - mozi
+      - zene
+      - művészet
+      - múzeum
+      - film
+      - színész
+      - rendező
+    sk:
+      - divadlo
+      - kino
+      - výstava
+      - umenie
+      - hudba
+      - múzeum
+      - herec
+    ro:
+      - festivalul
+      - concert
+      - cinema
+      - teatru
+      - expoziție
+      - muzică
+      - artă
+      - muzeu
+      - actor
+      - spectacol
+
+  crime_nonpolitical:
+    # Виключено: "fraud" / "podvod" / "fraudă" — занадто часто з'являються
+    # в корупційних статтях (cat 1, cat 5) і спричиняють хибний penalty.
+    en:
+      - robbery
+      - theft
+      - murder
+      - burglary
+      - homicide
+      - stabbing
+      - domestic violence
+      - car crash
+    hu:
+      - rablás
+      - lopás
+      - gyilkosság
+      - betörés
+      - késelés
+      - baleset
+      - karambol
+      - bántalmazás
+      - halálos baleset
+    sk:
+      - lúpež
+      - krádež
+      - vražda
+      - vlámanie
+      - napadnutie
+      - bodnutie
+      - nehoda
+      - havária
+      - dopravná nehoda
+    ro:
+      - jaf
+      - furt
+      - crimă
+      - spargere
+      - omor
+      - înjunghiere
+      - accident rutier
+      - violență domestică
+
+  ads:
+    en:
+      - sponsored
+      - advertisement
+      - promo
+      - discount
+      - sale
+      - marketing
+    hu:
+      - hirdetés
+      - reklám
+      - szponzorált
+      - akció
+      - kedvezmény
+      - promóció
+    sk:
+      - reklama
+      - sponzorované
+      - zľava
+      - promócia
+      - inzercia
+    ro:
+      - sponsorizat
+      - reclamă
+      - reducere
+      - promoție
+      - publicitate
+
+  geopolitics_uk:
+    # Геополітика поза регіоном — Велика Британія
+    en:
+      - britain
+      - british
+      - united kingdom
+      - keir starmer
+      - labour party
+      - reform uk
+      - nigel farage
+      - westminster
+      - rishi sunak
+      - tories
+      - conservative party
+    hu:
+      - nagy-britannia
+      - brit
+      - egyesült királyság
+      - londoni
+    sk:
+      - veľká británia
+      - britský
+      - spojené kráľovstvo
+    ro:
+      - marea britanie
+      - britanic
+      - regatul unit

@@ -1,0 +1,88 @@
+# Буст-слова: якщо є в тексті — підняти score
+# Регіональні маркери, ключові персони, специфічна лексика
+
+bonus: 0.10
+max_hits: 3 # враховуємо максимум 3 хіти (решта ігнорується)
+
+keywords:
+  # Країни / регіони
+  - ukraine
+  - ukrajna
+  - slovensko
+  - románia
+  - ungaria
+  - românia
+
+  # Персони
+  - zelenskyy
+  - zelenski
+  - putin
+  - orban
+  - fico
+  - ficovi
+  - putinom
+  - sulyok
+  - novák
+  - šimečka
+
+  # Організації / структури
+  - nato
+  - eu
+  - mapn
+  - mv sr
+
+  # Економіка / санкції
+  - sanctions
+  - szankció
+  - sankcie
+  - sancțiuni
+
+  # Військова лексика (специфічна)
+  - drone
+  - vrtuľník
+  - vrtuľníky
+  - apărării
+  - militari
+
+  # Географія (прикордонна зона)
+  - röszke
+  - tulcea
+  - ismail
+
+  # Кримінал транскордонний (специфічна HU-лексика)
+  - embercsempészés
+  - kábítószer
+  - kábítószergyanús
+  - cigaretta
+  - csempészáru
+  - lefoglaltak
+  - delta program
+  - nyírbátor
+  - szabolcs
+  - kerítő
+  - drogdíler
+
+  # Внутрішня HU-політика (специфічна)
+  - kegyelmi
+  - vizsgálóbizottság
+  - sándor-palota
+
+  # RO програми
+  - safe
+  - programul safe
+  - înzestrare
+  - anti-dronă
+  - industria de apărare
+  - miliarde euro
+
+  # SK-специфіка
+  - demokrati
+  - varšava
+  - vyhostenie
+  - vyhostili
+  - vyhostený
+
+  # HU-дипломатія
+  - varsó
+  - lengyelország
+  - magyar

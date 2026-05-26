@@ -1,0 +1,150 @@
+# Тема: humanitarian_warcrimes_aid
+# Воєнні злочини, біженці з UA, гуманітарна допомога, МКС
+
+meta:
+  id: 7
+  name: humanitarian_warcrimes
+  description: "Воєнні злочини, гуманітарна допомога, МКС"
+
+keywords:
+  en:
+    - war crimes
+    - crimes against humanity
+    - genocide
+    - icc
+    - international criminal court
+    - tribunal
+    - deportation
+    - torture
+    - massacre
+    - civilian casualties
+    - humanitarian aid
+    - humanitarian corridor
+    - evacuation
+    - displaced persons
+    - shelter
+    - food aid
+    - medical aid
+    - reconstruction aid
+    - donor conference
+    - unhcr
+    - icrc
+    - red cross
+    - ngo
+    - relief organization
+    - accountability
+    - justice
+    - atrocity
+    - human rights violation
+    - child deportation
+    - stolen children
+    - filtration camp
+    - russian asset seizure
+    - frozen assets
+    - reparations
+    - reconstruction fund
+    - marshall plan ukraine
+    - sexual violence war
+    - rape as weapon
+    - mine clearance
+    - demining
+    - ecocide
+    - hospital bombing
+    - school bombing
+    - cultural heritage destruction
+
+  hu:
+    - háborús bűnök
+    - emberiesség elleni bűnök
+    - népirtás
+    - nbn
+    - nemzetközi büntetőbíróság
+    - törvényszék
+    - deportálás
+    - kínzás
+    - mészárlás
+    - civil áldozatok
+    - humanitárius segély
+    - humanitárius folyosó
+    - evakuáció
+    - kitelepített személyek
+    - menedék
+    - élelmiszersegély
+    - orvosi segítség
+    - újjáépítési segély
+    - unhcr
+    - vöröskereszt
+    - civil szervezet
+    - elszámoltathatóság
+    - gyerekdeportálás
+    - elrabolt gyerekek
+    - orosz vagyon lefoglalása
+    - jóvátétel
+    - ukrán újjáépítési alap
+    - aknamentesítés
+    - ökocídium
+    - kórházbombázás
+
+  sk:
+    - vojnové zločiny
+    - zločiny proti ľudskosti
+    - genocída
+    - mts
+    - medzinárodný trestný súd
+    - tribunál
+    - deportácia
+    - mučenie
+    - masaker
+    - civilné obete
+    - humanitárna pomoc
+    - humanitárny koridor
+    - evakuácia
+    - vysídlené osoby
+    - útočisko
+    - potravinová pomoc
+    - zdravotnícka pomoc
+    - pomoc pri obnove
+    - unhcr
+    - červený kríž
+    - mimovládna organizácia
+    - zodpovednosť
+    - deportácia detí
+    - ukradnuté deti
+    - zaistenie ruských aktív
+    - reparácie
+    - fond obnovy ukrajiny
+    - odminovanie
+    - vojnový zločinec
+    - agresívna vojna
+
+  ro:
+    - crime de război
+    - crime împotriva umanității
+    - genocid
+    - cpi
+    - curtea penală internațională
+    - tribunal
+    - deportare
+    - tortură
+    - masacru
+    - victime civile
+    - ajutor umanitar
+    - coridor umanitar
+    - evacuare
+    - persoane strămutate
+    - adăpost
+    - ajutor alimentar
+    - ajutor medical
+    - ajutor pentru reconstrucție
+    - unhcr
+    - crucea roșie
+    - ong
+    - responsabilitate
+    - justiție
+    - deportarea copiilor
+    - copii furați
+    - confiscarea activelor rusești
+    - reparații
+    - fond de reconstrucție ucraina
+    - deminare
+    - ecocid

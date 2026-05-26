@@ -1,0 +1,145 @@
+# Тема: minority_rights_regional
+# Права меншин, мовний закон, автономія — специфіка HU↔UA/SK/RO
+
+meta:
+  id: 6
+  name: minority_rights
+  description: "Права меншин, мовний закон, автономія"
+
+keywords:
+  en:
+    - minority rights
+    - ethnic minority
+    - hungarian minority
+    - romanian minority
+    - slovak minority
+    - language law
+    - autonomy
+    - self-governance
+    - cultural rights
+    - mother tongue
+    - minority language
+    - discrimination
+    - dual citizenship
+    - passport
+    - diaspora
+    - transylvania
+    - transcarpathia
+    - zakarpattia
+    - southern slovakia
+    - székely
+    - minority school
+    - minority education
+    - language law ukraine
+    - ukrainian language policy
+    - kmksz
+    - umdsz
+    - hungarian passport zakarpattia
+    - minority veto
+    - territorial autonomy
+    - szeklerland
+    - covasna harghita mures
+    - vojvodina
+    - ruthenian minority
+    - subcarpathian ruthenians
+    - berehove
+    - uzhhorod
+    - mukachevo hungarian
+    - minority quota
+    - minority mp
+
+  hu:
+    - kisebbségi jogok
+    - etnikai kisebbség
+    - magyar kisebbség
+    - román kisebbség
+    - szlovák kisebbség
+    - nyelvtörvény
+    - autonómia
+    - önkormányzat
+    - kulturális jogok
+    - anyanyelv
+    - kisebbségi nyelv
+    - diszkrimináció
+    - kettős állampolgárság
+    - útlevél
+    - diaszpóra
+    - erdély
+    - kárpátalja
+    - felvidék
+    - székelyek
+    - kisebbségi iskola
+    - kisebbségi oktatás
+    - ukrajna nyelvtörvénye
+    - KMKSZ
+    - UMDSZ
+    - kárpátaljai magyarok
+    - beregszász
+    - ungvár
+    - munkács
+    - magyar útlevél kárpátalján
+    - területi autonómia
+    - székelyföldi autonómia
+    - Covasna
+    - Hargita
+    - Maros megye
+    - kisebbségi kvóta
+    - kisebbségi képviselő
+    - Ruszin kisebbség
+
+  sk:
+    - práva menšín
+    - etnická menšina
+    - maďarská menšina
+    - rumunská menšina
+    - jazykový zákon
+    - autonómia
+    - samospráva
+    - kultúrne práva
+    - materinský jazyk
+    - menšinový jazyk
+    - diskriminácia
+    - dvojité občianstvo
+    - pas
+    - diaspora
+    - transylvánia
+    - zakarpatsko
+    - južné slovensko
+    - menšinová škola
+    - menšinové vzdelávanie
+    - jazykový zákon ukrajiny
+    - maďarská menšina na slovensku
+    - SMK
+    - Most-Híd
+    - maďarský pas na slovensku
+    - južné slovensko maďari
+    - dvojjazyčné tabule
+
+  ro:
+    - drepturile minorităților
+    - minoritate etnică
+    - minoritate maghiară
+    - minoritate slovacă
+    - lege lingvistică
+    - autonomie
+    - autoguvernare
+    - drepturi culturale
+    - limbă maternă
+    - limbă minoritară
+    - discriminare
+    - dublă cetățenie
+    - pașaport
+    - diaspora
+    - transilvania
+    - transcarpatia
+    - secui
+    - școală pentru minorități
+    - educație pentru minorități
+    - legea lingvistică ucraina
+    - UDMR
+    - pașaport maghiar românia
+    - ardeal
+    - secuime
+    - autonomie teritorială
+    - maghiari din transilvania
+    - bilingvism

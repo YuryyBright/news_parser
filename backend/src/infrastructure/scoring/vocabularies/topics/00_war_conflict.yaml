@@ -1,0 +1,260 @@
+# Тема: war_conflict
+# Армія, фронт, зброя, мобілізація — регіональний контекст (HU/SK/RO/EN)
+# НЕ входить: глобальна геополітика (Африка, Азія)
+
+meta:
+  id: 0
+  name: war_conflict
+  description: "Армія, фронт, зброя, мобілізація"
+
+keywords:
+  en:
+    - war
+    - conflict
+    - military
+    - army
+    - troops
+    - weapon
+    - missile
+    - strike
+    - attack
+    - drone
+    - artillery
+    - front line
+    - frontline
+    - offensive
+    - counteroffensive
+    - defense
+    - combat
+    - casualties
+    - mobilization
+    - conscription
+    - armored
+    - tank
+    - shelling
+    - occupation
+    - invasion
+    - ceasefire
+    - peacekeeping
+    - nato forces
+    - military aid
+    - arms supply
+    - ammunition
+    - air defense
+    - prisoner of war
+    - pow
+    - minefield
+    - fortification
+    - special operations
+    - military exercise
+    - interoperability
+    - shahed
+    - himars
+    - patriot system
+    - f-16
+    - leopard tank
+    - territorial defense
+    - volunteer battalion
+    - mercenary
+    - wagner group
+    - war fatigue
+    - frozen conflict
+    - demilitarized zone
+
+  hu:
+    - háború
+    - konfliktus
+    - katoná
+    - hadsereg
+    - csapat
+    - fegyver
+    - rakéta
+    - támadás
+    - drón
+    - tüzérség
+    - frontvonat
+    - offenzíva
+    - védelm
+    - harci
+    - veszteség
+    - mozgósítás
+    - sorozás
+    - páncélos
+    - tank
+    - ágyúzás
+    - megszállás
+    - invázió
+    - tűzszünet
+    - békefenntartás
+    - katonai segély
+    - lőszer
+    - légvédelm
+    - hadifogoly
+    - honvédség
+    - kecskemét
+    - magyar honvédség
+    - hadgyakorlat
+    - nemzetközi együttműködés
+    - interoperabilitás
+    - területvédelem
+    - önkéntes zászlóalj
+    - zsoldos
+    - tűzszünet megsértése
+    - fegyverszállítás
+    - hadiállapot
+    - védelmi kiadások
+    - hadkötelezettség
+    - katonai kivonulás
+    - fegyverszünet
+    - lőfegyver
+    - lőfegyverrel
+    - maroklőfegyvert
+    - fegyvereket
+
+  sk:
+    - vojna
+    - konflikt
+    - vojenský
+    - armáda
+    - vojaci
+    - zbraň
+    - raketa
+    - útok
+    - dron
+    - delostrelectvo
+    - frontová línia
+    - ofenzíva
+    - obrana
+    - boj
+    - straty
+    - mobilizácia
+    - odvod
+    - obrnený
+    - tank
+    - ostreľovanie
+    - okupácia
+    - invázia
+    - prímerie
+    - mierové sily
+    - vojenská pomoc
+    - munícia
+    - protivzdušná obrana
+    - vojnový zajatec
+    - batéria
+    - cvičia
+    - cvičiť
+    - vrtuľník
+    - vrtuľníky
+    - letka
+    - modernizácia
+    - civilná ochrana
+    - európske fondy
+
+  ro:
+    - război
+    - conflict
+    - militar
+    - armată
+    - trupe
+    - armă
+    - rachetă
+    - atac
+    - dronă
+    - artilerie
+    - linie de front
+    - ofensivă
+    - apărare
+    - luptă
+    - pierderi
+    - mobilizare
+    - recrutare
+    - blindat
+    - tanc
+    - bombardament
+    - ocupație
+    - invazie
+    - armistițiu
+    - menținerea păcii
+    - ajutor militar
+    - muniție
+    - apărare aeriană
+    - prizonier de război
+    - rezerviști
+    - rezervist
+    - exercițiu de mobilizare
+    - unitate militară
+    - poligon de tragere
+    - instruire militară
+    - apărare teritorială
+    - ministerul apărării naționale
+    - mapn
+    - pregătire pentru apărare
+    - apărare națională
+    - exercițiu militar
+    - soldați rezervă
+    - capacitate de apărare
+    - interoperabilitate
+    - forțe de rezervă
+    - armata româniei
+    - flancul estic
+    - statul major al apărării
+    - șef smap
+    - grup de luptă nato
+    - battle group
+    - artilerie caesar
+    - sisteme fără pilot
+    - comandă și control
+    - instruire întrunită
+    - instruire multinațională
+    - centru de instruire
+    - cincu
+    - getica
+    - dislocat
+    - dislocare
+    - capabilități militare
+    - foc real
+    - combaterea amenințărilor aeriene
+    - comandamentul corpului multinațional
+    - militari
+    - poligonul
+    - apărării
+    - forțelor
+    - aeriene
+    - aeronavă
+    - ruse
+    - atacuri
+    - drone
+    - aeronave
+    - radarele
+    - radar
+    - aeriană
+    - aerian
+    - alertare
+    - aliate
+    # Програма SAFE / модернізація / закупівлі
+    - programul safe
+    - program safe
+    - safe
+    - acțiunea pentru securitatea europei
+    - înzestrare
+    - înzestrarea armatei
+    - modernizare armată
+    - modernizarea armatei
+    - achiziții de apărare
+    - achiziții comune
+    - achiziții individuale
+    - industria națională de apărare
+    - industria de apărare
+    - capabilități de apărare aeriană
+    - sisteme moderne de apărare antiaeriană
+    - apărare antiaeriană
+    - tehnologii anti-dronă
+    - anti-dronă
+    - protejarea infrastructurii critice
+    - reziliența societății
+    - amenințări emergente
+    - context de securitate
+    - proiecte de înzestrare
+    - cooperare industrială
+    - cooperare tehnologică
+    - capacități defensive

@@ -1,0 +1,237 @@
+# Тема: economy_energy_sanctions
+# ВВП, санкції, торгівля, енергетика, бюджет — економіка регіону.
+
+meta:
+  id: 4
+  name: economy_sanctions
+  description: "ВВП, санкції, торгівля, енергетика, бюджет"
+
+keywords:
+  en:
+    - economy
+    - gdp
+    - inflation
+    - budget
+    - debt
+    - deficit
+    - investment
+    - trade
+    - export
+    - import
+    - market
+    - sanctions
+    - embargo
+    - tariff
+    - supply chain
+    - energy
+    - gas
+    - oil
+    - electricity
+    - nuclear power
+    - pipeline
+    - lng
+    - energy crisis
+    - energy security
+    - imf
+    - world bank
+    - eu funds
+    - reconstruction
+    - financial aid
+    - currency
+    - exchange rate
+    - recession
+    - unemployment
+    - wage
+    - subsidy
+    - via carpatia
+    - rail baltica
+    - three seas initiative
+    - food prices
+    - fuel price
+    - energy subsidy
+    - winter heating
+    - gas storage
+    - lng terminal
+    - nuclear expansion
+    - paks
+    - household energy
+    - energy poverty
+    - carbon tax
+    - cohesion policy
+    - structural funds
+    - recovery fund
+
+  hu:
+    - gazdaság
+    - gdp
+    - infláció
+    - költségvetés
+    - adósság
+    - hiány
+    - befektetés
+    - kereskedelem
+    - export
+    - import
+    - piac
+    - szankciók
+    - embargó
+    - vám
+    - ellátási lánc
+    - energia
+    - gáz
+    - olaj
+    - villamos energia
+    - atomerőmű
+    - csővezeték
+    - lng
+    - energiaválság
+    - energiabiztonság
+    - imf
+    - világbank
+    - uniós alapok
+    - újjáépítés
+    - pénzügyi segély
+    - valuta
+    - árfolyam
+    - recesszió
+    - munkanélküliség
+    - bér
+    - támogatás
+    - Paks2
+    - atomenergia bővítés
+    - rezsicsökkentés
+    - gázárak
+    - üzemanyagárak
+    - energiaszegénység
+    - téli fűtés
+    - gáztározás
+    - helyreállítási alap
+    - kohéziós politika
+    - strukturális alapok
+    - Via Carpatia
+    - uniós forrás
+    - uniós támogatás
+    - kohéziós források
+    - központi költségvetés
+    - költségvetési hiány
+    - hiánycél
+    - államháztartási hiány
+    - fedezet
+    - költségvetési fedezet
+    - büdzsé
+    - állami bevételek
+    - állami kiadások
+    - költségvetési törvény
+    - pénzügyminisztérium
+    - gazdasági növekedés
+    - fiskális politika
+    - költségvetési politika
+    - államadósság-kezelés
+    - megszorítás
+    - költségvetési módosítás
+    - újraszámolt költségvetés
+    - átadás-átvétel
+    - hitelminősítő
+    - leminősítés
+    - moody's
+    - fiskális hiány
+
+  sk:
+    - ekonomika
+    - hdp
+    - inflácia
+    - rozpočet
+    - dlh
+    - deficit
+    - investícia
+    - obchod
+    - export
+    - import
+    - trh
+    - sankcie
+    - embargo
+    - clo
+    - dodávateľský reťazec
+    - energia
+    - plyn
+    - ropa
+    - elektrina
+    - jadrová elektráreň
+    - plynovod
+    - lng
+    - energetická kríza
+    - energetická bezpečnosť
+    - mmf
+    - svetová banka
+    - fondy eú
+    - obnova
+    - finančná pomoc
+    - mena
+    - výmenný kurz
+    - recesia
+    - nezamestnanosť
+    - mzda
+    - dotácia
+    - jadrová energia
+    - ceny plynu
+    - ceny pohonných hmôt
+    - energetická chudoba
+    - zimné kúrenie
+    - zásobníky plynu
+    - fond obnovy
+    - kohézna politika
+    - gazprom
+    - spp
+    - slovenský plynárenský priemysel
+    - ropovod družba
+    - transnefť
+    - transpetrol
+    - dodávky plynu
+    - dodávky ropy
+    - dodávky energie
+
+  ro:
+    - economie
+    - pib
+    - inflație
+    - buget
+    - datorie
+    - deficit
+    - investiție
+    - comerț
+    - export
+    - import
+    - piață
+    - sancțiuni
+    - embargo
+    - tarif
+    - lanț de aprovizionare
+    - energie
+    - gaze
+    - petrol
+    - electricitate
+    - centrală nucleară
+    - conductă
+    - lng
+    - criză energetică
+    - securitate energetică
+    - fmi
+    - banca mondială
+    - fonduri ue
+    - reconstrucție
+    - ajutor financiar
+    - monedă
+    - curs de schimb
+    - recesiune
+    - șomaj
+    - salariu
+    - subvenție
+    - energie nucleară
+    - prețuri gaze
+    - prețuri combustibil
+    - sărăcie energetică
+    - încălzire iarnă
+    - depozite gaz
+    - fond de redresare
+    - politică de coeziune
+    - Via Carpatia

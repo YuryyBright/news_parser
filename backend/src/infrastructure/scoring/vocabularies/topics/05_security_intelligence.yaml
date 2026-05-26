@@ -1,0 +1,144 @@
+# Тема: security_intelligence_hybrid
+# Спецслужби, гібридна війна, шпигунство, тероризм, кібер
+
+meta:
+  id: 5
+  name: security_intelligence
+  description: "Спецслужби, гібридна війна, шпигунство, тероризм"
+
+keywords:
+  en:
+    - intelligence
+    - secret service
+    - counterintelligence
+    - hybrid war
+    - hybrid warfare
+    - espionage
+    - spy
+    - sabotage
+    - terrorism
+    - terrorist
+    - cyberattack
+    - critical infrastructure
+    - information warfare
+    - propaganda
+    - disinformation
+    - influence operation
+    - fsb
+    - gru
+    - cia
+    - counterterrorism
+    - surveillance
+    - wiretapping
+    - covert operation
+    - false flag
+    - asymmetric warfare
+    - russian agent
+    - foreign agent law
+    - ngo crackdown
+    - media capture
+    - state capture
+    - oligarch
+    - kleptocracy
+    - money laundering
+    - illicit finance
+    - dark money
+    - pegasus spyware
+    - phone surveillance
+    - signal intercept
+    - election interference
+    - voter manipulation
+
+  hu:
+    - hírszerzés
+    - titkosszolgálat
+    - kémelhárítás
+    - hibrid háború
+    - kémkedés
+    - kém
+    - szabotázs
+    - terrorizmus
+    - terrorista
+    - kibertámadás
+    - kritikus infrastruktúra
+    - információs hadviselés
+    - propaganda
+    - dezinformáció
+    - befolyásolási művelet
+    - elhárítás
+    - lehallgatás
+    - fedett művelet
+    - orosz ügynök
+    - külföldi ügynök törvény
+    - állami médiakapture
+    - oligarcha
+    - pénzmosás
+    - Pegasus kémprogram
+    - választási manipuláció
+    - médiabefolyásolás
+    - lőfegyver
+    - lőfegyverrel
+    - maroklőfegyvert
+    - fegyvereket
+
+  sk:
+    - spravodajstvo
+    - tajná služba
+    - kontrarozviedka
+    - hybridná vojna
+    - špionáž
+    - špión
+    - sabotáž
+    - terorizmus
+    - terrorist
+    - kybernetický útok
+    - kritická infraštruktúra
+    - informačná vojna
+    - propaganda
+    - dezinformácia
+    - vplyvová operácia
+    - protiteroristický
+    - odpočúvanie
+    - tajná operácia
+    - ruský agent
+    - zákon o zahraničných agentoch
+    - médiakaptura
+    - oligarcha
+    - pranie peňazí
+    - Pegasus spyware
+    - volebná manipulácia
+    - hybridné útoky
+    - extrémizmus
+    - obliali krvou
+    - fyzický útok na politika
+    - provokatívny čin
+    - útok na opozíciu
+    - ruská provokácia
+    - hybridná provokácia
+
+  ro:
+    - informații
+    - servicii secrete
+    - contrainformații
+    - război hibrid
+    - spionaj
+    - spion
+    - sabotaj
+    - terorism
+    - terorist
+    - atac cibernetic
+    - infrastructură critică
+    - război informațional
+    - propagandă
+    - dezinformare
+    - operațiune de influență
+    - contraterorism
+    - interceptare
+    - operațiune acoperită
+    - agent rus
+    - lege privind agenții străini
+    - captură media
+    - oligarh
+    - spălare de bani
+    - spyware Pegasus
+    - manipulare electorală

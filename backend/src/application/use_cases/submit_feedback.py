@@ -67,12 +67,13 @@ class SubmitFeedbackUseCase:
         feedback_repo: IFeedbackRepository,
         feed_repo: IFeedRepository,
         profile_learner: IProfileLearner | None = None,
+         corpus_manager=None,  
     ) -> None:
         self._articles        = article_repo
         self._feedback        = feedback_repo
         self._feed            = feed_repo
         self._profile_learner = profile_learner
-
+        self._corpus_manager  = corpus_manager  
     async def execute(self, cmd: SubmitFeedbackCommand) -> None:
         # ── 1. Стаття має існувати ────────────────────────────────────────────
         article = await self._articles.get(cmd.article_id)
@@ -135,12 +136,52 @@ class SubmitFeedbackUseCase:
                 "Profile update failed after feedback: user=%s article=%s liked=%s: %s",
                 cmd.user_id, cmd.article_id, cmd.liked, exc,
             )
+        # ── 5. DynamicCorpusManager — BM25 Рівень 3 (best-effort) ───────────
+        # submit_feedback.py — замінити крок 5 повністю
 
+        if self._corpus_manager is not None:
+            try:
+                content_text = _article_text(article)  # original text (HU/SK/RO)
+                
+                # Детектуємо мову з оригінального тексту, НЕ з article.language
+                # (article.language = мова перекладу = "uk")
+                original_lang = _detect_text_language(content_text)
+                
+                if original_lang not in {"en", "hu", "sk", "ro"}:
+                    logger.info(
+                        "BM25 corpus update skipped: lang=%s not in supported set, article=%s",
+                        original_lang, cmd.article_id,
+                    )
+                else:
+                    bucket = "positive" if cmd.liked else "negative"
+                    if existing and existing.liked != cmd.liked:
+                        old_bucket = "positive" if existing.liked else "negative"
+                        self._corpus_manager.remove_article_feedback(
+                            content_text, old_bucket, original_lang,
+                        )
+                    rebuilt = self._corpus_manager.add_article_feedback(
+                        article_id=str(cmd.article_id),
+                        text=content_text,
+                        bucket=bucket,
+                        language=original_lang,
+                    )
+                    if rebuilt:
+                        logger.info("BM25 corpus rebuilt: article=%s", cmd.article_id)
+            except Exception as exc:
+                logger.warning("DynamicCorpusManager update failed: article=%s: %s", cmd.article_id, exc)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
+def _detect_text_language(text: str) -> str:
+    """Детектує мову тексту через langdetect. Fallback → 'unknown'."""
+    if not text or len(text) < 30:
+        return "unknown"
+    try:
+        from langdetect import detect
+        return detect(text)
+    except Exception:
+        return "unknown"
 def _article_text(article) -> str:
     """Оригінальний текст для embedding — НЕ переклад."""
     # Пріоритет: original_* → fallback на перекладений

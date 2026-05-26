@@ -77,6 +77,7 @@ class Container:
         self._composite_scoring = None   # CompositeScoringService
         self._tagger = None              # EmbeddingTagger
         self._profile_learner = None     # ProfileLearner
+        self._corpus_manager = None      # CorpusManager
         self._translator = None          # Translator
         self._llm_client = None
         self._telegram_user_repo = None 
@@ -163,8 +164,8 @@ class Container:
         @asynccontextmanager
         async def feedback_factory():
             async with self.db_session() as session:
+                        # container.py → run_telegram_bot()
                 yield session, self.submit_feedback_uc(session)
-
         admin_ids: set[int] = set()
         if hasattr(cfg, "telegram") and hasattr(cfg.telegram, "admin_chat_id"):
             admin_ids = {cfg.telegram.admin_chat_id}
@@ -288,6 +289,8 @@ class Container:
         from src.infrastructure.scoring.composite_scoring_service import CompositeScoringService
         from src.infrastructure.scoring.profile_learner import ProfileLearner
         from src.infrastructure.vector_store.interest_profile_repo import InterestProfileRepository
+        from src.infrastructure.scoring.dynamic_corpus_manager import DynamicCorpusManager
+
         from src.config.settings import get_settings
 
         cfg = get_settings()
@@ -299,8 +302,11 @@ class Container:
             chroma_client = await self._get_chroma()
 
         profile_repo = InterestProfileRepository(client=chroma_client)
-
-        bm25_service = BM25ScoringService()
+        self._corpus_manager = DynamicCorpusManager(
+            db_path=getattr(cfg, "dynamic_corpus_db_path", "data/dynamic_corpus.db"),
+            rebuild_threshold=getattr(cfg, "dynamic_corpus_rebuild_threshold", 10),
+        )
+        bm25_service = BM25ScoringService(corpus_manager=self._corpus_manager)
 
         embed_service = EmbeddingsScoringService(
             embedder=embedder,
@@ -371,6 +377,8 @@ class Container:
         if self._llm_client is not None:          # ← додати
             await self._llm_client.close()        # ← OpenRouterClient має close()
         await self._engine.dispose()
+        if self._corpus_manager is not None:
+            self._corpus_manager.close()
         if self._chroma_client is not None:
             from src.infrastructure.vector_store.chroma_client import close_chroma
             await close_chroma()
@@ -559,7 +567,8 @@ class Container:
             article_repo=SqlAlchemyArticleRepository(session),
             feedback_repo=SqlAlchemyFeedbackRepository(session),
             feed_repo=SqlAlchemyFeedRepository(session),
-            profile_learner=self._profile_learner, 
+            profile_learner=self._profile_learner,
+            corpus_manager = self._corpus_manager,
         )
 
     def create_article_uc(self, session: AsyncSession):

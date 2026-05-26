@@ -52,11 +52,12 @@ from __future__ import annotations
 
 import logging
 
+from src.infrastructure.scoring.embeddings_scoring_service import COLD_START_SCORE
 from src.application.ports.scoring_service import IScoringService
 from src.domain.ingestion.value_objects import ParsedContent
 
 logger = logging.getLogger(__name__)
-
+_EMBED_COLD_START = 0.30
 
 class CompositeScoringService(IScoringService):
     """
@@ -92,33 +93,31 @@ class CompositeScoringService(IScoringService):
         assert bm25_weight > 0 and embed_weight > 0, "Weights must be positive"
 
     async def score(self, content: ParsedContent) -> float:
-        # ── Шар 0: Embedding fast-path ────────────────────────────────────────
-        # Якщо профіль вже впевнений — BM25 не потрібен.
-        embed_score = await self._embeddings.score(content)
+    # ── Шар 0: Embedding fast-path ────────────────────────────────────────
+      try:
+          embed_score = await self._embeddings.score(content)
+      except Exception as exc:
+          logger.warning("CompositeSC: embeddings.score failed, using BM25 only: %s", exc)
+          embed_score = COLD_START_SCORE  # 0.30 — не блокує BM25
 
-        if embed_score >= self._embed_confidence_threshold:
-            logger.info(
-                "CompositeSC: embed=%.3f >= confidence_threshold=%.2f → fast-path accept",
-                embed_score, self._embed_confidence_threshold,
-            )
-            return embed_score
+      if embed_score >= self._embed_confidence_threshold:
+          logger.info(
+              "CompositeSC: embed=%.3f >= confidence_threshold=%.2f → fast-path accept",
+              embed_score, self._embed_confidence_threshold,
+          )
+          return embed_score
 
-        # ── Шар 1: BM25 hard pre-filter ───────────────────────────────────────
-        bm25_score = await self._bm25.score(content)
+      # ── Шар 1 + 2: BM25 ──────────────────────────────────────────────────
+      try:
+          bm25_score = await self._bm25.score(content)
+      except Exception as exc:
+          logger.warning("CompositeSC: bm25.score failed: %s", exc)
+          bm25_score = 0.0
 
-        # if bm25_score < self._bm25_min_threshold:
-        #     logger.info(
-        #         "CompositeSC: BM25=%.3f < threshold=%.3f → early reject",
-        #         bm25_score, self._bm25_min_threshold,
-        #     )
-        #     return 0.0
+      weighted = self._bm25_weight * bm25_score + self._embed_weight * embed_score
 
-        # ── Шар 2: Зважений score ─────────────────────────────────────────────
-        weighted = self._bm25_weight * bm25_score + self._embed_weight * embed_score
-
-        logger.info(
-            "CompositeSC: BM25=%.3f embed=%.3f weighted=%.3f",
-            bm25_score, embed_score, weighted,
-        )
-
-        return min(weighted, 1.0)
+      logger.info(
+          "CompositeSC: BM25=%.3f embed=%.3f weighted=%.3f",
+          bm25_score, embed_score, weighted,
+      )
+      return min(weighted, 1.0)

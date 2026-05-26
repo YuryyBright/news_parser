@@ -1,0 +1,258 @@
+# Тема: politics_government
+# Вибори, уряд, президент, парламент, корупція — внутрішня політика.
+# Військові теми (зброя, системи) перенесені до cat 0.
+
+meta:
+  id: 1
+  name: politics_government
+  description: "Вибори, уряд, президент, парламент, корупція"
+
+keywords:
+  en:
+    - election
+    - vote
+    - ballot
+    - president
+    - prime minister
+    - parliament
+    - government
+    - minister
+    - party
+    - coalition
+    - opposition
+    - corruption
+    - scandal
+    - resignation
+    - reform
+    - legislation
+    - law
+    - decree
+    - veto
+    - referendum
+    - democracy
+    - authoritarianism
+    - rule of law
+    - judicial
+    - constitutional
+    - political crisis
+    - protest
+    - demonstration
+    - press freedom
+    - civil society
+
+  hu:
+    - választás
+    - szavazat
+    - elnök
+    - miniszterelnök
+    - parlament
+    - kormány
+    - miniszter
+    - párt
+    - koalíció
+    - ellenzék
+    - korrupció
+    - botrány
+    - lemondás
+    - reform
+    - jogszabály
+    - törvény
+    - rendelet
+    - vétó
+    - népszavazás
+    - demokrácia
+    - tekintélyelvűség
+    - jogállamiság
+    - bírói
+    - alkotmányos
+    - politikai válság
+    - tüntetés
+    - sajtószabadság
+    - mandátum
+    - mandátumok
+    - százalék
+    - eredmény
+    - választási eredmény
+    - feldolgozottság
+    - lista
+    - országos lista
+    - győzelem
+    - kétharmad
+    - többség
+    - fidesz
+    - tisza párt
+    - mi hazánk
+    - kormánypárt
+    - mandátumeloszlás
+    - parlamenti többség
+    - kormányalakítás
+    - frakció
+    - szuverenista
+    - békepárti
+    - háborúpárti
+    - nemzeti konzultáció
+    - rezsicsökkentés
+    - miniszterelnökkel
+    - miniszterelnökre
+    - külügyminiszter
+    - tiszás
+    - politikus
+    - Tisza
+    - Tisza Párt
+    - kormányfő
+    - államfő
+    - átmeneti kormány
+    - új kormány
+    - Tisza-kormány
+    # Kegyelmi ügy / Novák-botrány
+    - kegyelmi ügy
+    - kegyelmi döntés
+    - kegyelmi kérelem
+    - kegyelmet adott
+    - kegyelem megadása
+    - kegyelem megtagadása
+    - kegyelmi előterjesztés
+    - köztársasági elnök
+    - köztársasági elnöki
+    - elnöki kegyelem
+    - Sándor-palota
+    - sandor palota
+    - Novák Katalin
+    - novák katalin
+    - novak katalin
+    - Sulyok Tamás
+    - sulyok tamás
+    - Varga Judit
+    - varga judit
+    - igazságügyi miniszter
+    - igazságügyi minisztérium
+    - ellenjegyzés
+    - ellenjegyző
+    - parlamenti vizsgálóbizottság
+    - vizsgálóbizottság
+    - pedofil
+    - pedofília
+    - gyermekotthon
+    - bicskei gyermekotthon
+    - K. Endre
+    - kegyelmi botrány
+    - közzétette a dokumentumokat
+    - hivatalos iratok
+    - Alkotmányossági és Jogi Igazgatóság
+    - kabinetfőnök
+    - pápalátogatás
+    - pápai kegyelem
+    - közérdeklődés
+    - politikai botrány
+
+  sk:
+    - voľby
+    - hlasovanie
+    - prezident
+    - predseda vlády
+    - parlament
+    - vláda
+    - minister
+    - strana
+    - koalícia
+    - opozícia
+    - korupcia
+    - škandál
+    - demisia
+    - reforma
+    - zákon
+    - dekrét
+    - veto
+    - referendum
+    - demokracia
+    - autoritarizmus
+    - právny štát
+    - súdny
+    - ústavný
+    - politická kríza
+    - protest
+    - sloboda tlače
+    - percent
+    - výsledky volieb
+    - spracovanosť
+    - kandidátska listina
+    - parlamentná väčšina
+    - koaličná dohoda
+    - smer
+    - progresívne slovensko
+    - hlas
+    - republika
+    - kresťanskodemokratické
+    - opozičný líder
+    - zostavovanie vlády
+    - poslanecký klub
+    - dôvera vláde
+    - matovič
+    - igor matovič
+    - hnutie slovensko
+    - oľano
+    - poslanec
+    - poslanci
+    - národná rada
+    - nrsr
+    - parlamentná schôdza
+    - zákonodarca
+    - sas
+    - sloboda a solidarita
+    - branislav gröhling
+    - veronika remišová
+    - za ľudí
+    - uznesenie
+    - prenasledovanie opozície
+    - kaliňák
+    - kaliňáka
+    - politik
+    - politici
+    - demokratického
+    - demokratický
+    - šimečka
+    - michal šimečka
+    - demokrati
+    - richard sulík
+
+  ro:
+    - alegeri
+    - vot
+    - președinte
+    - prim-ministru
+    - parlament
+    - guvern
+    - ministru
+    - partid
+    - coaliție
+    - opoziție
+    - corupție
+    - scandal
+    - demisie
+    - reformă
+    - lege
+    - decret
+    - veto
+    - referendum
+    - democrație
+    - autoritarism
+    - statul de drept
+    - judiciar
+    - constituțional
+    - criză politică
+    - protest
+    - libertatea presei
+    - procent
+    - rezultate alegeri
+    - procesare voturi
+    - listă de candidați
+    - majoritate parlamentară
+    - acord de coaliție
+    - psd
+    - pnl
+    - usr
+    - aur
+    - formare guvern
+    - grup parlamentar
+    - moțiune de cenzură
+    - vot de încredere

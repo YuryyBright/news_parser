@@ -207,6 +207,8 @@ class SqlAlchemyFeedbackRepository(IFeedbackRepository):
                 created_at=feedback.created_at,
             ))
         await self._session.flush()
+        logger.info("Feedback flush OK: id=%s user=%s article=%s liked=%s",
+                    feedback.id, feedback.user_id, feedback.article_id, feedback.liked)
 
     async def update(self, entity: UserFeedback) -> None:
         await self.save(entity)
