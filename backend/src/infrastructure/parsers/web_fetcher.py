@@ -231,7 +231,11 @@ class WebPageFetcher(IFetcher):
             text = heading.get_text(strip=True)
             if text and len(text) > 10:
                 return text
-
+        title_container = block.find(class_=re.compile(r"title", re.I))
+        if title_container:
+            text = title_container.get_text(strip=True)
+            if text and len(text) > 10:
+                return text
         # 2. The link text itself — accept if it looks like a real title
         link_text = a_tag.get_text(strip=True)
         if link_text and len(link_text) > 10 and not re.fullmatch(r"[\d\s/.,:-]+", link_text):
@@ -249,7 +253,6 @@ class WebPageFetcher(IFetcher):
         """Try to find a publication date near an <a> tag."""
         block = self._block_ancestor(a_tag, max_levels=4)
 
-        # 1. <time datetime="...">
         time_tag = block.find("time")
         if time_tag:
             dt = self._parse_iso(time_tag.get("datetime", "").strip())
@@ -278,6 +281,21 @@ class WebPageFetcher(IFetcher):
                     dt = self._parse_iso(val) or self._parse_fuzzy_date(val)
                     if dt:
                         return dt
+
+        # Fallback для Content Views Pro (pt-cv-taxoterm span)
+        taxo = block.find(class_="pt-cv-taxoterm")
+        if taxo:
+            span = taxo.find("span")
+            if span:
+                dt = self._parse_fuzzy_date(span.get_text(strip=True))
+                if dt:
+                    return dt
+
+        # Загальний fallback — будь-який <span> з датою DD/MM/YYYY
+        for span in block.find_all("span"):
+            dt = self._parse_fuzzy_date(span.get_text(strip=True))
+            if dt:
+                return dt
 
         return None
 
