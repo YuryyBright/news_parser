@@ -64,7 +64,13 @@ class SqlAlchemyFeedRepository(IFeedRepository):
             )
         )
         read_article_ids.update(row[0] for row in past_read_result.all())
-
+        feedback_result = await self._session.execute(
+            select(UserFeedbackModel.article_id, UserFeedbackModel.liked)
+            .where(UserFeedbackModel.user_id == str(user_id))
+        )
+        feedback_map: dict[str, bool | None] = {
+            row[0]: row[1] for row in feedback_result.all()
+        }
         # 3. Основний запит — без підзапитів у SELECT, тільки JOIN
         items_result = await self._session.execute(
             select(FeedItemModel, ArticleModel)
@@ -90,6 +96,7 @@ class SqlAlchemyFeedRepository(IFeedRepository):
                     article_url=article.url or "",
                     article_published_at=getattr(article, "published_at", None),
                     tags=[t.name for t in (article.tags or [])],
+                    user_liked=feedback_map.get(item.article_id), 
                 )
             )
 

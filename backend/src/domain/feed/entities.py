@@ -29,6 +29,7 @@ class FeedItem(BaseEntity):
     article_url: str = ""
     article_published_at: datetime | None = None
     tags: list[str] = field(default_factory=list)
+    user_liked: bool | None = None  # True = liked, False = disliked, None = no feedback
 
     def mark_read(self) -> None:
         self.status = FeedItemStatus.READ

@@ -1,3 +1,14 @@
+"""
+infrastructure/scoring/dynamic_corpus_manager.py
+
+Зміни відносно попередньої версії:
+  - DynamicCorpusManager приймає опціональний llm_extractor: LLMKeywordExtractor
+  - add_article_feedback / remove_article_feedback тепер async
+    (бо LLM-екстракція асинхронна)
+  - Якщо llm_extractor=None — поведінка незмінна (sync fallback через
+    extract_keywords, але обгорнута в async для єдиного інтерфейсу)
+  - container.py треба оновити: corpus_manager.add_article_feedback → await
+"""
 from __future__ import annotations
 
 import logging
@@ -5,7 +16,10 @@ import math
 import sqlite3
 import time
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from src.infrastructure.scoring.feedback_keyword_store import LLMKeywordExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +45,18 @@ class DynamicCorpusManager:
     Rebuild тригер: кожні rebuild_threshold нових feedback-ів.
     Persistence: SQLite (tokens + feedback_log).
     Decay: exponential, λ=0.01/day → t½ ≈ 70 днів.
+
+    Args:
+        llm_extractor: LLMKeywordExtractor або None.
+                       Якщо передано — ключові слова витягуються через LLM.
+                       Якщо None — використовується TF-IDF fallback (стара поведінка).
     """
 
     def __init__(
         self,
         db_path: str = "data/dynamic_corpus.db",
         rebuild_threshold: int = REBUILD_THRESHOLD,
+        llm_extractor: "LLMKeywordExtractor | None" = None,
     ) -> None:
         from src.infrastructure.scoring.bm25_scoring_service import _TOPIC_CORPUS_RAW
 
@@ -44,12 +64,12 @@ class DynamicCorpusManager:
         self._db_path        = Path(db_path)
         self._threshold      = rebuild_threshold
         self._pending        = 0
+        self._llm_extractor  = llm_extractor   # ← новий параметр
 
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         self._init_db()
 
-        # Стартовий корпус: статичні + порожні dynamic кластери
         self._corpus: list[list[str]] = self._static_corpus + [[], []]
         self._bm25 = None
         self._rebuild_bm25()
@@ -77,7 +97,7 @@ class DynamicCorpusManager:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def add_article_feedback(
+    async def add_article_feedback(
         self,
         article_id: str,
         text: str,
@@ -86,11 +106,13 @@ class DynamicCorpusManager:
     ) -> bool:
         """
         Додає токени статті до bucket.
+
+        Якщо llm_extractor налаштований — ключові слова витягуються через LLM,
+        інакше — TF-IDF fallback (extract_keywords).
+
         Повертає True якщо тригернувся rebuild.
         """
-        from src.infrastructure.scoring.feedback_keyword_store import extract_keywords
-
-        keywords = extract_keywords(text, language, top_n=TOP_N_PER_ARTICLE)
+        keywords = await self._extract(text, language)
         now = time.time()
 
         for kw in keywords:
@@ -115,16 +137,14 @@ class DynamicCorpusManager:
             return True
         return False
 
-    def remove_article_feedback(
+    async def remove_article_feedback(
         self,
         text: str,
         bucket: Literal["positive", "negative"],
         language: str = "en",
     ) -> None:
         """Зменшує вагу токенів при зміні feedback."""
-        from src.infrastructure.scoring.feedback_keyword_store import extract_keywords
-
-        keywords = extract_keywords(text, language, top_n=TOP_N_PER_ARTICLE)
+        keywords = await self._extract(text, language)
         now = time.time()
         for kw in keywords:
             self._conn.execute("""
@@ -139,7 +159,6 @@ class DynamicCorpusManager:
         self._rebuild_bm25()
 
     def get_bm25(self):
-        """Повертає актуальний BM25Okapi."""
         return self._bm25
 
     def get_corpus(self) -> list[list[str]]:
@@ -150,7 +169,9 @@ class DynamicCorpusManager:
             "SELECT bucket, COUNT(*), AVG(weight) FROM tokens GROUP BY bucket"
         )
         rows = cur.fetchall()
+        mode = "llm" if self._llm_extractor is not None else "tfidf"
         return {
+            "extraction_mode": mode,
             "clusters": {
                 "user_interests":  len(self._corpus[CAT_USER_INTERESTS]),
                 "user_antitopics": len(self._corpus[CAT_USER_ANTITOPICS]),
@@ -163,13 +184,29 @@ class DynamicCorpusManager:
         }
 
     def close(self) -> None:
-        """Закрити SQLite з'єднання при shutdown."""
         try:
             self._conn.close()
         except Exception:
             pass
 
     # ── Internal ──────────────────────────────────────────────────────────────
+
+    async def _extract(self, text: str, language: str) -> list[str]:
+        """
+        Єдина точка екстракції ключових слів.
+
+        LLM якщо llm_extractor налаштований, інакше — TF-IDF.
+        """
+        if self._llm_extractor is not None:
+            return await self._llm_extractor.extract(
+                text=text,
+                language=language,
+                top_n=TOP_N_PER_ARTICLE,
+            )
+
+        # Sync fallback обгорнутий в async для єдиного інтерфейсу
+        from src.infrastructure.scoring.feedback_keyword_store import extract_keywords
+        return extract_keywords(text, language, top_n=TOP_N_PER_ARTICLE)
 
     def _decay_weight(self, weight: float, updated_at: float) -> float:
         days = (time.time() - updated_at) / 86400.0

@@ -135,7 +135,10 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
                   "pb-safe",
                 )}
               >
-                <FeedbackButtons articleId={article.id} />
+                <FeedbackButtons
+                  articleId={article.id}
+                  initialLiked={article.user_liked ?? null}
+                />
                 <a
                   href={article.url}
                   target="_blank"

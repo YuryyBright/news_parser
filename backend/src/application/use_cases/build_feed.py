@@ -215,6 +215,7 @@ class BuildFeedUseCase:
                     article_url=item.article_url,
                     article_relevance_score=item.score,
                     article_published_at=item.article_published_at,
+                    user_liked=item.user_liked,
                     tags=item.tags,
                 )
                 for item in snapshot.items

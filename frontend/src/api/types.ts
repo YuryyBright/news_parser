@@ -35,6 +35,7 @@ export interface Article {
   original_title: string | null;
   original_body: string | null;
   body: string | null;
+  user_liked?: boolean | null; // true = liked, false = disliked, null/undefined = no feedback
 }
 
 export interface ArticleDetail extends Article {
@@ -78,7 +79,8 @@ export interface FeedbackPayload {
 
 export interface FeedbackResponse {
   status: string;
-  liked: boolean;
+  action: "added" | "changed" | "removed";
+  liked: boolean | null; // null якщо оцінку скасовано
 }
 
 /** Статистика вподобань юзера */
@@ -86,6 +88,10 @@ export interface PreferencesStats {
   liked: number;
   disliked: number;
   expired: number;
+}
+export interface FeedbackStateResponse {
+  article_id: string;
+  liked: boolean | null; // null = не оцінено
 }
 
 // ── Feed ──────────────────────────────────────────────────────────────────────
@@ -103,6 +109,7 @@ export interface FeedArticle {
   original_title: string | null;
   original_body: string | null;
   tags: string[];
+  user_liked: boolean | null; // ← додати
 }
 export interface FeedPageResponse {
   snapshot_id: string;

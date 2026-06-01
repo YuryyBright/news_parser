@@ -15,6 +15,7 @@ class FeedArticleResponse(BaseModel):
     language: str
     url: str
     relevance_score: float
+    user_liked: bool | None = None   # ← додати
     published_at: datetime | None
 
 

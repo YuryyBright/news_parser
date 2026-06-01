@@ -180,23 +180,26 @@ class Container:
             admin_ids=admin_ids,
         )
     async def init_async(self) -> None:
-        # WAL mode для SQLite (no-op на PostgreSQL)
         try:
             async with self._engine.begin() as conn:
                 await conn.execute(text("PRAGMA journal_mode=WAL"))
                 await conn.execute(text("PRAGMA busy_timeout=30000"))
             logger.info("SQLite WAL mode enabled")
         except Exception:
-            pass  # не SQLite — ігноруємо
+            pass
 
         chroma = await self._get_chroma()
         await self._init_telegram()
-        await self._init_scoring_pipeline(chroma)
+        await self._init_scoring_pipeline(chroma)   # corpus_manager без llm
         await self._init_translator()
-        await self._init_content_fetcher() 
-        await self._init_llm_client()
+        await self._init_content_fetcher()
+        await self._init_llm_client()               # llm_client готовий
+        self._attach_llm_to_corpus_manager()        # ← NEW: підключаємо LLM
         await self._init_llm_rewriter()
         await self._init_controls()
+
+
+
 
 
         
@@ -290,6 +293,7 @@ class Container:
         from src.infrastructure.scoring.profile_learner import ProfileLearner
         from src.infrastructure.vector_store.interest_profile_repo import InterestProfileRepository
         from src.infrastructure.scoring.dynamic_corpus_manager import DynamicCorpusManager
+        from src.infrastructure.scoring.feedback_keyword_store import LLMKeywordExtractor
 
         from src.config.settings import get_settings
 
@@ -305,7 +309,9 @@ class Container:
         self._corpus_manager = DynamicCorpusManager(
             db_path=getattr(cfg, "dynamic_corpus_db_path", "data/dynamic_corpus.db"),
             rebuild_threshold=getattr(cfg, "dynamic_corpus_rebuild_threshold", 10),
+            llm_extractor=None,   # буде підставлено в _attach_llm_to_corpus_manager()
         )
+
         bm25_service = BM25ScoringService(corpus_manager=self._corpus_manager)
 
         embed_service = EmbeddingsScoringService(
@@ -341,6 +347,35 @@ class Container:
                 "Scoring pipeline not initialized. "
                 "Ensure `await container.init_async()` is called in lifespan before serving requests."
             )
+    def _attach_llm_to_corpus_manager(self) -> None:
+        """
+        Підключає LLMKeywordExtractor до DynamicCorpusManager після того,
+        як llm_client вже ініціалізований.
+ 
+        Викликати з init_async() після _init_llm_client().
+        """
+        if self._corpus_manager is None:
+            return
+        if self._llm_client is None:
+            logger.info(
+                "DynamicCorpusManager: no LLM client available, "
+                "keyword extraction will use TF-IDF fallback."
+            )
+            return
+ 
+        from src.infrastructure.scoring.feedback_keyword_store import LLMKeywordExtractor
+ 
+        extractor = LLMKeywordExtractor(
+            llm_client=self._llm_client,
+            max_tokens=256,
+            fallback_on_error=True,   # TF-IDF якщо LLM недоступний
+        )
+        self._corpus_manager._llm_extractor = extractor
+        logger.info(
+            "DynamicCorpusManager: LLMKeywordExtractor attached "
+            "(model=%s, fallback=TF-IDF)",
+            getattr(self._llm_client, "_model", "unknown"),
+        )
 
     # ── DB Session ────────────────────────────────────────────────────────────
 

@@ -3,22 +3,26 @@
 ProcessArticlesUseCase — обробляє pending RawArticle → Article.
 
 Pipeline для кожної статті:
-  1. Detect language           (через ILanguageDetector порт)
-  2. Встановлюємо content.language перед scoring
+  1. Fetch full text              (trafilatura / IArticleContentFetcher)
+     → raw.content.body оновлюється одразу, до dedup і scoring
+  2. Detect language              (через ILanguageDetector порт)
+  3. Встановлюємо content.language перед scoring
      → BM25 і GeoFilter бачать мову для geo-penalty
-  3. Score relevance           (через IScoringService порт)
+  4. Score relevance              (через IScoringService порт)
      - CompositeScoringService: BM25+geo pre-filter + Embeddings + geo final
-  4. Dedup check               (через DeduplicateRawArticleUseCase — MinHash + exact)
+     - Рахується по ПОВНОМУ витягнутому тексту
+  5. Dedup check                  (через DeduplicateRawArticleUseCase — MinHash + exact)
      - Exact duplicate (sha256): відкидаємо одразу
      - Near-duplicate (MinHash Jaccard): відкидаємо якщо similarity >= threshold
      - Унікальний: зберігаємо підпис для майбутніх перевірок
-  5. Reject якщо score нижче threshold
-  6. Build Article aggregate
-  7. Auto-tag якщо accepted    (через ITagger порт → EmbeddingTagger gap-based)
-  8. Save Article + mark RawArticle processed
-  9. Implicit feedback: якщо accepted → зберегти вектор у профіль
- 10. Telegram notify:
-       - fetch повного тексту (trafilatura)
+     - Перевіряється по ПОВНОМУ витягнутому тексту (до перекладу)
+  6. Reject якщо score нижче threshold
+  7. Переклад тільки перших TRANSLATE_MAX_CHARS символів body (економія токенів)
+  8. Build Article aggregate
+  9. Auto-tag якщо accepted       (через ITagger порт → EmbeddingTagger gap-based)
+ 10. Save Article + mark RawArticle processed
+ 11. Implicit feedback: якщо accepted → зберегти вектор у профіль
+ 12. Telegram notify:
        - RAG топ-5 схожих для стилістичного контексту
        - LLM-рерайт в стилі попередніх публікацій
        - відправка підписникам
@@ -54,6 +58,11 @@ logger = logging.getLogger(__name__)
 
 _BATCH_SIZE = 100
 MIN_TEXT_LENGTH = 500
+
+# Максимальна кількість символів body, які передаються в перекладач.
+# Повний витягнутий текст зберігається в original_body та використовується
+# для dedup, scoring і Telegram-нотифікацій — обрізається тільки переклад.
+TRANSLATE_MAX_CHARS = 3_000
 
 # ─── Порт для implicit feedback ──────────────────────────────────────────────
 
@@ -165,7 +174,7 @@ class ProcessArticlesUseCase:
         return result
 
     async def _run_one(self, raw: RawArticle) -> str:
-        """Повертає 'accepted' | 'rejected' | 'dedup'."""
+        """Повертає 'accepted' | 'rejected' | 'dedup' | 'skipped'."""
         async with self._session_factory() as session:
             async with session.begin():
                 return await self._process_one(session, raw)
@@ -178,39 +187,46 @@ class ProcessArticlesUseCase:
             await raw_repo.mark_processed(raw.id)
             return "skipped"
 
-        # ── Зберігаємо оригінал до будь-яких змін ────────────────────────
+        # ── 1. Зберігаємо оригінальний title ─────────────────────────────
+        # (body буде перезаписано після fetch — зберігаємо ПІСЛЯ кроку fetch)
         original_title = raw.content.title
-        original_body  = raw.content.body
 
-        # ── 1. Detect language ────────────────────────────────────────────
+        # ── 2. Fetch full text — ПЕРШИЙ крок, до dedup і scoring ─────────
+        # Якщо RSS-тіло коротке — витягуємо повний текст зі сторінки.
+        # raw.content.body оновлюється на місці, тому всі подальші кроки
+        # (dedup, scoring, translate) працюють з одним і тим самим текстом.
+        rss_body = raw.content.body or ""
+        if len(raw.content.full_text()) < MIN_TEXT_LENGTH:
+            fetched_text = await self._fetch_raw_full_text(raw.content.url, rss_body)
+            if fetched_text and fetched_text != rss_body:
+                _set_attr(raw.content, "body", fetched_text)
+                logger.debug(
+                    "Full text fetched before dedup/scoring: url=%s rss_chars=%d fetched_chars=%d",
+                    raw.content.url, len(rss_body), len(fetched_text),
+                )
+
+        # ── 3. Зберігаємо original_body ПІСЛЯ fetch, ДО перекладу ────────
+        original_body = raw.content.body
+
+        # ── 4. Detect language ────────────────────────────────────────────
         language = await self._detect_language(raw)
+        _inject_language(raw.content, language)
 
-        # ── 1.5. Fetch full text ──────────────────────────────────────────
-        rss_full_text = raw.content.full_text()
-        if len(rss_full_text) < MIN_TEXT_LENGTH:
-            fetched_text = await self._fetch_raw_full_text(raw.content.url, rss_full_text)
-            if fetched_text != rss_full_text:
-                try:
-                    raw.content.body = fetched_text
-                except (AttributeError, TypeError):
-                    object.__setattr__(raw.content, "body", fetched_text)
-
-        # ── 2. Dedup по оригінальному тексту (до translate) ──────────────
-        dedup_body = raw.content.body
+        # ── 5. Dedup по витягнутому тексту (до translate) ─────────────────
         dedup_uc = self._dedup_uc_factory(session) if self._dedup_uc_factory else None
-        is_dup, dup_reason = await self._check_dedup(
+        is_dup, _dup_reason = await self._check_dedup(
             raw, article_repo, raw_repo, dedup_uc,
             original_title=original_title,
-            original_body=dedup_body,
+            original_body=original_body,   # ← повний витягнутий текст
         )
         if is_dup:
             await raw_repo.mark_processed(raw.id)
             return "dedup"
-        # ── 3. Score по оригінальному тексту (до перекладу) ──────────────
-        _inject_language(raw.content, language)
+
+        # ── 6. Score по витягнутому тексту (до перекладу) ─────────────────
         relevance_score = await self._score(raw)
 
-        # ── 4. Reject якщо score нижче threshold ─────────────────────────
+        # ── 7. Reject якщо score нижче threshold ──────────────────────────
         if relevance_score < self._threshold:
             await raw_repo.mark_processed(raw.id)
             logger.info(
@@ -219,18 +235,19 @@ class ProcessArticlesUseCase:
             )
             return "rejected"
 
-        # ── 5. Переклад тільки для прийнятих статей ──────────────────────
+        # ── 8. Переклад тільки для прийнятих статей ───────────────────────
+        # Перекладається тільки перші TRANSLATE_MAX_CHARS символів body —
+        # решта відкидається для економії токенів перекладача.
+        # original_body (повний витягнутий текст) зберігається незміненим.
         if self._translator is not None:
             language = await self._translate_content(raw, language)
+            _inject_language(raw.content, language)
 
-        original_full_text = raw.content.full_text()  # після fetch+translate
-        _inject_language(raw.content, language)  # після translate може змінитись
-
-        # ── 6. Тегування по перекладеному тексту ─────────────────────────
+        # ── 9. Тегування по перекладеному (або оригінальному) тексту ──────
         translated_full_text = raw.content.full_text()
         tag_names = self._tagger.tag(translated_full_text)
 
-        # ── 7. Прийняти і зберегти ────────────────────────────────────────────────
+        # ── 10. Прийняти і зберегти ───────────────────────────────────────
         article = _build_article(raw, language, original_title, original_body)
         article.accept(relevance_score)
 
@@ -261,19 +278,19 @@ class ProcessArticlesUseCase:
             raw.id, article.id, language, relevance_score, tag_names,
         )
 
-        # ── 8. Implicit feedback: зберігаємо вектор у профіль ────────────────
+        # ── 11. Implicit feedback: зберігаємо вектор у профіль ───────────
         if self._profile_learner is not None and relevance_score >= 0.85:
             try:
                 await self._profile_learner.add_to_profile(
                     article_id=article.id,
-                    content_text=original_full_text,
+                    content_text=original_body,   # ← повний витягнутий текст
                     score=relevance_score,
                     tags=tag_names,
                 )
             except Exception as exc:
                 logger.warning("ProfileLearner failed for article=%s: %s", article.id, exc)
 
-        # ── 9. Telegram notify ────────────────────────────────────────────────
+        # ── 12. Telegram notify ───────────────────────────────────────────
         if self._telegram_notifier is None:
             logger.debug("Telegram notifier not set, skipping notify")
             return "accepted"
@@ -281,37 +298,39 @@ class ProcessArticlesUseCase:
         if relevance_score >= self._telegram_threshold:
             await self._notify_telegram(
                 article=article,
-                original_full_text=original_full_text,
+                original_full_text=original_body,   # ← повний витягнутий текст
                 relevance_score=relevance_score,
                 tag_names=tag_names,
                 language=language,
-                published_at=article.published_at.value if article.published_at else None,  # ← додати
+                published_at=article.published_at.value if article.published_at else None,
             )
 
         return "accepted"
 
-    # ─── Telegram pipeline ────────────────────────────────────────────────────
+    # ─── Fetch helpers ────────────────────────────────────────────────────────
+
     async def _fetch_raw_full_text(self, url: str, fallback: str) -> str:
+        """
+        Витягує повний текст статті перед dedup/scoring.
+        Повертає fallback якщо fetcher недоступний або повернув пусто.
+        """
         if self._content_fetcher is None:
             return fallback
 
-        # WebPageFetcher вже витягнув повний текст під час інгесту —
-        # якщо body вже достатньо довге, не ходимо ще раз
         if len(fallback) >= MIN_TEXT_LENGTH:
             return fallback
 
         try:
             fetched = await self._content_fetcher.fetch_full_text(url)
             if fetched and len(fetched) > 200:
-                logger.debug(
-                    "Pre-scoring full text fetched: url=%s chars=%d (rss=%d)",
-                    url, len(fetched), len(fallback),
-                )
                 return fetched
         except Exception as exc:
-            logger.warning("Pre-scoring ContentFetcher failed for url=%s: %s", url, exc)
+            logger.warning("ContentFetcher failed for url=%s: %s", url, exc)
 
         return fallback
+
+    # ─── Telegram pipeline ────────────────────────────────────────────────────
+
     async def _build_similar_articles_context(self, full_text: str) -> str:
         """
         Шукає топ-5 схожих вже збережених Article через chunk_repo
@@ -325,7 +344,7 @@ class ProcessArticlesUseCase:
             from src.infrastructure.ml.embedder import Embedder
 
             embedder = Embedder.instance()
-            query_vec = embedder.encode_query(full_text)   # encode_query, як у verify_uc
+            query_vec = embedder.encode_query(full_text)
             similar = await self._chunk_repo.query_similar(query_vec, n_results=5)
 
             if not similar:
@@ -350,7 +369,6 @@ class ProcessArticlesUseCase:
             logger.warning("_build_similar_articles_context failed: %s", exc)
             return ""
 
-
     async def _notify_telegram(
         self,
         article: Article,
@@ -362,21 +380,18 @@ class ProcessArticlesUseCase:
     ) -> None:
         """
         Повний Telegram pipeline:
-        1. Fetch full text (trafilatura) — fallback на RSS текст
-        2. RAG топ-5 docx-чанків для стилістичного еталону
-        3. Топ-5 схожих збережених статей (як у verify) — додатковий контекст
-        4. LLM-рерайт з об'єднаним контекстом
-        5. Відправка підписникам
+        1. RAG топ-5 docx-чанків для стилістичного еталону
+        2. Топ-5 схожих збережених статей (як у verify) — додатковий контекст
+        3. LLM-рерайт з об'єднаним контекстом
+        4. Відправка підписникам
         """
         full_text = original_full_text
 
-        # ── 2. Стилістичний контекст з docx-чанків (RAG) ─────────────────────
+        # ── 1. Стилістичний контекст з docx-чанків (RAG) ─────────────────────
         style_context = await self._build_style_context(full_text)
 
-        # ── 3. Схожі збережені статті (verify-підхід) ────────────────────────
+        # ── 2. Схожі збережені статті (verify-підхід) ────────────────────────
         similar_articles_context = await self._build_similar_articles_context(full_text)
-
-
 
         # Об'єднуємо: docx-еталони йдуть першими, схожі статті — після
         combined_context = style_context
@@ -388,7 +403,7 @@ class ProcessArticlesUseCase:
                 else similar_articles_context
             )
 
-        # ── 4. LLM-рерайт ────────────────────────────────────────────────────
+        # ── 3. LLM-рерайт ────────────────────────────────────────────────────
         rewritten = await self._rewrite_for_telegram(
             title=article.title or "",
             full_text=full_text,
@@ -397,7 +412,7 @@ class ProcessArticlesUseCase:
             published_at=published_at,
         )
 
-        # ── 5. Відправка ──────────────────────────────────────────────────────
+        # ── 4. Відправка ──────────────────────────────────────────────────────
         try:
             notification = ArticleNotification(
                 id=article.id,
@@ -415,32 +430,10 @@ class ProcessArticlesUseCase:
             await self._telegram_notifier.notify_all(notification)
         except Exception as exc:
             logger.warning("TelegramNotifier failed for article=%s: %s", article.id, exc)
-    async def _fetch_full_text(self, url: str, fallback: str) -> str:
-        """
-        Завантажує повний текст статті через trafilatura.
-        Повертає fallback (RSS текст) якщо fetcher недоступний або повернув пусто.
-        """
-        if self._content_fetcher is None:
-            return fallback
-
-        try:
-            fetched = await self._content_fetcher.fetch_full_text(url)
-            if fetched and len(fetched) > len(fallback):
-                logger.debug(
-                    "Full text fetched: url=%s chars=%d (rss=%d)",
-                    url, len(fetched), len(fallback),
-                )
-                return fetched
-        except Exception as exc:
-            logger.warning("ContentFetcher failed for url=%s: %s", url, exc)
-
-        return fallback
 
     async def _build_style_context(self, full_text: str) -> str:
         """
         Шукає топ-5 найрелевантніших чанків з RAG для стилістичного контексту.
-        Використовує той самий Embedder.instance() що і scoring pipeline.
-        Повертає порожній рядок якщо chunk_repo не налаштовано.
         """
         if self._chunk_repo is None or not full_text:
             return ""
@@ -463,7 +456,7 @@ class ProcessArticlesUseCase:
             return ""
 
     async def _rewrite_for_telegram(
-    self,
+        self,
         title: str,
         full_text: str,
         url: str,
@@ -488,9 +481,6 @@ class ProcessArticlesUseCase:
 
         Використовується після IntegrityError у _process_one,
         коли поточна транзакція вже закрита SQLAlchemy після rollback.
-
-        Якщо і це впаде — логуємо warning але не пробрасуємо виняток,
-        бо стаття вже оброблена (race condition dedup).
         """
         try:
             async with self._session_factory() as new_session:
@@ -516,10 +506,10 @@ class ProcessArticlesUseCase:
         return await self._check_dedup_primitive(raw, article_repo, raw_repo)
 
     async def _check_dedup_minhash(
-        self, 
-        raw, 
+        self,
+        raw,
         dedup_uc,
-        original_title=None, 
+        original_title=None,
         original_body=None,
     ) -> tuple[bool, str | None]:
         """MinHash деduplication через DeduplicateRawArticleUseCase."""
@@ -592,30 +582,31 @@ class ProcessArticlesUseCase:
             return 0.0
 
     async def _translate_content(self, raw: RawArticle, language: str) -> str:
+        """
+        Перекладає title повністю і перші TRANSLATE_MAX_CHARS символів body.
+        Повний оригінальний текст зберігається в original_body (поза цим методом).
+        """
         if not self._translator.should_translate(language, self._target_language):
             return language
 
         try:
+            # Обрізаємо body до TRANSLATE_MAX_CHARS для економії токенів.
+            # Для scoring і dedup body вже використано повністю на попередніх кроках.
+            body_to_translate = (raw.content.body or "")[:TRANSLATE_MAX_CHARS]
+
             title_result = await self._translator.translate(
                 raw.content.title or "",
                 target_language=self._target_language,
                 source_language=language if language != "unknown" else None,
             )
             body_result = await self._translator.translate(
-                raw.content.body or "",
+                body_to_translate,
                 target_language=self._target_language,
                 source_language=language if language != "unknown" else None,
             )
 
-            try:
-                raw.content.title = title_result.text
-            except (AttributeError, TypeError):
-                object.__setattr__(raw.content, "title", title_result.text)
-
-            try:
-                raw.content.body = body_result.text
-            except (AttributeError, TypeError):
-                object.__setattr__(raw.content, "body", body_result.text)
+            _set_attr(raw.content, "title", title_result.text)
+            _set_attr(raw.content, "body", body_result.text)
 
             resolved_language = language
             if language == "unknown" and body_result.detected_language:
@@ -623,8 +614,9 @@ class ProcessArticlesUseCase:
                 _inject_language(raw.content, resolved_language)
 
             logger.info(
-                "Translated: url=%s lang=%s→%s",
+                "Translated: url=%s lang=%s→%s body_chars=%d (original=%d)",
                 raw.content.url, language, self._target_language,
+                len(body_to_translate), len(raw.content.body or ""),
             )
             return resolved_language
 
@@ -635,23 +627,29 @@ class ProcessArticlesUseCase:
 
 # ─── Module-level helpers ─────────────────────────────────────────────────────
 
+def _set_attr(obj, name: str, value) -> None:
+    """Встановлює атрибут об'єкта, обходячи frozen dataclass/VO якщо потрібно."""
+    try:
+        setattr(obj, name, value)
+    except (AttributeError, TypeError):
+        object.__setattr__(obj, name, value)
+
+
 def _inject_language(content, language: str) -> None:
     try:
         existing = getattr(content, "language", None)
         if not existing:
-            try:
-                content.language = language
-            except (AttributeError, TypeError):
-                object.__setattr__(content, "language", language)
+            _set_attr(content, "language", language)
     except Exception as exc:
         logger.debug("Could not inject language into content: %s", exc)
+
 
 def _is_too_old(raw: RawArticle, max_age_days: int = 7) -> bool:
     """Повертає True якщо стаття старіша за max_age_days."""
     published_at = getattr(raw.content, "published_at", None)
     if not published_at:
-        return False  # невідома дата — пропускаємо далі
-    
+        return False
+
     from datetime import datetime, timezone, timedelta
     if isinstance(published_at, str):
         try:
@@ -659,11 +657,13 @@ def _is_too_old(raw: RawArticle, max_age_days: int = 7) -> bool:
             published_at = parse(published_at)
         except Exception:
             return False
-    
+
     if published_at.tzinfo is None:
         published_at = published_at.replace(tzinfo=timezone.utc)
-    
+
     return datetime.now(timezone.utc) - published_at > timedelta(days=max_age_days)
+
+
 def _build_article(
     raw: RawArticle,
     language: str,

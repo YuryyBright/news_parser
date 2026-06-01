@@ -12,9 +12,9 @@ interface Props {
   article: Article;
   onClick?: () => void;
   isRead?: boolean;
-  /** "card" — grid-картка (default), "feed" — рядок стрічки */
   variant?: "card" | "feed";
   onMarkRead?: (e: React.MouseEvent) => void;
+  userLiked?: boolean | null; // ← додати
 }
 
 const FlagImg = ({ lang, className }: { lang: string; className?: string }) => {
@@ -35,6 +35,7 @@ export const ArticleCard = ({
   isRead,
   variant = "card",
   onMarkRead,
+  userLiked = null,
 }: Props) => {
   if (variant === "feed") {
     return (
@@ -108,7 +109,11 @@ export const ArticleCard = ({
         >
           {/* Feedback — при hover на md+ або завжди на touch */}
           <div className="hidden sm:flex opacity-0 group-hover:opacity-100 transition-opacity items-center gap-0.5">
-            <FeedbackButtons articleId={article.article_id} compact />
+            <FeedbackButtons
+              articleId={article.article_id ?? article.id}
+              initialLiked={userLiked}
+              compact
+            />
           </div>
 
           {!isRead && onMarkRead && (
@@ -197,7 +202,11 @@ export const ArticleCard = ({
           className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
         >
-          <FeedbackButtons articleId={article.id} compact />
+          <FeedbackButtons
+            articleId={article.id}
+            initialLiked={userLiked}
+            compact
+          />
           <a
             href={article.url}
             target="_blank"

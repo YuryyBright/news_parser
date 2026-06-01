@@ -8,8 +8,8 @@ import type {
   UpdateArticlePayload,
   FeedbackPayload,
   FeedbackResponse,
+  FeedbackStateResponse,
 } from "./types";
-
 export interface ArticleListResponse {
   items: Article[];
   total: number;
@@ -61,6 +61,27 @@ export const articlesApi = {
     });
     return data;
   },
+  getFeedback: async (
+    articleId: string,
+    userId: string,
+  ): Promise<FeedbackStateResponse> => {
+    const res = await client.get<FeedbackStateResponse>(
+      `/articles/${articleId}/feedback`,
+      { params: { user_id: userId } },
+    );
+    return res.data;
+  },
+
+  feedback: async (
+    id: string,
+    payload: FeedbackPayload,
+  ): Promise<FeedbackResponse> => {
+    const res = await client.post<FeedbackResponse>(
+      `/articles/${id}/feedback`,
+      payload,
+    );
+    return res.data;
+  },
 
   ingestUrl: async (payload: IngestUrlPayload): Promise<IngestUrlResponse> => {
     const { data } = await client.post("/articles/ingest-url", payload);
@@ -98,13 +119,5 @@ export const articlesApi = {
 
   expire: async (id: string): Promise<void> => {
     await client.post(`/articles/${id}/expire`);
-  },
-
-  feedback: async (
-    id: string,
-    payload: FeedbackPayload,
-  ): Promise<FeedbackResponse> => {
-    const { data } = await client.post(`/articles/${id}/feedback`, payload);
-    return data;
   },
 };

@@ -140,11 +140,17 @@ def create_app() -> FastAPI:
             CORSMiddleware,
             allow_origins=[
             "http://localhost",
+            "http://localhost:80",
             "http://localhost:5173",
             "http://127.0.0.1",
             "http://127.0.0.1:80",
             "http://192.168.0.199",
             "http://192.168.0.199:80",
+            "http://192.168.0.199:8001",
+            "http://100.80.143.4",
+            "http://100.80.143.4:80",
+            "http://10.8.0.3",
+            "http://10.8.0.3:80",
         ],
         allow_credentials=True,
         allow_methods=["*"], # Дозволяє всі методи (GET, POST, PUT, DELETE тощо)

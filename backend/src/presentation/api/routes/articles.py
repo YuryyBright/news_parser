@@ -53,6 +53,7 @@ from src.presentation.api.schemas.article import (
     ArticleResponse,
     ArticleUpdateRequest,
     FeedbackCreateRequest,
+    FeedbackStateResponse,
     FeedbackResponse,
     TagsAddRequest,
     TagsResponse,
@@ -366,17 +367,41 @@ async def expire_article(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
 
 
+@router.get(
+    "/{article_id}/feedback",
+    response_model=FeedbackStateResponse,
+    summary="Поточна оцінка статті від юзера",
+)
+async def get_feedback(
+    article_id: UUID,
+    user_id: UUID = Query(...),
+    container: Container = Depends(get_container),
+) -> FeedbackStateResponse:
+    async with container.db_session() as session:
+        from src.infrastructure.persistence.repositories.feed_repo import SqlAlchemyFeedbackRepository
+        repo = SqlAlchemyFeedbackRepository(session)
+        existing = await repo.get_by_user_article(user_id, article_id)
+    return FeedbackStateResponse(
+        article_id=article_id,
+        liked=existing.liked if existing else None,
+    )
+ 
+ 
 @router.post(
     "/{article_id}/feedback",
     response_model=FeedbackResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Лайк / дизлайк статті",
+    status_code=status.HTTP_200_OK,   # 200 замість 201 — може бути toggle/delete
+    summary="Лайк / дизлайк / скасування оцінки",
 )
 async def submit_feedback(
     article_id: UUID,
     payload: FeedbackCreateRequest,
     container: Container = Depends(get_container),
 ) -> FeedbackResponse:
+    """
+    Повторний POST з тим самим liked = скасування оцінки.
+    Відповідь: action="removed", liked=null
+    """
     cmd = SubmitFeedbackCommand(
         user_id=payload.user_id,
         article_id=article_id,
@@ -384,10 +409,17 @@ async def submit_feedback(
     )
     try:
         async with container.db_session() as session:
-            await container.submit_feedback_uc(session).execute(cmd)
+            result = await container.submit_feedback_uc(session).execute(cmd)
     except ArticleNotFound:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Article not found")
-    return FeedbackResponse(status="ok", liked=payload.liked)
+ 
+    return FeedbackResponse(
+        status="ok",
+        action=result["action"],
+        liked=result["liked"],
+    )
+ 
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

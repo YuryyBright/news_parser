@@ -19,6 +19,7 @@ class FeedItemView:
     article_relevance_score: float
     article_published_at: datetime | None
     tags: list[str]
+    user_liked: bool | None = None
 
 @dataclass(frozen=True)
 class FeedSnapshotView:

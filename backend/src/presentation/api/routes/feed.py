@@ -100,6 +100,7 @@ async def mark_read(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _feed_item_to_response(item: FeedItemView) -> FeedArticleResponse:
+
     return FeedArticleResponse(
         article_id=item.article_id,
         rank=item.rank,
@@ -108,6 +109,7 @@ def _feed_item_to_response(item: FeedItemView) -> FeedArticleResponse:
         title=item.article_title,
         language=item.language,
         url=item.article_url,
+        user_liked=item.user_liked,
         relevance_score=item.article_relevance_score,
         published_at=item.article_published_at,
         tags=item.tags,  

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { articlesApi } from "../api/articles";
 import type { ArticleFilter } from "../api/types";
+import { UserID } from "../api/types";
 
 // ── Keys ──────────────────────────────────────────────────────────────────────
 
@@ -13,6 +14,7 @@ export const articleKeys = {
   search: (q: string, params?: object) =>
     [...articleKeys.all, "search", q, params] as const,
   detail: (id: string) => [...articleKeys.all, "detail", id] as const,
+  feedback: (id: string) => [...articleKeys.all, "feedback", id] as const,
 };
 
 // ── LIST with pagination ──────────────────────────────────────────────────────
@@ -51,23 +53,64 @@ export const useArticle = (id: string | null) => {
   });
 };
 
-// ── FEEDBACK ──────────────────────────────────────────────────────────────────
+// ── FEEDBACK STATE ────────────────────────────────────────────────────────────
+
+/**
+ * Поточна оцінка статті від юзера.
+ * true = лайк, false = дизлайк, null = не оцінено.
+ */
+export const useFeedbackState = (articleId: string | null) => {
+  return useQuery<boolean | null>({
+    queryKey: articleKeys.feedback(articleId!),
+    queryFn: async () => {
+      const res = await articlesApi.getFeedback(articleId!, UserID);
+      return res.liked;
+    },
+    enabled: !!articleId,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+};
+
+// ── FEEDBACK MUTATION ─────────────────────────────────────────────────────────
 
 export const useFeedback = () => {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: ({ id, liked }: { id: string; liked: boolean }) =>
-      articlesApi.feedback(id, {
-        user_id: "00000000-0000-0000-0000-000000000001",
-        liked,
-      }),
-    onSuccess: (_, { liked }) => {
-      toast.success(
-        liked ? "👍 Відмічено як цікаве" : "👎 Відмічено як нецікаве",
-      );
-      qc.invalidateQueries({ queryKey: articleKeys.lists() });
+      articlesApi.feedback(id, { user_id: UserID, liked }),
+
+    // Optimistic update — одразу показуємо результат без очікування сервера
+    onMutate: async ({ id, liked }) => {
+      await qc.cancelQueries({ queryKey: articleKeys.feedback(id) });
+      const prev = qc.getQueryData<boolean | null>(articleKeys.feedback(id));
+      // Якщо та сама кнопка — toggle off (null), інакше — нове значення
+      const next = prev === liked ? null : liked;
+      qc.setQueryData(articleKeys.feedback(id), next);
+      return { prev, id };
     },
-    onError: () => toast.error("Не вдалось зберегти оцінку"),
+
+    onError: (_err, _vars, ctx) => {
+      // Відкатити optimistic update при помилці
+      if (ctx) {
+        qc.setQueryData(articleKeys.feedback(ctx.id), ctx.prev);
+      }
+      toast.error("Не вдалось зберегти оцінку");
+    },
+
+    onSuccess: (data, { id, liked }) => {
+      // Підтвердити серверне значення (може відрізнятись від optimistic)
+      qc.setQueryData(articleKeys.feedback(id), data.liked);
+
+      if (data.action === "removed") {
+        toast.info("Оцінку скасовано");
+      } else {
+        toast.success(
+          liked ? "👍 Відмічено як цікаве" : "👎 Відмічено як нецікаве",
+        );
+      }
+    },
   });
 };
 
@@ -95,7 +138,6 @@ export const useIngestUrl = () => {
       toast.success(
         `Статтю поставлено в чергу (task: ${data.task_id.slice(0, 8)}...)`,
       );
-      // Через 3с перечитуємо список — стаття може вже з'явитись
       setTimeout(
         () => qc.invalidateQueries({ queryKey: articleKeys.lists() }),
         3000,

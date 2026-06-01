@@ -37,6 +37,18 @@ class ArticleDetailResponse(ArticleResponse):
     body: str
     source_id: UUID | None = None
 
+class FeedbackStateResponse(BaseModel):
+    """Поточний стан feedback для статті."""
+    article_id: UUID
+    liked: bool | None  # None = не оцінено, True = лайк, False = дизлайк
+ 
+ 
+class FeedbackResponse(BaseModel):
+    """Відповідь після POST feedback."""
+    status: str
+    action: str        # "added" | "changed" | "removed"
+    liked: bool | None  # None якщо скасовано
+ 
 
 # ── Requests ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +87,7 @@ class FeedbackCreateRequest(BaseModel):
 class FeedbackResponse(BaseModel):
     status: str
     liked: bool
+    liked: bool | None = None  # ← було bool
 
 
 class CheckDuplicateRequest(BaseModel):
