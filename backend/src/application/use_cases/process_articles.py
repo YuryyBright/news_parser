@@ -113,6 +113,7 @@ class ProcessArticlesUseCase:
         content_fetcher: IArticleContentFetcher | None = None,
         llm_rewriter: ILLMRewriter | None = None,
         chunk_repo=None,
+        generated_news_repo_factory: Callable[[Any], Any] | None = None, # ← ДОДАНО
     ) -> None:
         self._session_factory      = session_factory
         self._raw_repo_factory     = raw_repo_factory
@@ -134,6 +135,7 @@ class ProcessArticlesUseCase:
         self._content_fetcher      = content_fetcher
         self._llm_rewriter         = llm_rewriter
         self._chunk_repo           = chunk_repo
+        self._generated_news_repo_factory = generated_news_repo_factory
 
     async def execute(self) -> ProcessArticlesResult:
         result = ProcessArticlesResult()
@@ -297,6 +299,7 @@ class ProcessArticlesUseCase:
 
         if relevance_score >= self._telegram_threshold:
             await self._notify_telegram(
+                session=session,
                 article=article,
                 original_full_text=original_body,   # ← повний витягнутий текст
                 relevance_score=relevance_score,
@@ -371,6 +374,7 @@ class ProcessArticlesUseCase:
 
     async def _notify_telegram(
         self,
+        session,
         article: Article,
         original_full_text: str,
         relevance_score: float,
@@ -411,7 +415,27 @@ class ProcessArticlesUseCase:
             style_context=combined_context,
             published_at=published_at,
         )
-
+        # ── 3.5 Збереження згенерованої новини в БД ──────────────────────────
+        if rewritten and self._generated_news_repo_factory:
+            try:
+                from src.domain.news_generation.entities import GeneratedNews
+                
+                # Використовуємо ваш фабричний метод create()
+                generated_news = GeneratedNews.create(
+                    title=article.title or "Без заголовка",
+                    body=rewritten,
+                    query="Telegram Rewrite",
+                    source_chunks=[], 
+                    context_score=relevance_score,
+                    model_used="telegram_rewriter",
+                    language=language
+                )
+                
+                gen_news_repo = self._generated_news_repo_factory(session)
+                await gen_news_repo.save(generated_news)
+                logger.info("Saved generated news for article=%s", article.id)
+            except Exception as exc:
+                logger.error("Failed to save GeneratedNews for article=%s: %s", article.id, exc)
         # ── 4. Відправка ──────────────────────────────────────────────────────
         try:
             notification = ArticleNotification(

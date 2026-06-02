@@ -156,14 +156,14 @@ def create_app() -> FastAPI:
         allow_methods=["*"], # Дозволяє всі методи (GET, POST, PUT, DELETE тощо)
         allow_headers=["*"], # Дозволяє всі заголовки
     )
-    from src.presentation.api.routes import sources, feed, articles, health, embeddings_debug
+    from src.presentation.api.routes import sources, feed, articles, health, embeddings_debug, generated_news
     app.include_router(health.router,   prefix="/api/v1/health",   tags=["health"])
     app.include_router(articles.router, prefix="/api/v1/articles", tags=["articles"])
     # app.include_router(auth.router,    prefix="/api/v1/auth",    tags=["auth"])
     app.include_router(sources.router, prefix="/api/v1/sources", tags=["sources"])
     app.include_router(feed.router,    prefix="/api/v1/feed",    tags=["feed"])
     app.include_router(embeddings_debug.router,prefix="/debug/embeddings", tags=["debug:embeddings"])
-
+    app.include_router(generated_news.router,prefix="/api/v1/generated-news",tags=["Generated News"],)
 
     return app
 

@@ -25,7 +25,7 @@ from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import text
-
+from src.infrastructure.persistence.repositories.generated_news_repo import SqlAlchemyGeneratedNewsRepository
 from src.application.ports.task_queue import ITaskQueue
 from src.config.settings import get_settings
 from functools import cached_property
@@ -461,7 +461,8 @@ class Container:
  
         def build_raw_repo(session):
             return SqlAlchemyRawArticleRepository(session)
- 
+        def build_gen_news_repo(session):
+            return SqlAlchemyGeneratedNewsRepository(session)
         def build_article_repo(session):
             return SqlAlchemyArticleRepository(session)
  
@@ -505,7 +506,7 @@ class Container:
             content_fetcher=self._content_fetcher,   
             llm_rewriter=self._llm_rewriter,        
             chunk_repo=self._chunk_repo,             
-
+            generated_news_repo_factory=build_gen_news_repo,
         )
 
     def startup_uc(self, session: AsyncSession):

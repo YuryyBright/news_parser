@@ -17,6 +17,7 @@ const navItems = [
   { to: "/articles", icon: BookOpen, label: "Статті" },
   { to: "/sources", icon: Database, label: "Джерела" },
   { to: "/tasks", icon: Activity, label: "Задачі" },
+  { to: "/generated-news", label: "Згенеровані новини", icon: Newspaper },
 ];
 
 export const Sidebar = () => {

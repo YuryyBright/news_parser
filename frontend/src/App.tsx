@@ -10,6 +10,7 @@ import { ArticlesPage } from "./pages/ArticlesPage";
 import { SourcesPage } from "./pages/SourcesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { GeneratedNewsPage } from "./pages/GeneratedNewsPage";
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="articles" element={<ArticlesPage />} />
             <Route path="sources" element={<SourcesPage />} />
             <Route path="tasks" element={<TasksPage />} />
+            <Route path="generated-news" element={<GeneratedNewsPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
