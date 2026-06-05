@@ -173,3 +173,53 @@ export interface HealthResponse {
   status: string;
   articles: Record<string, number>;
 }
+export interface AdminOverviewStats {
+  total_articles: number;
+  accepted_articles: number;
+  rejected_articles: number;
+  expired_articles: number;
+  pending_articles: number;
+  total_sources: number;
+  active_sources: number;
+  total_users: number;
+  total_feedback: number;
+  liked_feedback: number;
+  disliked_feedback: number;
+  avg_relevance_score: number;
+  total_read_actions: number;
+  generated_news_count: number;
+}
+
+export interface TimeSeriesPoint {
+  date: string; // YYYY-MM-DD
+  articles_created: number;
+  articles_accepted: number;
+  feedback_liked: number;
+  feedback_disliked: number;
+}
+
+export interface LanguageDistribution {
+  language: string;
+  count: number;
+  percentage: number;
+}
+
+export interface TagStats {
+  tag_name: string;
+  articles_count: number;
+}
+
+export interface ScoreHistogramBin {
+  bucket_min: number;
+  bucket_max: number;
+  count: number;
+}
+
+export interface SourcePerformance {
+  source_id: string;
+  source_name: string;
+  total_articles: number;
+  accepted_articles: number;
+  avg_score: number;
+  is_active: boolean;
+}

@@ -129,8 +129,8 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
         className={cn(
           "relative w-full sm:max-w-lg",
           "rounded-t-2xl sm:rounded-2xl shadow-2xl",
-          "bg-white dark:bg-slate-900",
-          "border border-slate-200 dark:border-slate-800",
+          "bg-white dark:bg-slate-50 dark:bg-slate-900",
+          "border border-slate-200 dark:border-slate-200 dark:border-slate-800",
           "p-5 sm:p-6",
           // Bottom sheet drag handle on mobile
           "after:content-[''] after:absolute after:top-2.5 after:left-1/2 after:-translate-x-1/2 after:w-10 after:h-1 after:rounded-full after:bg-slate-200 dark:after:bg-slate-700 sm:after:hidden",
@@ -141,16 +141,16 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
             <Link2 className="w-5 h-5 text-blue-500" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-slate-900 dark:text-white">
+            <h2 className="text-base font-semibold text-slate-900 dark:text-slate-900 dark:text-white">
               Додати статтю за URL
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-0.5">
               Стаття буде спарсена і поставлена в чергу
             </p>
           </div>
           <button
             onClick={onClose}
-            className="ml-auto p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="ml-auto p-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -166,9 +166,9 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
             placeholder="https://example.com/article/..."
             className={cn(
               "w-full px-4 py-3 rounded-xl border text-sm transition-colors",
-              "bg-slate-50 dark:bg-slate-800",
-              "border-slate-200 dark:border-slate-700",
-              "text-slate-900 dark:text-white placeholder:text-slate-400",
+              "bg-slate-50 dark:bg-slate-100 dark:bg-slate-800",
+              "border-slate-200 dark:border-slate-300 dark:border-slate-700",
+              "text-slate-900 dark:text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-slate-500 dark:text-slate-400",
               "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
             )}
           />
@@ -176,7 +176,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 transition-colors"
             >
               Скасувати
             </button>
@@ -185,7 +185,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
               disabled={ingest.isPending || !url.trim()}
               className={cn(
                 "flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                "bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white",
+                "bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-slate-900 dark:text-white",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
               )}
             >
@@ -202,7 +202,7 @@ const AddByUrlModal = ({ onClose }: AddByUrlModalProps) => {
           </div>
         </div>
 
-        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
           💡 Статус обробки — Sources → Tasks
         </p>
       </div>
@@ -227,7 +227,7 @@ const SearchBar = ({ value, onChange, onClear, isLoading }: SearchBarProps) => {
         {isLoading ? (
           <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
         ) : (
-          <Search className="w-4 h-4 text-slate-400" />
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
         )}
       </div>
       <input
@@ -238,9 +238,9 @@ const SearchBar = ({ value, onChange, onClear, isLoading }: SearchBarProps) => {
         placeholder="Пошук по заголовку та тексту..."
         className={cn(
           "w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm transition-colors",
-          "bg-white dark:bg-slate-900",
-          "border-slate-200 dark:border-slate-800",
-          "text-slate-900 dark:text-white placeholder:text-slate-400",
+          "bg-white dark:bg-slate-50 dark:bg-slate-900",
+          "border-slate-200 dark:border-slate-200 dark:border-slate-800",
+          "text-slate-900 dark:text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-slate-500 dark:text-slate-400",
           "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
           value &&
             "border-blue-300 dark:border-blue-700 ring-1 ring-blue-300 dark:ring-blue-700",
@@ -252,7 +252,7 @@ const SearchBar = ({ value, onChange, onClear, isLoading }: SearchBarProps) => {
             onClear();
             inputRef.current?.focus();
           }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-200 p-1"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -288,7 +288,7 @@ const SortButton = ({
         "flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap",
         isActive
           ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
-          : "border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+          : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
       )}
     >
       {icon}
@@ -348,8 +348,8 @@ const Pagination = ({
     "min-w-[36px] sm:min-w-[32px] h-9 sm:h-8 px-2 rounded-lg text-xs font-medium border transition-colors";
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <span className="text-xs text-slate-400 dark:text-slate-500">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200 dark:border-slate-200 dark:border-slate-800">
+      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
         {from}–{to} з {total} статей
       </span>
       <div className="flex items-center gap-1">
@@ -358,7 +358,7 @@ const Pagination = ({
           disabled={page === 1}
           className={cn(
             btnBase,
-            "border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed",
+            "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed",
           )}
         >
           <ChevronLeft className="w-3.5 h-3.5 mx-auto" />
@@ -376,7 +376,10 @@ const Pagination = ({
           })
           .map((p, i) =>
             p === "..." ? (
-              <span key={`e-${i}`} className="px-1 text-xs text-slate-400">
+              <span
+                key={`e-${i}`}
+                className="px-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400"
+              >
                 …
               </span>
             ) : (
@@ -386,8 +389,8 @@ const Pagination = ({
                 className={cn(
                   btnBase,
                   p === page
-                    ? "bg-blue-500 border-blue-500 text-white"
-                    : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                    ? "bg-blue-500 border-blue-500 text-slate-900 dark:text-white"
+                    : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
                 )}
               >
                 {p}
@@ -400,7 +403,7 @@ const Pagination = ({
           disabled={page === pages}
           className={cn(
             btnBase,
-            "border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed",
+            "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed",
           )}
         >
           <ChevronRight className="w-3.5 h-3.5 mx-auto" />
@@ -497,9 +500,9 @@ export const ArticlesPage = () => {
 
   const selectClass = cn(
     "px-3 py-1.5 rounded-lg border text-sm transition-colors",
-    "bg-white dark:bg-slate-900",
-    "border-slate-200 dark:border-slate-800",
-    "text-slate-700 dark:text-slate-300",
+    "bg-white dark:bg-slate-50 dark:bg-slate-900",
+    "border-slate-200 dark:border-slate-200 dark:border-slate-800",
+    "text-slate-700 dark:text-slate-700 dark:text-slate-300",
     "focus:outline-none focus:ring-2 focus:ring-blue-500",
   );
 
@@ -523,13 +526,13 @@ export const ArticlesPage = () => {
               "flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
               showFilters || hasActiveFilters
                 ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
-                : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                : "border-slate-200 dark:border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
             )}
           >
             <Filter className="w-4 h-4" />
             <span className="hidden sm:inline">Фільтри</span>
             {activeFiltersCount > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold bg-blue-500 text-white">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold bg-blue-500 text-slate-900 dark:text-white">
                 {activeFiltersCount}
               </span>
             )}
@@ -551,7 +554,7 @@ export const ArticlesPage = () => {
 
         {/* Sort row */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-          <span className="text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
+          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 flex-shrink-0">
             Сортування:
           </span>
           <div className="flex items-center gap-1.5">
@@ -572,12 +575,12 @@ export const ArticlesPage = () => {
 
       {/* ─── Filter Panel ─────────────────────────────────────────────────── */}
       {showFilters && (
-        <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+        <div className="p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-50 dark:bg-slate-900 space-y-4">
           {/* Filter controls grid */}
           <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 items-end">
             {/* Status */}
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1.5">
                 Статус
               </label>
               <select
@@ -600,7 +603,7 @@ export const ArticlesPage = () => {
                 labels here. The flag is shown in the LangTabBar / FilterPanel
                 where custom buttons are available. */}
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1.5">
                 Мова
               </label>
               <select
@@ -623,7 +626,7 @@ export const ArticlesPage = () => {
 
             {/* Min score */}
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1.5">
                 Мін. score: <ScoreBadge score={filters.min_score ?? 0} />
               </label>
               <input
@@ -641,7 +644,7 @@ export const ArticlesPage = () => {
 
             {/* Page size */}
             <div>
-              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1.5">
                 На сторінці
               </label>
               <select
@@ -660,12 +663,12 @@ export const ArticlesPage = () => {
             {/* Active tag */}
             {filters.tag && (
               <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">
+                <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1.5">
                   Тег
                 </label>
                 <button
                   onClick={() => setFilter("tag", null)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-blue-500 text-white hover:bg-blue-600 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm bg-blue-500 text-slate-900 dark:text-white hover:bg-blue-600 transition-colors"
                 >
                   <Tag className="w-3.5 h-3.5" />
                   {filters.tag}
@@ -679,7 +682,7 @@ export const ArticlesPage = () => {
               <div className="flex items-end">
                 <button
                   onClick={resetFilters}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 dark:text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
                 >
                   <X className="w-3.5 h-3.5" />
                   Скинути фільтри
@@ -689,8 +692,8 @@ export const ArticlesPage = () => {
           </div>
 
           {/* Date presets */}
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-200 dark:border-slate-800">
+            <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">
               Дата додавання
             </label>
             <div className="flex flex-wrap items-center gap-2">
@@ -701,8 +704,8 @@ export const ArticlesPage = () => {
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                     filters.date_preset === value
-                      ? "bg-blue-500 border-blue-500 text-white"
-                      : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                      ? "bg-blue-500 border-blue-500 text-slate-900 dark:text-white"
+                      : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
                   )}
                 >
                   {label}
@@ -711,7 +714,9 @@ export const ArticlesPage = () => {
 
               {/* Custom date range */}
               <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-0">
-                <span className="text-xs text-slate-400">Від:</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  Від:
+                </span>
                 <input
                   type="date"
                   value={
@@ -728,7 +733,9 @@ export const ArticlesPage = () => {
                   }}
                   className={cn(selectClass, "py-1.5 text-xs")}
                 />
-                <span className="text-xs text-slate-400">До:</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  До:
+                </span>
                 <input
                   type="date"
                   value={filters.date_to ? filters.date_to.split("T")[0] : ""}
@@ -748,7 +755,7 @@ export const ArticlesPage = () => {
           </div>
 
           {!filters.status && (
-            <p className="text-xs text-slate-400 dark:text-slate-500">
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
               💡 "Всі статті" включає всі статуси, зокрема приховані.
             </p>
           )}
@@ -763,19 +770,19 @@ export const ArticlesPage = () => {
           }).map((_, i) => (
             <div
               key={i}
-              className="h-36 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
+              className="h-36 bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
             />
           ))}
         </div>
       ) : articles.length === 0 ? (
         <div className="text-center py-16 sm:py-20">
           <div className="text-4xl mb-4">{isSearchMode ? "🔎" : "🔍"}</div>
-          <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+          <p className="text-lg font-medium text-slate-700 dark:text-slate-700 dark:text-slate-300">
             {isSearchMode
               ? `Нічого не знайдено за "${debouncedQ}"`
               : "Статей не знайдено"}
           </p>
-          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 px-4">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 mt-1 px-4">
             {isSearchMode
               ? "Спробуйте інший запит або перевірте написання"
               : hasActiveFilters
@@ -805,7 +812,7 @@ export const ArticlesPage = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-            {articles.map((article) => (
+            {articles.map((article: any) => (
               <ArticleCard
                 key={article.id}
                 article={article}

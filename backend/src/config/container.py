@@ -25,7 +25,10 @@ from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import text
+from src.infrastructure.ml.embedding_tagger import EmbeddingTagger
 from src.infrastructure.persistence.repositories.generated_news_repo import SqlAlchemyGeneratedNewsRepository
+from src.infrastructure.persistence.repositories.admin_analytics_repo import AdminAnalyticsRepository
+
 from src.application.ports.task_queue import ITaskQueue
 from src.config.settings import get_settings
 from functools import cached_property
@@ -440,6 +443,8 @@ class Container:
             fetch_job_repo=SqlAlchemyFetchJobRepository(session),
             fetcher_factory=build_fetcher, 
         )
+    def admin_analytics_repo(self, session: AsyncSession) -> AdminAnalyticsRepository:
+        return AdminAnalyticsRepository(session)
     def process_articles_uc_standalone(self):
         """
         Версія для worker'а — кожна стаття обробляється в окремій транзакції.
@@ -456,9 +461,11 @@ class Container:
         from src.infrastructure.persistence.repositories.raw_article_repo import SqlAlchemyRawArticleRepository
         from src.infrastructure.persistence.repositories.article_repo import SqlAlchemyArticleRepository
         from src.config.settings import get_settings
- 
+        from src.infrastructure.tagging.category_tagger import CategoryTagger
+        from src.infrastructure.tagging.composite_tagger import CompositeTagger
+
         cfg = get_settings()
- 
+
         def build_raw_repo(session):
             return SqlAlchemyRawArticleRepository(session)
         def build_gen_news_repo(session):
@@ -486,14 +493,18 @@ class Container:
                 ),
                 minhash_threshold=cfg.dedup.minhash_threshold,
             )
- 
+        tagger = CompositeTagger(
+            embedding_tagger=EmbeddingTagger(),   # або None якщо не потрібен
+            category_tagger=CategoryTagger(),
+        )
+
         return ProcessArticlesUseCase(
             session_factory=self._session_factory,
             raw_repo_factory=build_raw_repo,
             article_repo_factory=build_article_repo,
             language_detector=LangDetectAdapter(),
             scoring_service=self._composite_scoring,
-            tagger=self._tagger,
+            tagger=tagger,
             profile_learner=self._profile_learner,
             dedup_uc=build_dedup_uc,  
             threshold=cfg.filtering.default_threshold,

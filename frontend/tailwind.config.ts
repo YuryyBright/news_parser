@@ -12,6 +12,21 @@ export default {
 
   theme: {
     extend: {
+      // Мапінг твоїх CSS-змінних на класи Tailwind
+      colors: {
+        background: "var(--bg)",
+        foreground: "var(--text)",
+        heading: "var(--text-h)",
+        // Оскільки border вже є в Tailwind, ми його розширюємо
+        themeBorder: "var(--border)",
+        code: "var(--code-bg)",
+        accent: {
+          DEFAULT: "var(--accent)",
+          bg: "var(--accent-bg)",
+          border: "var(--accent-border)",
+        },
+        social: "var(--social-bg)",
+      },
       fontFamily: {
         // Твої кастомні шрифти з конфігу
         sans: ["Plus Jakarta Sans", "system-ui", "sans-serif"],

@@ -11,6 +11,8 @@ import { SourcesPage } from "./pages/SourcesPage";
 import { TasksPage } from "./pages/TasksPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { GeneratedNewsPage } from "./pages/GeneratedNewsPage";
+import { AdminPage } from "./pages/AdminPage";
+import { HandbookPage } from "./pages/HandbookPage";
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -27,6 +29,8 @@ export default function App() {
             <Route path="sources" element={<SourcesPage />} />
             <Route path="tasks" element={<TasksPage />} />
             <Route path="generated-news" element={<GeneratedNewsPage />} />
+            <Route path="admin" element={<AdminPage />} />
+            <Route path="handbook" element={<HandbookPage />} />
           </Route>
 
           <Route path="*" element={<NotFoundPage />} />
@@ -38,7 +42,7 @@ export default function App() {
         position="bottom-right"
         toastOptions={{
           className:
-            "dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700",
+            "dark:bg-slate-100 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-300 dark:border-slate-700",
         }}
       />
     </QueryClientProvider>

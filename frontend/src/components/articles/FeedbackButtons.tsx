@@ -59,7 +59,7 @@ export const FeedbackButtons = ({
         className={cn(
           btnBase,
           isLiked
-            ? "bg-emerald-500 border-emerald-500 text-white dark:bg-emerald-600 dark:border-emerald-600"
+            ? "bg-emerald-500 border-emerald-500 text-slate-900 dark:text-white dark:bg-emerald-600 dark:border-emerald-600"
             : "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950",
           "disabled:opacity-50",
         )}
@@ -84,7 +84,7 @@ export const FeedbackButtons = ({
         className={cn(
           btnBase,
           isDisliked
-            ? "bg-red-500 border-red-500 text-white dark:bg-red-600 dark:border-red-600"
+            ? "bg-red-500 border-red-500 text-slate-900 dark:text-white dark:bg-red-600 dark:border-red-600"
             : "text-red-500 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-50 dark:hover:bg-red-950",
           "disabled:opacity-50",
         )}
@@ -108,8 +108,8 @@ export const FeedbackButtons = ({
         title="Не показувати"
         className={cn(
           btnBase,
-          "text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700",
-          "hover:bg-slate-100 dark:hover:bg-slate-800",
+          "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-300 dark:border-slate-700",
+          "hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
           "disabled:opacity-50",
         )}
       >

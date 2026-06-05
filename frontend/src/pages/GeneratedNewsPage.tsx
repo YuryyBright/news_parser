@@ -79,8 +79,8 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
     <article
       onClick={onClick}
       className={cn(
-        "group relative bg-white dark:bg-slate-900 rounded-xl border cursor-pointer",
-        "border-slate-200 dark:border-slate-800",
+        "group relative bg-white dark:bg-slate-50 dark:bg-slate-900 rounded-xl border cursor-pointer",
+        "border-slate-200 dark:border-slate-200 dark:border-slate-800",
         "hover:border-blue-300 dark:hover:border-blue-700",
         "hover:shadow-lg dark:hover:shadow-slate-950/50",
         "active:scale-[0.99] transition-all duration-200",
@@ -99,26 +99,26 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
         <div className="flex items-center gap-2 flex-wrap mb-2">
           <StatusBadge status={item.status} />
           {item.language && (
-            <span className="flex items-center gap-1 text-xs text-slate-400">
+            <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
               <FlagImg lang={item.language} className="w-[18px] h-[13px]" />
               <span className="font-mono uppercase text-[11px]">
                 {item.language}
               </span>
             </span>
           )}
-          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 tabular-nums">
+          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 tabular-nums">
             <Clock className="w-3 h-3" />
             {formatDate(item.created_at)}
           </div>
         </div>
         {/* title */}
         {item.title && (
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-1.5 line-clamp-1 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
             {item.title}
           </h3>
         )}
         {/* rewritten text preview */}
-        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">
+        <p className="text-sm text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed">
           {item.body}
         </p>
         {/* tags
@@ -127,7 +127,7 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
             {item.tags.slice(0, 4).map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400"
               >
                 <Tag className="w-2.5 h-2.5" />
                 {tag}
@@ -137,7 +137,7 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
         )} */}
         {/* footer */}
         <div
-          className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-800"
+          className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100 dark:border-slate-200 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
         >
           {item.source_url ? (
@@ -145,7 +145,7 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
               href={item.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-xs text-slate-400 hover:text-blue-500 transition-colors"
+              className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-500 transition-colors"
             >
               <ExternalLink className="w-3 h-3" />
               Джерело
@@ -160,7 +160,7 @@ const NewsCard = ({ item, onClick }: NewsCardProps) => {
               disabled={publish.isPending}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                "bg-blue-500 hover:bg-blue-600 text-white",
+                "bg-blue-500 hover:bg-blue-600 text-slate-900 dark:text-white",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
                 "opacity-0 group-hover:opacity-100",
               )}
@@ -199,23 +199,23 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
       />
       <aside
         className={cn(
-          "fixed inset-0 z-50 bg-white dark:bg-slate-900",
+          "fixed inset-0 z-50 bg-white dark:bg-slate-50 dark:bg-slate-900",
           "md:left-auto md:right-0 md:inset-y-0 md:w-full md:max-w-2xl",
-          "border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl",
+          "border-l border-slate-200 dark:border-slate-200 dark:border-slate-800 flex flex-col shadow-2xl",
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="md:hidden p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="md:hidden p-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <StatusBadge status={item.status} />
             {item.language && (
-              <span className="flex items-center gap-1.5 text-sm text-slate-500">
+              <span className="flex items-center gap-1.5 text-sm text-slate-400 dark:text-slate-500">
                 <FlagImg lang={item.language} className="w-[20px] h-[14px]" />
                 {getLangMeta(item.language).label}
               </span>
@@ -223,7 +223,7 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
           </div>
           <button
             onClick={onClose}
-            className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="hidden md:flex p-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800"
           >
             <X className="w-5 h-5" />
           </button>
@@ -232,12 +232,12 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4">
           {item.title && (
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-slate-900 dark:text-white leading-tight">
               {item.title}
             </h1>
           )}
 
-          <div className="flex flex-wrap gap-3 text-sm text-slate-500">
+          <div className="flex flex-wrap gap-3 text-sm text-slate-400 dark:text-slate-500">
             <span className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
               {formatDate(item.created_at)}
@@ -255,7 +255,7 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
               {item.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                  className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400"
                 >
                   #{tag}
                 </span>
@@ -264,20 +264,20 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
           )} */}
 
           <div className="prose prose-sm dark:prose-invert max-w-none">
-            <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+            <p className="text-slate-700 dark:text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
               {item.body}
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
+        <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
           {item.source_url ? (
             <a
               href={item.source_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-slate-500 hover:text-blue-500 transition-colors"
+              className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 hover:text-blue-500 transition-colors"
             >
               <ExternalLink className="w-4 h-4" />
               Оригінальне джерело
@@ -292,7 +292,7 @@ const NewsDrawer = ({ item, onClose }: DrawerProps) => {
               disabled={publish.isPending}
               className={cn(
                 "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-                "bg-blue-500 hover:bg-blue-600 text-white",
+                "bg-blue-500 hover:bg-blue-600 text-slate-900 dark:text-white",
                 "disabled:opacity-50 disabled:cursor-not-allowed",
               )}
             >
@@ -330,15 +330,15 @@ const Pagination = ({
   const to = Math.min(page * page_size, total);
 
   return (
-    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
-      <span className="text-xs text-slate-400">
+    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200 dark:border-slate-200 dark:border-slate-800">
+      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
         {from}–{to} з {total}
       </span>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPage(page - 1)}
           disabled={page === 1}
-          className="min-w-[36px] h-9 px-2 rounded-lg text-xs border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="min-w-[36px] h-9 px-2 rounded-lg text-xs border border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-3.5 h-3.5 mx-auto" />
         </button>
@@ -350,8 +350,8 @@ const Pagination = ({
               className={cn(
                 "min-w-[36px] h-9 px-2 rounded-lg text-xs border transition-colors",
                 p === page
-                  ? "bg-blue-500 border-blue-500 text-white"
-                  : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                  ? "bg-blue-500 border-blue-500 text-slate-900 dark:text-white"
+                  : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
               )}
             >
               {p}
@@ -361,7 +361,7 @@ const Pagination = ({
         <button
           onClick={() => onPage(page + 1)}
           disabled={page === pages}
-          className="min-w-[36px] h-9 px-2 rounded-lg text-xs border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="min-w-[36px] h-9 px-2 rounded-lg text-xs border border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-3.5 h-3.5 mx-auto" />
         </button>
@@ -404,9 +404,9 @@ export const GeneratedNewsPage = () => {
 
   const selectCls = cn(
     "px-3 py-1.5 rounded-lg border text-sm",
-    "bg-white dark:bg-slate-900",
-    "border-slate-200 dark:border-slate-800",
-    "text-slate-700 dark:text-slate-300",
+    "bg-white dark:bg-slate-50 dark:bg-slate-900",
+    "border-slate-200 dark:border-slate-200 dark:border-slate-800",
+    "text-slate-700 dark:text-slate-700 dark:text-slate-300",
     "focus:outline-none focus:ring-2 focus:ring-blue-500",
   );
 
@@ -417,7 +417,7 @@ export const GeneratedNewsPage = () => {
         <div className="flex items-center gap-2">
           {/* Search */}
           <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400 pointer-events-none" />
             <input
               ref={searchRef}
               value={q}
@@ -425,8 +425,8 @@ export const GeneratedNewsPage = () => {
               placeholder="Пошук по тексту..."
               className={cn(
                 "w-full pl-10 pr-10 py-2.5 rounded-xl border text-sm transition-colors",
-                "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800",
-                "text-slate-900 dark:text-white placeholder:text-slate-400",
+                "bg-white dark:bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-200 dark:border-slate-800",
+                "text-slate-900 dark:text-slate-900 dark:text-white placeholder:text-slate-400 dark:text-slate-500 dark:text-slate-400",
                 "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
                 q && "border-blue-300 dark:border-blue-700",
               )}
@@ -437,7 +437,7 @@ export const GeneratedNewsPage = () => {
                   setQ("");
                   searchRef.current?.focus();
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -451,7 +451,7 @@ export const GeneratedNewsPage = () => {
               "flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all flex-shrink-0",
               showFilters || hasFilters
                 ? "bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400"
-                : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800",
+                : "border-slate-200 dark:border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
             )}
           >
             <Filter className="w-4 h-4" />
@@ -461,7 +461,7 @@ export const GeneratedNewsPage = () => {
           {/* Sort dir */}
           <button
             onClick={() => setSortDir((d) => (d === "desc" ? "asc" : "desc"))}
-            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 flex-shrink-0"
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm border-slate-200 dark:border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 flex-shrink-0"
             title={sortDir === "desc" ? "Нові спочатку" : "Старі спочатку"}
           >
             <Clock className="w-4 h-4" />
@@ -473,9 +473,9 @@ export const GeneratedNewsPage = () => {
 
         {/* Filter panel */}
         {showFilters && (
-          <div className="flex flex-wrap gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <div className="flex flex-wrap gap-3 p-4 rounded-xl border border-slate-200 dark:border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-50 dark:bg-slate-900">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 mb-1.5">
                 Статус
               </label>
               <select
@@ -494,7 +494,7 @@ export const GeneratedNewsPage = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 mb-1.5">
                 Мова
               </label>
               <select
@@ -522,7 +522,7 @@ export const GeneratedNewsPage = () => {
                     setStatus("");
                     setPage(1);
                   }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-slate-400 dark:text-slate-500 hover:text-red-500 border border-transparent hover:border-red-200 dark:hover:border-red-900 transition-all"
                 >
                   <X className="w-3.5 h-3.5" /> Скинути
                 </button>
@@ -534,7 +534,7 @@ export const GeneratedNewsPage = () => {
 
       {/* ── Stats row ── */}
       {data && (
-        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+        <div className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
           <span>{data.total} новин</span>
           {debouncedQ && <span>· за запитом «{debouncedQ}»</span>}
         </div>
@@ -546,26 +546,26 @@ export const GeneratedNewsPage = () => {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-48 bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
+              className="h-48 bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
             />
           ))}
         </div>
       ) : !data?.items.length ? (
         <div className="text-center py-20">
           <div className="text-4xl mb-4">📰</div>
-          <p className="text-lg font-medium text-slate-700 dark:text-slate-300">
+          <p className="text-lg font-medium text-slate-700 dark:text-slate-700 dark:text-slate-300">
             {debouncedQ
               ? `Нічого не знайдено за «${debouncedQ}»`
               : "Згенерованих новин немає"}
           </p>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
             Новини з'являться після обробки статей через Telegram rewriter
           </p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-            {data.items.map((item) => (
+            {data.items.map((item: any) => (
               <NewsCard
                 key={item.id}
                 item={item}

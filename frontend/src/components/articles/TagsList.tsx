@@ -48,8 +48,8 @@ export const TagsList = ({
               "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs transition-all duration-150",
               "border",
               isActive
-                ? "bg-blue-500 text-white border-blue-500 shadow-sm"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+                ? "bg-blue-500 text-slate-900 dark:text-white border-blue-500 shadow-sm"
+                : "bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-300 dark:border-slate-700",
               clickable &&
                 !isActive && [
                   "hover:bg-blue-50 dark:hover:bg-blue-950",

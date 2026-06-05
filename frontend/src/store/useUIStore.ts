@@ -44,11 +44,20 @@ export const useUIStore = create<UIStore>()(
 
 // Ініціалізація теми при завантаженні (залишається без змін)
 const savedTheme = localStorage.getItem("ui-store");
+
 if (savedTheme) {
   try {
     const parsed = JSON.parse(savedTheme);
     if (parsed?.state?.theme === "dark") {
       document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
-  } catch {}
+  } catch {
+    // Якщо помилка парсингу, скидаємо до світлої
+    document.documentElement.classList.remove("dark");
+  }
+} else {
+  // За замовчуванням (якщо нічого не збережено) - світла тема
+  document.documentElement.classList.remove("dark");
 }

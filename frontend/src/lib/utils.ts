@@ -32,7 +32,7 @@ export const scoreColor = (score: number): string => {
     return "text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
   if (score >= 0.4)
     return "text-amber-600 bg-amber-50 dark:bg-amber-950 dark:text-amber-400 border-amber-200 dark:border-amber-800";
-  return "text-slate-500 bg-slate-50 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700";
+  return "text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-300 dark:border-slate-700";
 };
 
 export const statusColor = (status: string): string => {
@@ -43,12 +43,15 @@ export const statusColor = (status: string): string => {
     rejected:
       "text-red-500 bg-red-50 dark:bg-red-950 dark:text-red-400 border-red-200",
     expired:
-      "text-slate-400 bg-slate-50 dark:bg-slate-800 dark:text-slate-500 border-slate-200",
+      "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:text-slate-500 border-slate-200",
     processing:
       "text-violet-600 bg-violet-50 dark:bg-violet-950 dark:text-violet-400 border-violet-200",
     unread:
       "text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-400 border-blue-200",
-    read: "text-slate-400 bg-slate-50 dark:bg-slate-800 border-slate-200",
+    read: "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-100 dark:bg-slate-800 border-slate-200",
   };
-  return map[status] ?? "text-slate-500 bg-slate-50 border-slate-200";
+  return (
+    map[status] ??
+    "text-slate-400 dark:text-slate-500 bg-slate-50 border-slate-200"
+  );
 };

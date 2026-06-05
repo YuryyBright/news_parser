@@ -43,9 +43,9 @@ export const ArticleCard = ({
         onClick={onClick}
         className={cn(
           "flex items-start gap-3 px-3 sm:px-4 py-3 sm:py-4 cursor-pointer transition-colors group",
-          "bg-white dark:bg-slate-900",
+          "bg-white dark:bg-slate-50 dark:bg-slate-900",
           !isRead &&
-            "hover:bg-slate-50 dark:hover:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-800",
+            "hover:bg-slate-50 dark:hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60 active:bg-slate-100 dark:active:bg-slate-100 dark:bg-slate-800",
           isRead && "opacity-60",
         )}
       >
@@ -65,8 +65,8 @@ export const ArticleCard = ({
             className={cn(
               "text-sm font-medium leading-snug line-clamp-2",
               isRead
-                ? "text-slate-400 dark:text-slate-500"
-                : "text-slate-900 dark:text-white",
+                ? "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"
+                : "text-slate-900 dark:text-slate-900 dark:text-white",
             )}
           >
             {article.title}
@@ -74,7 +74,7 @@ export const ArticleCard = ({
 
           <div className="flex items-center flex-wrap gap-2 mt-1.5">
             {article.published_at && (
-              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
+              <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
                 <Clock className="w-3 h-3" />
                 {formatDate(article.published_at)}
               </span>
@@ -85,7 +85,7 @@ export const ArticleCard = ({
                   lang={article.language}
                   className="w-[18px] h-[13px]"
                 />
-                <span className="ml-1.5 font-mono text-slate-400 dark:text-slate-500 uppercase text-[11px]">
+                <span className="ml-1.5 font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 uppercase text-[11px]">
                   {article.language}
                 </span>
               </span>
@@ -123,7 +123,7 @@ export const ArticleCard = ({
               className={cn(
                 "p-1.5 rounded-md transition-all",
                 "sm:opacity-0 sm:group-hover:opacity-100",
-                "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
+                "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
               )}
             >
               <Eye className="w-4 h-4" />
@@ -138,7 +138,7 @@ export const ArticleCard = ({
             className={cn(
               "p-1.5 rounded-md transition-all",
               "sm:opacity-0 sm:group-hover:opacity-100",
-              "text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50",
+              "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/50",
             )}
           >
             <ExternalLink className="w-4 h-4" />
@@ -152,8 +152,8 @@ export const ArticleCard = ({
   return (
     <article
       className={cn(
-        "group relative bg-white dark:bg-slate-900 rounded-xl border",
-        "border-slate-200 dark:border-slate-800",
+        "group relative bg-white dark:bg-slate-50 dark:bg-slate-900 rounded-xl border",
+        "border-slate-200 dark:border-slate-200 dark:border-slate-800",
         "hover:border-blue-300 dark:hover:border-blue-700",
         "hover:shadow-lg dark:hover:shadow-slate-950/50",
         "active:scale-[0.99]",
@@ -177,7 +177,7 @@ export const ArticleCard = ({
           >
             <FlagImg lang={article.language} className="w-[20px] h-[15px]" />
           </span>
-          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 tabular-nums">
+          <div className="ml-auto flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 tabular-nums">
             <Clock className="w-3 h-3 shrink-0" />
             {formatDate(article.published_at ?? article.created_at)}
           </div>
@@ -186,7 +186,7 @@ export const ArticleCard = ({
         <h3
           className={cn(
             "text-sm font-semibold leading-snug mb-2",
-            "text-slate-900 dark:text-white",
+            "text-slate-900 dark:text-slate-900 dark:text-white",
             "group-hover:text-blue-600 dark:group-hover:text-blue-400",
             "transition-colors line-clamp-2",
           )}
@@ -199,7 +199,7 @@ export const ArticleCard = ({
         )}
 
         <div
-          className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800"
+          className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-200 dark:border-slate-800"
           onClick={(e) => e.stopPropagation()}
         >
           <FeedbackButtons
@@ -213,7 +213,7 @@ export const ArticleCard = ({
             rel="noopener noreferrer"
             className={cn(
               "p-1.5 rounded-lg transition-colors",
-              "text-slate-400 hover:text-blue-500",
+              "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-500",
               "hover:bg-blue-50 dark:hover:bg-blue-950/50",
             )}
             title="Відкрити оригінал"

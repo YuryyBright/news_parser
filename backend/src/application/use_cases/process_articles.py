@@ -423,7 +423,7 @@ class ProcessArticlesUseCase:
                 # Використовуємо ваш фабричний метод create()
                 generated_news = GeneratedNews.create(
                     title=article.title or "Без заголовка",
-                    body=rewritten,
+                    body=f"{rewritten}\n\n[Джерело]({article.url})",
                     query="Telegram Rewrite",
                     source_chunks=[], 
                     context_score=relevance_score,
