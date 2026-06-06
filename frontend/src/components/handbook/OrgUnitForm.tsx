@@ -36,7 +36,7 @@ const UNIT_TYPES = [
   { value: "committee", label: "Комітет" },
   { value: "directorate", label: "Управління" },
 ];
-
+import { buildTree } from "../../api/handbook";
 function flattenOrgUnits(
   units: OrgUnit[],
   depth = 0,
@@ -109,8 +109,10 @@ export const OrgUnitForm = ({ data, onSuccess }: Props) => {
     queryFn: () => handbookApi.getCountry(countryId),
     enabled: !!countryId,
   });
+
+  // Збираємо дерево перед вирівнюванням
   const parentOptions = countryDetail?.org_units
-    ? flattenOrgUnits(countryDetail.org_units, 0, data?.id as string)
+    ? flattenOrgUnits(buildTree(countryDetail.org_units), 0, data?.id as string)
     : [];
   // Load country detail to build parent selector
   const { data: persons } = useQuery({

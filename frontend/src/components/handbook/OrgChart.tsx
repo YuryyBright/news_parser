@@ -9,19 +9,16 @@ import { cn } from "../../lib/utils";
 import type { OrgUnit, Person } from "../../api/handbook";
 import { fullName } from "../../api/handbook";
 import { ZoomIn, ZoomOut, Maximize2, RefreshCw, Download } from "lucide-react";
-// Додайте ці імпорти на початку файлу
 import { toPng } from "html-to-image";
 import jsPDF from "jspdf";
-// ── Layout constants ──────────────────────────────────────────────────────────
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const NODE_W = 280; // Трохи ширша картка для тексту
-const NODE_H = 148; // Більше висоти для посади
+const NODE_W = 280;
+const NODE_H = 148;
 const H_GAP = 50;
 const V_GAP = 70;
 
 // ── Color map for unit types ──────────────────────────────────────────────────
-
 const TYPE_COLORS: Record<
   string,
   { bg: string; border: string; text: string }
@@ -29,11 +26,12 @@ const TYPE_COLORS: Record<
   ministry: { bg: "#7c3aed1a", border: "#7c3aed60", text: "#a78bfa" },
   department: { bg: "#1d4ed81a", border: "#1d4ed860", text: "#60a5fa" },
   division: { bg: "#0369a11a", border: "#0369a160", text: "#38bdf8" },
-  sector: { bg: "а#0f766e1a", border: "#0f766e60", text: "#2dd4bf" },
+  sector: { bg: "#0f766e1a", border: "#0f766e60", text: "#2dd4bf" },
   agency: { bg: "#b4530a1a", border: "#b4530a60", text: "#fbbf24" },
   service: { bg: "#c2410c1a", border: "#c2410c60", text: "#fb923c" },
   command: { bg: "#9f12321a", border: "#9f123260", text: "#f87171" },
-  default: { bg: "#1e293b", border: "#334155", text: "#94a3b8" },
+  // Змінено default на напівпрозорий сірий замість суцільного темного
+  default: { bg: "#64748b1a", border: "#64748b60", text: "#94a3b8" },
 };
 
 // ── Tree layout algorithm ─────────────────────────────────────────────────────
@@ -134,13 +132,12 @@ const OrgNode = ({
   const hasChildren = unit.children.length > 0 || (unit as any)._hasChildren;
   const name = unit.short_name || unit.name;
   const personCount = unit.persons?.length ?? 0;
-
   const leader = unit.leader;
 
   return (
     <g
       transform={`translate(${x - NODE_W / 2}, ${y})`}
-      style={{ cursor: "pointer" }}
+      className="cursor-pointer"
       onClick={() => onSelect(unit)}
     >
       {/* Фон картки */}
@@ -151,7 +148,7 @@ const OrgNode = ({
         fill={colors.bg}
         stroke={isSelected ? "#3b82f6" : colors.border}
         strokeWidth={isSelected ? 2 : 1}
-        style={{ filter: "drop-shadow(0 4px 6px rgba(0,0,0,0.3))" }}
+        className="drop-shadow-md"
       />
       {/* Верхня кольорова лінія */}
       <rect
@@ -164,36 +161,13 @@ const OrgNode = ({
 
       {/* Весь контент картки через HTML */}
       <foreignObject x={0} y={4} width={NODE_W} height={NODE_H - 4}>
-        <div
-          style={{
-            padding: "12px",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            boxSizing: "border-box",
-          }}
-        >
-          {/* Назва підрозділу */}
-          <div
-            style={{
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "#f1f5f9",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              textAlign: "center",
-              marginBottom: "8px",
-              lineHeight: "1.3",
-              maxHeight: "2.6em",
-            }}
-          >
+        <div className="flex flex-col h-full p-3 box-border">
+          {/* Назва підрозділу (АДАПТИВНИЙ ТЕКСТ) */}
+          <div className="mb-2 text-center text-[11px] font-bold leading-tight text-slate-800 dark:text-slate-100 line-clamp-2 max-h-[2.6em]">
             {name}
           </div>
 
-          {/* БЛОК КЕРІВНИКА (Велике фото) */}
+          {/* БЛОК КЕРІВНИКА */}
           {leader ? (
             <div
               onClick={(e) => {
@@ -202,59 +176,26 @@ const OrgNode = ({
                   onPersonSelect(leader);
                 }
               }}
-              style={{
-                display: "flex",
-                gap: "10px",
-                alignItems: "center",
-                flex: 1,
-                cursor: onPersonSelect ? "pointer" : "default",
-                borderRadius: "8px",
-                padding: "4px",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                if (onPersonSelect)
-                  (e.currentTarget as HTMLDivElement).style.background =
-                    "rgba(255,255,255,0.05)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.background =
-                  "transparent";
-              }}
+              className={cn(
+                "flex flex-1 items-center gap-2.5 rounded-lg p-1 transition-colors",
+                onPersonSelect
+                  ? "cursor-pointer hover:bg-slate-200/50 dark:hover:bg-white/5"
+                  : "cursor-default",
+              )}
             >
-              {/* Аватар */}
+              {/* Аватар (АДАПТИВНИЙ ФОН І ТЕКСТ) */}
               <div
-                style={{
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  backgroundColor: "#1e293b",
-                  border: `2px solid ${colors.text}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
+                className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 bg-white dark:bg-slate-800"
+                style={{ borderColor: colors.text }}
               >
                 {leader.photo_url ? (
                   <img
                     src={leader.photo_url}
                     alt={fullName(leader)}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
+                    className="h-full w-full object-cover"
                   />
                 ) : (
-                  <span
-                    style={{
-                      fontSize: "16px",
-                      fontWeight: 600,
-                      color: "#94a3b8",
-                    }}
-                  >
+                  <span className="text-base font-semibold text-slate-500 dark:text-slate-400">
                     {leader.first_name?.[0]}
                     {leader.last_name?.[0]}
                   </span>
@@ -262,68 +203,27 @@ const OrgNode = ({
               </div>
 
               {/* Текст */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#ffffff",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    lineHeight: "1.3",
-                  }}
-                >
+              <div className="flex-1 min-w-0">
+                {/* Ім'я керівника (АДАПТИВНИЙ ТЕКСТ) */}
+                <div className="text-xs font-semibold leading-tight text-slate-900 dark:text-white line-clamp-2">
                   {fullName(leader)}
                 </div>
-                <div
-                  style={{
-                    fontSize: "10px",
-                    color: "#94a3b8",
-                    marginTop: "2px",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    lineHeight: "1.3",
-                  }}
-                >
-                  {/* Відображаємо реальну посаду персони, або дефолтний тайтл керівника з підрозділу */}
+                {/* Посада керівника */}
+                <div className="mt-0.5 text-[10px] leading-tight text-slate-500 dark:text-slate-400 line-clamp-2">
                   {leader.position_title || unit.leader_title || "Керівник"}
                 </div>
               </div>
             </div>
           ) : (
-            <div
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#64748b",
-                fontSize: "11px",
-                fontStyle: "italic",
-              }}
-            >
+            <div className="flex flex-1 items-center justify-center text-[11px] italic text-slate-500 dark:text-slate-400">
               Вакантно
             </div>
           )}
 
           {/* Тип підрозділу та кількість людей */}
           <div
-            style={{
-              marginTop: "auto",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              fontSize: "10px",
-              color: colors.text,
-              fontFamily: "monospace",
-              textTransform: "uppercase",
-            }}
+            className="mt-auto flex items-center justify-between font-mono text-[10px] uppercase font-semibold"
+            style={{ color: colors.text }}
           >
             <span>{unit.unit_type}</span>
             {personCount > 0 && <span>{personCount} 👤</span>}
@@ -340,11 +240,12 @@ const OrgNode = ({
             onToggle(unit.id);
           }}
         >
+          {/* АДАПТИВНИЙ КОЛІР КНОПКИ (темний для світлої теми, і навпаки) */}
           <circle
             r={12}
             cx={0}
             cy={0}
-            fill="#0f172a"
+            className="fill-white dark:fill-slate-900"
             stroke={colors.border}
             strokeWidth={1.5}
           />
@@ -355,7 +256,7 @@ const OrgNode = ({
             fontSize={14}
             fontWeight="bold"
             fill={colors.text}
-            style={{ userSelect: "none" }}
+            className="select-none"
           >
             {node.collapsed ? "+" : "−"}
           </text>
@@ -364,6 +265,7 @@ const OrgNode = ({
     </g>
   );
 };
+
 // ── Edge ──────────────────────────────────────────────────────────────────────
 
 const Edge = ({
@@ -431,7 +333,6 @@ export const OrgChart = ({
     if (!containerRef.current) return;
 
     try {
-      // Тимчасово скидаємо зум і зсув, щоб відмалювати все дерево
       const svgNode = containerRef.current.querySelector("svg");
       const originalTransform = svgNode?.style.transform;
 
@@ -439,18 +340,15 @@ export const OrgChart = ({
         svgNode.style.transform = "none";
       }
 
-      // Використовуємо html-to-image замість html2canvas
       const dataUrl = await toPng(containerRef.current, {
-        backgroundColor: "#020617", // Колір фону (slate-950)
-        pixelRatio: 2, // Вища якість (аналог scale: 2)
+        backgroundColor: "#020617",
+        pixelRatio: 2,
       });
 
-      // Повертаємо зум назад
       if (svgNode && originalTransform) {
         svgNode.style.transform = originalTransform;
       }
 
-      // Створюємо PDF на основі отриманого зображення
       const img = new Image();
       img.src = dataUrl;
       img.onload = () => {
@@ -468,9 +366,10 @@ export const OrgChart = ({
       alert("Не вдалося створити PDF.");
     }
   };
+
   // Pan handlers
   const onMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as SVGElement).tagName === "circle") return; // don't pan on toggle
+    if ((e.target as SVGElement).tagName === "circle") return;
     isPanning.current = true;
     lastPos.current = { x: e.clientX, y: e.clientY };
   };
@@ -519,7 +418,7 @@ export const OrgChart = ({
     return (
       <div
         className={cn(
-          "flex items-center justify-center h-64 text-slate-400 dark:text-slate-500 text-sm",
+          "flex h-64 items-center justify-center text-sm text-slate-400 dark:text-slate-500",
           className,
         )}
       >
@@ -531,12 +430,12 @@ export const OrgChart = ({
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800",
+        "relative overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950",
         className,
       )}
     >
       {/* Controls */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-1">
         {[
           { icon: Download, action: exportToPDF, title: "Експорт в PDF" },
           {
@@ -556,12 +455,12 @@ export const OrgChart = ({
             key={title}
             onClick={action}
             title={title}
-            className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600 transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-slate-100 text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500 dark:hover:border-slate-600 dark:hover:text-white"
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="h-3.5 w-3.5" />
           </button>
         ))}
-        <div className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 text-[10px] font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="rounded-lg border border-slate-300 bg-slate-100 px-2 py-1 font-mono text-[10px] text-slate-400 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-500">
           {Math.round(zoom * 100)}%
         </div>
       </div>
@@ -569,7 +468,7 @@ export const OrgChart = ({
       {/* SVG canvas */}
       <div
         ref={containerRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
+        className="h-full w-full cursor-grab active:cursor-grabbing"
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}

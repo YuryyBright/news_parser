@@ -11,7 +11,7 @@ from typing import Any
 
 from sqlalchemy import select, func, or_, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, noload
 
 from src.infrastructure.persistence.handbook import (
     CountryModel, OrgUnitModel, PersonModel,
@@ -61,37 +61,28 @@ class CountryRepository:
         return r.scalar_one_or_none()
 
     async def get_detail(self, country_id: str) -> CountryModel | None:
-        r = await self._s.execute(
-            select(CountryModel)
-            .where(CountryModel.id == country_id)
-            .options(
-                selectinload(CountryModel.org_units).options(
-                    
-                    # ✅ FIX 1: Use .options() to load multiple relationships on 'persons'
-                    selectinload(OrgUnitModel.persons).options(
-                        selectinload(PersonModel.news_links),
-                        selectinload(PersonModel.changelog),
-                    ),
-                    selectinload(OrgUnitModel.news_links),
-                    selectinload(OrgUnitModel.changelog),
-                    
-                    # ✅ FIX 2: Apply the exact same thorough loading to 'children' 
-                    # otherwise the app will crash when rendering nested org units
-                    selectinload(OrgUnitModel.children).options(
+            r = await self._s.execute(
+                select(CountryModel)
+                .where(CountryModel.id == country_id)
+                .options(
+                    selectinload(CountryModel.org_units).options(
                         selectinload(OrgUnitModel.persons).options(
                             selectinload(PersonModel.news_links),
                             selectinload(PersonModel.changelog),
                         ),
                         selectinload(OrgUnitModel.news_links),
                         selectinload(OrgUnitModel.changelog),
+                        
+                        # ✅ ДОДАНО: Кажемо SQLAlchemy не робити запит за дітьми.
+                        # Pydantic отримає порожній масив, помилки не буде, 
+                        # а фронтенд сам збере дерево через buildTree().
+                        noload(OrgUnitModel.children),
                     ),
-                ),
-                selectinload(CountryModel.news_links),
-                selectinload(CountryModel.changelog),
+                    selectinload(CountryModel.news_links),
+                    selectinload(CountryModel.changelog),
+                )
             )
-        )
-        return r.scalar_one_or_none()
-
+            return r.scalar_one_or_none()
     async def list(
         self,
         q: str | None = None,
@@ -188,13 +179,23 @@ class OrgUnitRepository:
 
     async def get(self, unit_id: str):
         stmt = select(OrgUnitModel).where(OrgUnitModel.id == unit_id).options(
-            selectinload(OrgUnitModel.children),
-            selectinload(OrgUnitModel.persons),
+            selectinload(OrgUnitModel.children).options(
+                selectinload(OrgUnitModel.persons).options(
+                    selectinload(PersonModel.news_links),
+                    selectinload(PersonModel.changelog),
+                ),
+                selectinload(OrgUnitModel.news_links),
+                selectinload(OrgUnitModel.changelog),
+                noload(OrgUnitModel.children),  # глибше не потрібно
+            ),
+            selectinload(OrgUnitModel.persons).options(
+                selectinload(PersonModel.news_links),
+                selectinload(PersonModel.changelog),
+            ),
             selectinload(OrgUnitModel.leader),
             selectinload(OrgUnitModel.news_links),
-            selectinload(OrgUnitModel.changelog)
+            selectinload(OrgUnitModel.changelog),
         )
-        # ✅ Виправлено: self._s замість self.session
         result = await self._s.execute(stmt)
         return result.scalar_one_or_none()
     async def get_tree(self, country_id: str) -> list[OrgUnitModel]:
@@ -481,7 +482,7 @@ class HandbookSearchRepository:
                 "country_name": c.name_uk,
             })
 
-        # 2. Org units
+       # 2. Org units — with full parent path
         r = await self._s.execute(
             select(OrgUnitModel, CountryModel)
             .join(CountryModel, OrgUnitModel.country_id == CountryModel.id)
@@ -491,63 +492,48 @@ class HandbookSearchRepository:
             ))
             .limit(entity_limit)
         )
-        for unit, country in r.all():
+        # ← ЗБЕРЕГТИ ДО all_units_r запиту
+        org_unit_rows = r.all()
+        all_units_r = await self._s.execute(
+            select(OrgUnitModel.id, OrgUnitModel.parent_id, OrgUnitModel.name, OrgUnitModel.short_name)
+        )
+        unit_rows = {row.id: row for row in all_units_r}
+        # 3. Persons
+
+        # Build a flat index of all units for ancestor resolution
+        all_units_r = await self._s.execute(
+            select(OrgUnitModel.id, OrgUnitModel.parent_id, OrgUnitModel.name, OrgUnitModel.short_name)
+        )
+        unit_rows = {row.id: row for row in all_units_r}
+        def get_path(unit_id: str) -> list[str]:
+            """Return [root_name, ..., direct_parent_name] for a unit."""
+            path = []
+            current_id = unit_rows.get(unit_id, None)
+            # Walk up via parent_id
+            seen = set()
+            node = unit_rows.get(unit_id)
+            if node:
+                pid = node.parent_id
+                while pid and pid not in seen:
+                    seen.add(pid)
+                    parent = unit_rows.get(pid)
+                    if not parent:
+                        break
+                    path.insert(0, parent.short_name or parent.name)
+                    pid = parent.parent_id
+            return path
+ 
+        for unit, country in org_unit_rows:
+            ancestor_path = get_path(unit.id)
+            # subtitle = "Батько › Дід" — full path from root to direct parent
+            subtitle = " › ".join(ancestor_path) if ancestor_path else unit.unit_type
             results.append({
                 "entity_type": "org_unit",
                 "id": unit.id,
                 "title": unit.name,
-                "subtitle": unit.unit_type,
+                "subtitle": subtitle,  # now full path!
                 "country_code": country.code,
                 "country_name": country.name_uk,
-            })
-
-        # 3. Persons
-        r = await self._s.execute(
-            select(PersonModel, CountryModel)
-            .join(CountryModel, PersonModel.country_id == CountryModel.id)
-            .where(or_(
-                PersonModel.first_name.ilike(like),
-                PersonModel.last_name.ilike(like),
-                PersonModel.position_title.ilike(like),
-            ))
-            .limit(entity_limit)
-        )
-        for person, country in r.all():
-            full = f"{person.last_name} {person.first_name}".strip()
-            results.append({
-                "entity_type": "person",
-                "id": person.id,
-                "title": full,
-                "subtitle": person.position_title,
-                "country_code": country.code,
-                "country_name": country.name_uk,
-            })
-
-        # 4. Events
-        r = await self._s.execute(
-            select(EventModel, CountryModel)
-            # Use outerjoin because an event might not have a direct country_id
-            .outerjoin(CountryModel, EventModel.country_id == CountryModel.id)
-            .where(or_(
-                EventModel.title.ilike(like),
-                EventModel.description.ilike(like),
-                EventModel.location.ilike(like),
-            ))
-            .limit(entity_limit)
-        )
-        for event, country in r.all():
-            # Format a nice subtitle combining the event type and date
-            subtitle = str(event.event_type).capitalize()
-            if event.date:
-                subtitle += f" ({event.date.strftime('%Y-%m-%d')})"
-
-            results.append({
-                "entity_type": "event",
-                "id": event.id,
-                "title": event.title,
-                "subtitle": subtitle,
-                "country_code": country.code if country else None,
-                "country_name": country.name_uk if country else None,
             })
 
         # Sort combined results by title length or alphabetically if desired, 

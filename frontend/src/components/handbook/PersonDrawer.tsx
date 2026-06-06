@@ -33,21 +33,14 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { cn, formatDate, formatDateFull } from "../../lib/utils";
 import { handbookApi, fullName } from "../../api/handbook";
-import type { Person, NewsLink, ChangeLogEntry } from "../../api/handbook";
+import type {
+  Person,
+  NewsLink,
+  ChangeLogEntry,
+  HandbookEvent,
+} from "../../api/handbook";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface Event {
-  id: string;
-  title: string;
-  event_type: string;
-  date: string;
-  location?: string;
-  description?: string;
-  participants?: string[];
-  source_url?: string;
-  article_id?: string;
-}
 
 interface Props {
   person: Person | null;
@@ -298,14 +291,11 @@ const EventsTab = ({
   person: Person;
   onAddEvent?: () => void;
 }) => {
-  // In real app: fetch from /handbook/persons/{id}/events
-  const { data: events, isLoading } = useQuery<Event[]>({
+  const { data: events, isLoading } = useQuery<HandbookEvent[]>({
     queryKey: ["person-events", person.id],
-    queryFn: () =>
-      handbookApi.getPersonEvents?.(person.id) ?? Promise.resolve([]),
+    queryFn: () => handbookApi.getPersonEvents(person.id).catch(() => []),
     staleTime: 60_000,
   });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">

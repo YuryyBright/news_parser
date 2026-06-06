@@ -1,5 +1,5 @@
 // src/pages/HandbookPage.tsx
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Globe2,
@@ -27,8 +27,10 @@ import { handbookApi, buildTree, fullName } from "../api/handbook";
 import type {
   OrgUnit,
   Person,
+  Country,
   NewsLink,
   ChangeLogEntry,
+  SearchResult,
 } from "../api/handbook";
 import { useHandbookStore } from "../store/useHandbookStore";
 import { HandbookFormModal } from "../components/handbook/HandbookFormModal";
@@ -153,11 +155,11 @@ const PersonCard = ({
     onClick={onClick}
     className={cn(
       "flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60",
-      "bg-slate-50 dark:bg-slate-900/40 hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60 transition-colors",
+      "bg-slate-50 dark:bg-slate-900/40 hover:bg-white dark:hover:bg-slate-800/60 transition-colors",
       onClick && "cursor-pointer",
     )}
   >
-    <div className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center">
+    <div className="flex-shrink-0 w-9 h-9 rounded-full overflow-hidden bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
       {person.photo_url ? (
         <img
           src={person.photo_url}
@@ -165,7 +167,7 @@ const PersonCard = ({
           className="w-full h-full object-cover"
         />
       ) : (
-        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <span className="text-sm font-medium text-slate-500 dark:text-slate-300">
           {person.first_name[0]}
           {person.last_name[0]}
         </span>
@@ -192,6 +194,85 @@ const PersonCard = ({
   </div>
 );
 
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+/** All ancestor ids from root to direct parent */
+function getAncestorIds(units: OrgUnit[], targetId: string): string[] {
+  const byId = new Map(units.map((u) => [u.id, u]));
+  const ancestors: string[] = [];
+  let current = byId.get(targetId);
+  while (current?.parent_id) {
+    ancestors.unshift(current.parent_id);
+    current = byId.get(current.parent_id);
+  }
+  return ancestors;
+}
+
+/** Full ancestor path as names: ["Міністерство оборони", "Генеральний штаб"] */
+function getAncestorPath(units: OrgUnit[], targetId: string): OrgUnit[] {
+  const byId = new Map(units.map((u) => [u.id, u]));
+  const path: OrgUnit[] = [];
+  let current = byId.get(targetId);
+  while (current?.parent_id) {
+    const parent = byId.get(current.parent_id);
+    if (parent) path.unshift(parent);
+    current = parent;
+  }
+  return path;
+}
+
+/** Highlight matched substrings in text, returns JSX spans */
+function HighlightMatch({
+  text,
+  query,
+  className,
+}: {
+  text: string;
+  query: string;
+  className?: string;
+}) {
+  if (!query.trim()) return <span className={className}>{text}</span>;
+
+  // Build regex from query tokens for partial/fuzzy highlighting
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+
+  // FIXED: Closed the character class properly and fixed the replacement string
+  const pattern = tokens
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+
+  const regex = new RegExp(`(${pattern})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    <span className={className}>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <mark
+            key={i}
+            className="bg-blue-500/40 text-white rounded-sm px-0.5 not-italic font-semibold"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </span>
+  );
+}
+
+/** Score how well a string matches the query (0–1) */
+function matchScore(text: string, query: string): number {
+  if (!text || !query) return 0;
+  const t = text.toLowerCase();
+  const q = query.toLowerCase().trim();
+  if (t.includes(q)) return 1;
+  const tokens = q.split(/\s+/);
+  const matched = tokens.filter((tok) => t.includes(tok)).length;
+  return matched / tokens.length;
+}
+
 // ── OrgTree node ──────────────────────────────────────────────────────────────
 
 const OrgTreeNode = ({
@@ -209,13 +290,21 @@ const OrgTreeNode = ({
   const isExpanded = expandedNodes.has(unit.id);
   const hasChildren = unit.children.length > 0;
   const isActive = activeId === unit.id;
+  const nodeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isActive && nodeRef.current) {
+      nodeRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [isActive]);
 
   return (
     <div>
       <div
+        ref={nodeRef}
         className={cn(
           "group flex items-center gap-1.5 py-1.5 px-2 rounded-md cursor-pointer transition-all",
-          "hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60",
+          "hover:bg-white dark:hover:bg-slate-800/60",
           isActive &&
             "bg-slate-100 dark:bg-slate-800 border-l-2 border-blue-500",
         )}
@@ -394,7 +483,7 @@ const OrgUnitDetail = ({
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-base font-semibold text-slate-700 dark:text-slate-300 bg-gradient-to-br from-slate-700 to-slate-800">
+                    <div className="w-full h-full flex items-center justify-center text-base font-semibold text-slate-500 dark:text-slate-300 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800">
                       {leader.first_name?.[0]}
                       {leader.last_name?.[0]}
                     </div>
@@ -493,7 +582,7 @@ const OrgUnitDetail = ({
         {tab === "structure" && (
           <div className="h-full min-h-[480px] p-2">
             <OrgChart
-              units={countryDetail?.org_units ?? []}
+              units={buildTree(countryDetail?.org_units ?? [])}
               selectedId={unit.id}
               onSelect={(u) =>
                 useHandbookStore.getState().setActiveOrgUnit(u.id)
@@ -549,7 +638,7 @@ const NewsLinkCard = ({ link }: { link: NewsLink }) => {
         "flex items-start gap-3 px-3 sm:px-4 py-3 sm:py-4 rounded-xl border cursor-pointer transition-colors group",
         "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60",
         link.article_id &&
-          "hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60 hover:border-blue-500/30 active:bg-slate-100 dark:bg-slate-800",
+          "hover:bg-white dark:hover:bg-slate-800/60 hover:border-blue-500/30 active:bg-slate-100 dark:active:bg-slate-800",
         !link.article_id && "cursor-default",
       )}
     >
@@ -573,7 +662,7 @@ const NewsLinkCard = ({ link }: { link: NewsLink }) => {
         )}
         {link.note && (
           <div className="mt-2.5 flex items-center gap-1.5">
-            <span className="px-2 py-1 rounded-md text-[10px] font-medium bg-white dark:bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700/50">
+            <span className="px-2 py-1 rounded-md text-[10px] font-medium bg-white dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700/50">
               <span className="text-slate-400 dark:text-slate-500 mr-1">
                 Примітка:
               </span>
@@ -606,10 +695,18 @@ const NewsLinkCard = ({ link }: { link: NewsLink }) => {
 
 // ── Search overlay ────────────────────────────────────────────────────────────
 
-const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
+const SearchOverlay = ({
+  onClose,
+  countries,
+}: {
+  onClose: () => void;
+  countries: Country[];
+}) => {
   const [q, setQ] = useState("");
+  const [focusedIdx, setFocusedIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { setActiveCountry, setActiveOrgUnit } = useHandbookStore();
+  const listRef = useRef<HTMLDivElement>(null);
+  const { setActiveCountry, setActiveOrgUnit, expandNode } = useHandbookStore();
 
   const { data, isLoading } = useQuery({
     queryKey: ["handbook-search", q],
@@ -617,9 +714,125 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
     enabled: q.trim().length >= 2,
   });
 
+  // Client-side score & sort — keeps only items with score > 0.4
+  const items = useMemo<SearchResult[]>(() => {
+    const raw = data?.items ?? [];
+    if (!q.trim()) return raw;
+    return raw
+      .map((item) => ({
+        item,
+        score: Math.max(
+          matchScore(item.title, q),
+          matchScore(item.subtitle ?? "", q),
+          matchScore(item.country_name ?? "", q),
+        ),
+      }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ item }) => item);
+  }, [data, q]);
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+  useEffect(() => {
+    setFocusedIdx(0);
+  }, [items.length]);
+
+  // Map country code → Country object
+  const countriesByCode = useMemo(
+    () => new Map(countries.map((c) => [c.code, c])),
+    [countries],
+  );
+
+  const findCountryId = useCallback(
+    (code: string | undefined) =>
+      code ? (countriesByCode.get(code)?.id ?? null) : null,
+    [countriesByCode],
+  );
+
+  // Build full hierarchy breadcrumb for an org_unit using already-loaded tree
+  const buildHierarchy = useCallback(
+    (item: SearchResult): string[] => {
+      const country = item.country_code
+        ? countriesByCode.get(item.country_code)
+        : null;
+      const crumbs: string[] = [];
+      if (country) {
+        crumbs.push(
+          country.flag_emoji
+            ? `${country.flag_emoji} ${country.name_uk}`
+            : country.name_uk,
+        );
+      }
+      if (item.entity_type === "org_unit") {
+        // Try to resolve ancestor names from the loaded country tree
+        const allUnits =
+          useHandbookStore.getState().activeCountry?.org_units ?? [];
+        const byId = new Map(allUnits.map((u) => [u.id, u]));
+        const target = byId.get(item.id);
+        if (target) {
+          // Walk ancestors
+          const ancestors = getAncestorPath(allUnits, item.id);
+          ancestors.forEach((a) => crumbs.push(a.short_name || a.name));
+        } else if (item.subtitle) {
+          // Fallback: subtitle from API (unit_type)
+          crumbs.push(item.subtitle);
+        }
+      } else if (item.entity_type === "person" && item.subtitle) {
+        crumbs.push(item.subtitle);
+      }
+      return crumbs;
+    },
+    [countriesByCode],
+  );
+
+  const handleSelect = useCallback(
+    async (item: SearchResult) => {
+      const countryId = findCountryId(item.country_code);
+
+      if (item.entity_type === "country") {
+        setActiveCountry(item.id);
+      } else if (item.entity_type === "org_unit") {
+        if (
+          countryId &&
+          countryId !== useHandbookStore.getState().activeCountryId
+        ) {
+          setActiveCountry(countryId);
+          await new Promise((r) => setTimeout(r, 450));
+        }
+        const allUnits =
+          useHandbookStore.getState().activeCountry?.org_units ?? [];
+        const ancestors = getAncestorIds(allUnits, item.id);
+        ancestors.forEach(expandNode);
+        setActiveOrgUnit(item.id);
+      } else if (item.entity_type === "person") {
+        if (countryId) setActiveCountry(countryId);
+        useHandbookStore.getState().setActivePerson(item.id);
+      }
+      onClose();
+    },
+    [findCountryId, setActiveCountry, setActiveOrgUnit, expandNode, onClose],
+  );
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFocusedIdx((i) => Math.min(i + 1, items.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFocusedIdx((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" && items[focusedIdx]) {
+      handleSelect(items[focusedIdx]);
+    } else if (e.key === "Escape") {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    const el = listRef.current?.children[focusedIdx] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [focusedIdx]);
 
   const ICONS: Record<string, typeof Globe2> = {
     country: Globe2,
@@ -627,69 +840,178 @@ const SearchOverlay = ({ onClose }: { onClose: () => void }) => {
     person: Users,
   };
 
+  const ENTITY_COLORS: Record<string, string> = {
+    country: "text-emerald-400",
+    org_unit: "text-blue-400",
+    person: "text-violet-400",
+  };
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/20 dark:bg-black/60 backdrop-blur-sm flex items-start justify-center pt-24 px-4">
-      <div className="w-full max-w-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800">
-          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400 flex-shrink-0" />
+    <div
+      className="fixed inset-0 z-50 bg-black/30 dark:bg-black/60 backdrop-blur-sm flex items-start justify-center pt-20 px-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl overflow-hidden">
+        {/* Input */}
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-slate-800">
+          <Search className="w-4 h-4 text-slate-400 dark:text-slate-500 flex-shrink-0" />
           <input
             ref={inputRef}
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+            }}
+            onKeyDown={handleKeyDown}
             placeholder="Пошук країн, структур, персон…"
             className="flex-1 bg-transparent text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-sm outline-none"
           />
           {isLoading && (
             <Loader2 className="w-4 h-4 text-slate-400 dark:text-slate-500 animate-spin flex-shrink-0" />
           )}
+          {q && !isLoading && (
+            <button
+              onClick={() => setQ("")}
+              className="p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-white"
+            className="p-1 rounded text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 text-[10px] font-mono px-1.5"
           >
-            <X className="w-4 h-4" />
+            Esc
           </button>
         </div>
-        <div className="max-h-80 overflow-y-auto">
-          {data?.items.length === 0 && q.length >= 2 && (
-            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
-              Нічого не знайдено
-            </p>
+
+        {/* Results */}
+        <div
+          ref={listRef}
+          className="max-h-[420px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60"
+        >
+          {items.length === 0 && q.length >= 2 && !isLoading && (
+            <div className="flex flex-col items-center gap-2 py-10 text-slate-400 dark:text-slate-500">
+              <Search className="w-6 h-6 opacity-40" />
+              <p className="text-sm">Нічого не знайдено для «{q}»</p>
+            </div>
           )}
-          {data?.items.map((item) => {
+          {q.length < 2 && (
+            <div className="px-4 py-6 text-center text-slate-400 dark:text-slate-600 text-xs">
+              Введіть мінімум 2 символи для пошуку
+            </div>
+          )}
+          {items.map((item, idx) => {
             const Icon = ICONS[item.entity_type] ?? BookOpen;
+            const isFocused = idx === focusedIdx;
+            const hierarchy = buildHierarchy(item);
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  if (item.entity_type === "country") setActiveCountry(item.id);
-                  else if (item.entity_type === "org_unit")
-                    setActiveOrgUnit(item.id);
-                  onClose();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60 transition-colors text-left"
+                onMouseEnter={() => setFocusedIdx(idx)}
+                onClick={() => handleSelect(item)}
+                className={cn(
+                  "w-full flex items-start gap-3 px-4 py-3 transition-colors text-left group",
+                  isFocused
+                    ? "bg-blue-50 dark:bg-slate-800/70"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/40",
+                )}
               >
-                <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                  <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-900 dark:text-white truncate">
-                    {item.title}
-                  </p>
-                  {item.subtitle && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-                      {item.subtitle}
-                    </p>
+                {/* Icon */}
+                <div
+                  className={cn(
+                    "mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors",
+                    isFocused
+                      ? "bg-blue-500/20"
+                      : "bg-slate-100 dark:bg-slate-800",
                   )}
+                >
+                  <Icon
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      ENTITY_COLORS[item.entity_type] ?? "text-slate-400",
+                    )}
+                  />
                 </div>
-                {item.country_code && (
-                  <span className="flex-shrink-0 text-[10px] font-mono text-slate-400 dark:text-slate-500">
-                    {item.country_code}
-                  </span>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Title with match highlight */}
+                  <HighlightMatch
+                    text={item.title}
+                    query={q}
+                    className="block text-sm font-medium text-slate-900 dark:text-white truncate"
+                  />
+
+                  {/* Full hierarchy breadcrumb */}
+                  {hierarchy.length > 0 && (
+                    <div className="flex items-center flex-wrap gap-0.5 mt-1">
+                      {hierarchy.map((crumb, ci) => (
+                        <span key={ci} className="flex items-center gap-0.5">
+                          {ci > 0 && (
+                            <ChevronRight className="w-3 h-3 text-slate-300 dark:text-slate-600 flex-shrink-0" />
+                          )}
+                          <HighlightMatch
+                            text={crumb}
+                            query={q}
+                            className="text-[11px] text-slate-400 dark:text-slate-500 font-mono whitespace-nowrap"
+                          />
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Match score indicator — subtle bar */}
+                  {q.trim() &&
+                    (() => {
+                      const score = Math.max(
+                        matchScore(item.title, q),
+                        matchScore(item.subtitle ?? "", q),
+                      );
+                      return score < 1 && score > 0.3 ? (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <div className="h-0.5 w-12 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-blue-400 rounded-full"
+                              style={{ width: `${Math.round(score * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+                            {Math.round(score * 100)}%
+                          </span>
+                        </div>
+                      ) : null;
+                    })()}
+                </div>
+
+                {/* Enter hint */}
+                {isFocused && (
+                  <kbd className="flex-shrink-0 self-center text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                    ↵
+                  </kbd>
                 )}
               </button>
             );
           })}
         </div>
+
+        {/* Footer */}
+        {items.length > 0 && (
+          <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+            <span className="flex items-center gap-1">
+              ↑↓ <span>навігація</span>
+            </span>
+            <span className="flex items-center gap-1">
+              ↵ <span>вибрати</span>
+            </span>
+            <span className="flex items-center gap-1">
+              Esc <span>закрити</span>
+            </span>
+            <span className="ml-auto">
+              {items.length} результат
+              {items.length === 1 ? "" : items.length < 5 ? "и" : "ів"}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -702,9 +1024,11 @@ export const HandbookPage = () => {
   const {
     activeCountryId,
     activeOrgUnitId,
+    activePersonId,
     setActiveCountry,
     setActiveCountryDetail,
     setActiveOrgUnit,
+    setActivePerson: setActivePersonId,
     view,
     setView,
     expandedNodes,
@@ -722,6 +1046,18 @@ export const HandbookPage = () => {
 
   // ── Local state ──────────────────────────────────────────────────────────────
   const [activePerson, setActivePerson] = useState<Person | null>(null);
+
+  // When search sets activePersonId in store → resolve the Person object from tree
+  useEffect(() => {
+    if (!activePersonId) return;
+    handbookApi
+      .getPerson(activePersonId)
+      .then((person) => {
+        setActivePerson(person);
+        setActivePersonId(null);
+      })
+      .catch(() => setActivePersonId(null));
+  }, [activePersonId]);
   const [eventModalConfig, setEventModalConfig] = useState<{
     personId?: string;
     orgUnitId?: string;
@@ -790,18 +1126,19 @@ export const HandbookPage = () => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="flex h-full flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-white">
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/80 backdrop-blur-sm flex-shrink-0">
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3 backdrop-blur-sm dark:border-slate-800/60 dark:bg-slate-900/80">
         <div className="flex items-center gap-3">
-          <BookOpen className="w-5 h-5 text-blue-400" />
+          <BookOpen className="h-5 w-5 text-blue-400" />
           <h1 className="text-base font-semibold text-slate-900 dark:text-white">
             Довідник
           </h1>
         </div>
+
         <div className="flex items-center gap-2">
           {activeCountryId && (
-            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 gap-0.5">
+            <div className="flex items-center gap-0.5 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
               {(
                 [
                   ["tree", Network],
@@ -812,50 +1149,52 @@ export const HandbookPage = () => {
                   key={v}
                   onClick={() => setView(v)}
                   className={cn(
-                    "p-1.5 rounded-md transition-colors",
+                    "rounded-md p-1.5 transition-colors",
                     view === v
-                      ? "bg-slate-600 text-slate-900 dark:text-white"
-                      : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300",
+                      ? "bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-white"
+                      : "text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300",
                   )}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="h-3.5 w-3.5" />
                 </button>
               ))}
             </div>
           )}
+
           <button
             onClick={openSearch}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white text-xs transition-colors"
+            className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white"
           >
-            <Search className="w-3.5 h-3.5" />
+            <Search className="h-3.5 w-3.5" />
             <span>Пошук</span>
-            <kbd className="text-[10px] bg-slate-700 px-1.5 py-0.5 rounded font-mono">
+            <kbd className="rounded bg-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-white">
               ⌘K
             </kbd>
           </button>
+
           <button
             onClick={handleAdd}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-slate-900 dark:text-white text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-500"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="h-3.5 w-3.5" />
             Додати
           </button>
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar: country list */}
-        <div className="w-56 border-r border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60 flex flex-col flex-shrink-0 bg-slate-50 dark:bg-slate-900/40">
-          <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60">
-            <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+        <div className="flex w-56 flex-shrink-0 flex-col border-r border-slate-200 bg-slate-50 dark:border-slate-800/60 dark:bg-slate-900/40">
+          <div className="border-b border-slate-200 px-3 py-2.5 dark:border-slate-800/60">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
               Країни
             </p>
           </div>
           <div className="flex-1 overflow-y-auto py-1">
             {loadingCountries ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-4 h-4 animate-spin text-slate-400 dark:text-slate-500" />
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400 dark:text-slate-500" />
               </div>
             ) : (
               countriesData?.items.map((c) => (
@@ -863,32 +1202,32 @@ export const HandbookPage = () => {
                   key={c.id}
                   onClick={() => setActiveCountry(c.id)}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 transition-colors text-left group",
+                    "group flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors",
                     activeCountryId === c.id
-                      ? "bg-blue-500/10 text-slate-900 dark:text-white border-l-2 border-blue-500"
-                      : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800/50 hover:text-slate-900 dark:text-white",
+                      ? "border-l-2 border-blue-500 bg-blue-500/10 text-slate-900 dark:text-white"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-white",
                   )}
                 >
                   <span className="text-base leading-none">
                     {c.flag_emoji ?? "🏳"}
                   </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{c.name_uk}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium">{c.name_uk}</p>
+                    <p className="font-mono text-[10px] text-slate-400 dark:text-slate-500">
                       {c.code}
                     </p>
                   </div>
-                  <ArrowRight className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <ArrowRight className="h-3 w-3 flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                 </button>
               ))
             )}
           </div>
-          <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60">
+          <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-800/60">
             <button
               onClick={() => openForm("country")}
-              className="w-full flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
+              className="flex w-full items-center gap-2 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus className="h-3.5 w-3.5" />
               Нова країна
             </button>
           </div>
@@ -896,24 +1235,24 @@ export const HandbookPage = () => {
 
         {/* Main section */}
         {activeCountryId ? (
-          <div className="flex-1 flex overflow-hidden">
+          <div className="flex flex-1 overflow-hidden">
             {/* Org panel */}
-            <div className="w-72 border-r border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60 flex flex-col flex-shrink-0">
-              <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60">
-                <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+            <div className="flex w-72 flex-shrink-0 flex-col border-r border-slate-200 dark:border-slate-800/60">
+              <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5 dark:border-slate-800/60">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   Структура
                 </p>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => expandAll(allIds)}
-                    className="text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded transition-colors"
+                    className="rounded px-1.5 py-0.5 text-[10px] text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
                   >
                     розкрити всі
                   </button>
-                  <span className="text-slate-700">·</span>
+                  <span className="text-slate-400 dark:text-slate-600">·</span>
                   <button
                     onClick={collapseAll}
-                    className="text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded transition-colors"
+                    className="rounded px-1.5 py-0.5 text-[10px] text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
                   >
                     згорнути
                   </button>
@@ -922,7 +1261,7 @@ export const HandbookPage = () => {
               <div className="flex-1 overflow-y-auto py-1">
                 {loadingDetail ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-400 dark:text-slate-500" />
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : view === "tree" ? (
                   orgTree.map((unit) => (
@@ -937,7 +1276,7 @@ export const HandbookPage = () => {
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead className="sticky top-0 bg-slate-50 dark:bg-slate-900">
-                        <tr className="text-slate-400 dark:text-slate-500 text-[10px] font-mono uppercase">
+                        <tr className="font-mono text-[10px] uppercase text-slate-500 dark:text-slate-400">
                           <th className="px-3 py-2 text-left">Назва</th>
                           <th className="px-3 py-2 text-left">Тип</th>
                         </tr>
@@ -948,10 +1287,10 @@ export const HandbookPage = () => {
                             key={u.id}
                             onClick={() => setActiveOrgUnit(u.id)}
                             className={cn(
-                              "border-t border-slate-200 dark:border-slate-800/40 cursor-pointer transition-colors",
+                              "cursor-pointer border-t border-slate-200 transition-colors dark:border-slate-800/40",
                               activeOrgUnitId === u.id
                                 ? "bg-blue-50/10"
-                                : "hover:bg-slate-100/60 dark:bg-slate-100 dark:bg-slate-800/40",
+                                : "hover:bg-slate-100/60 dark:hover:bg-slate-800/40",
                             )}
                           >
                             <td
@@ -970,14 +1309,14 @@ export const HandbookPage = () => {
                   </div>
                 )}
               </div>
-              <div className="px-3 py-2 border-t border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60">
+              <div className="border-t border-slate-200 px-3 py-2 dark:border-slate-800/60">
                 <button
                   onClick={() =>
                     openForm("org_unit", { country_id: activeCountryId })
                   }
-                  className="w-full flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
+                  className="flex w-full items-center gap-2 text-xs text-slate-500 transition-colors hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="h-3.5 w-3.5" />
                   Додати структуру
                 </button>
               </div>
@@ -1002,7 +1341,7 @@ export const HandbookPage = () => {
                   onSelectPerson={setActivePerson}
                 />
               ) : countryDetail ? (
-                <div className="h-full overflow-y-auto p-4 space-y-4">
+                <div className="h-full space-y-4 overflow-y-auto p-4">
                   <div className="flex items-start gap-4">
                     <span className="text-5xl">
                       {countryDetail.flag_emoji ?? "🏳"}
@@ -1011,17 +1350,18 @@ export const HandbookPage = () => {
                       <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                         {countryDetail.name_uk}
                       </h2>
-                      <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
                         {countryDetail.name_en}
                       </p>
                       {countryDetail.capital && (
-                        <p className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 mt-1">
-                          <MapPin className="w-3 h-3" />
+                        <p className="mt-1 flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                          <MapPin className="h-3 w-3" />
                           {countryDetail.capital}
                         </p>
                       )}
                     </div>
                   </div>
+
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       {
@@ -1042,11 +1382,11 @@ export const HandbookPage = () => {
                     ].map(({ label, value, icon: Icon }) => (
                       <div
                         key={label}
-                        className="rounded-lg border border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60 bg-slate-50 dark:bg-slate-900/40 p-3"
+                        className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-800/60 dark:bg-slate-900/40"
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono uppercase">
+                        <div className="mb-1 flex items-center gap-2">
+                          <Icon className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
+                          <p className="font-mono text-[10px] uppercase text-slate-500 dark:text-slate-400">
                             {label}
                           </p>
                         </div>
@@ -1056,14 +1396,16 @@ export const HandbookPage = () => {
                       </div>
                     ))}
                   </div>
+
                   {countryDetail.description && (
-                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">
                       {countryDetail.description}
                     </p>
                   )}
+
                   {countryDetail.resources.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
                         Ресурси
                       </p>
                       {countryDetail.resources.map((r, i) => (
@@ -1072,17 +1414,18 @@ export const HandbookPage = () => {
                           href={r.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                          className="flex items-center gap-2 text-sm text-blue-500 transition-colors hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300"
                         >
-                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                           {r.title}
                         </a>
                       ))}
                     </div>
                   )}
+
                   {countryDetail.changelog.length > 0 && (
                     <div className="space-y-1">
-                      <p className="text-[10px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      <p className="font-mono text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
                         Останні зміни
                       </p>
                       {countryDetail.changelog.slice(0, 5).map((e) => (
@@ -1090,20 +1433,33 @@ export const HandbookPage = () => {
                       ))}
                     </div>
                   )}
+
+                  {/* Add person at country level */}
+                  <div className="border-t border-slate-200 pt-2 dark:border-slate-800">
+                    <button
+                      onClick={() =>
+                        openForm("person", { country_id: activeCountryId })
+                      }
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-2 text-xs font-medium text-violet-600 transition-colors hover:bg-violet-500/20 dark:text-violet-400 dark:hover:bg-violet-500/15"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Додати персону до країни
+                    </button>
+                  </div>
                 </div>
               ) : null}
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
-            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-100 dark:bg-slate-800/60 flex items-center justify-center">
-              <Globe2 className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 dark:bg-slate-800/60">
+              <Globe2 className="h-8 w-8 text-slate-400 dark:text-slate-500" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">
+              <h2 className="mb-1 text-lg font-semibold text-slate-900 dark:text-white">
                 Оберіть країну
               </h2>
-              <p className="text-sm text-slate-400 dark:text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
                 Виберіть країну зі списку або скористайтесь пошуком,
                 <br />
                 щоб переглянути організаційну структуру.
@@ -1111,9 +1467,9 @@ export const HandbookPage = () => {
             </div>
             <button
               onClick={openSearch}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm transition-colors"
+              className="flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              <Search className="w-4 h-4" />
+              <Search className="h-4 w-4" />
               Пошук по довіднику
             </button>
           </div>
@@ -1121,7 +1477,12 @@ export const HandbookPage = () => {
       </div>
 
       {/* Overlays */}
-      {isSearchOpen && <SearchOverlay onClose={closeSearch} />}
+      {isSearchOpen && (
+        <SearchOverlay
+          countries={countriesData?.items ?? []}
+          onClose={closeSearch}
+        />
+      )}
 
       {isFormOpen && (
         <HandbookFormModal
@@ -1131,7 +1492,6 @@ export const HandbookPage = () => {
         />
       )}
 
-      {/* PersonDrawer — відкривається при кліку на персону (з картки або з OrgChart) */}
       <PersonDrawer
         person={activePerson}
         onClose={() => setActivePerson(null)}

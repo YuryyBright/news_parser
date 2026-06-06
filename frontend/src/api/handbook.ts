@@ -230,7 +230,10 @@ export const handbookApi = {
     });
     return data;
   },
-
+  getPerson: async (id: string) => {
+    const { data } = await client.get<Person>(`${BASE}/persons/${id}`);
+    return data;
+  },
   getPersonEvents: async (personId: string): Promise<HandbookEvent[]> => {
     const res = await fetch(`/api/handbook/persons/${personId}/events`);
     if (!res.ok) throw new Error("Failed to load person events");

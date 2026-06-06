@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { handbookApi } from "../../api/handbook";
 import type { OrgUnit, ResourceLink } from "../../api/handbook";
+import { useHandbookStore } from "../../store/useHandbookStore";
 import {
   Field,
   Input,
@@ -56,7 +57,9 @@ interface Props {
 export const PersonForm = ({ data, onSuccess }: Props) => {
   const qc = useQueryClient();
   const isEdit = !!data?.id;
-  const countryId = (data?.country_id as string) ?? "";
+  // country_id comes from data (edit) OR from the store (create from country/org_unit context)
+  const { activeCountryId, activeOrgUnitId } = useHandbookStore();
+  const countryId = (data?.country_id as string) || activeCountryId || "";
 
   // Name
   const [lastName, setLastName] = useState((data?.last_name as string) ?? "");
@@ -72,8 +75,9 @@ export const PersonForm = ({ data, onSuccess }: Props) => {
   const [positionTitle, setPositionTitle] = useState(
     (data?.position_title as string) ?? "",
   );
+  // Pre-fill org_unit_id from: explicit data prop → active org unit in store
   const [orgUnitId, setOrgUnitId] = useState(
-    (data?.org_unit_id as string) ?? "",
+    (data?.org_unit_id as string) ?? activeOrgUnitId ?? "",
   );
 
   // Dates
