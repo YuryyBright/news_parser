@@ -252,7 +252,7 @@ export const NewsLinkerV2 = ({
           compact ? "px-2 py-1 min-h-[28px]" : "px-3 py-1.5 min-h-[32px]",
           open
             ? "bg-violet-500/15 border-violet-500/30 text-violet-300"
-            : "text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-violet-500/40 hover:text-violet-400 hover:bg-violet-500/5",
+            : "text-slate-400 dark:text-slate-500 border-slate-300 dark:border-slate-700 hover:border-violet-500/40 hover:text-violet-400 hover:bg-violet-500/5",
           hasExcerpt && !open && "border-violet-500/40 text-violet-400",
         )}
         title={
@@ -346,7 +346,7 @@ export const NewsLinkerV2 = ({
                 <div className="border-b border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60">
                   <button
                     onClick={() => setShowExisting((v) => !v)}
-                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors"
+                    className="w-full flex items-center justify-between px-3 py-2 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-400 dark:text-slate-500 transition-colors"
                   >
                     <span className="font-mono uppercase">
                       Вже прив'язано ({existingLinks.length})
@@ -368,7 +368,7 @@ export const NewsLinkerV2 = ({
                           >
                             <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate block">
+                              <span className="text-xs text-slate-400 dark:text-slate-500 truncate block">
                                 {ENTITY_LABELS[link.entity_type]}
                                 {link.note && ` · ${link.note}`}
                               </span>
@@ -430,7 +430,7 @@ export const NewsLinkerV2 = ({
                                 className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white dark:bg-slate-100 dark:bg-slate-800/60 transition-colors text-left"
                               >
                                 <div className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                  <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+                                  <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs text-slate-900 dark:text-white truncate">

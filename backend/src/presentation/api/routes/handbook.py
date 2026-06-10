@@ -150,7 +150,7 @@ async def create_org_unit(
     m = await repo.create(data, editor)
     
     # 1. Flush to push changes to the DB and get the ID (keeps transaction open)
-    await session.flush()
+    await session.commit() 
     
     # 2. Re-fetch to load relationships (children, persons, etc.)
     return await repo.get(m.id)
@@ -181,7 +181,7 @@ async def update_org_unit(
         raise HTTPException(404, "OrgUnit not found")
         
     # Flush instead of commit
-    await session.flush()
+    await session.commit()  
     
     return await repo.get(unit_id)
 
@@ -199,7 +199,7 @@ async def move_org_unit(
         raise HTTPException(404, "OrgUnit not found")
         
     # Flush instead of commit
-    await session.flush()
+    await session.commit()
     
     return await repo.get(unit_id)
 

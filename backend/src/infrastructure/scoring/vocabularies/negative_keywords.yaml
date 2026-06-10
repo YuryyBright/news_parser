@@ -58,7 +58,18 @@ keywords:
       - sportiv
       - baschet
       - tenis
-
+    pl:
+      - piłka nożna
+      - futbol
+      - mecz
+      - mistrzostwa
+      - turniej
+      - igrzyska
+      - olimpiada
+      - sportowiec
+      - siatkówka
+      - skoki narciarskie
+      - tenis
   culture:
     # УВАГА: "fesztivál" (HU) і "festival" (SK) видалено —
     # конфліктують з "festival demokracie" та подібними релевантними виразами.
@@ -103,6 +114,16 @@ keywords:
       - muzeu
       - actor
       - spectacol
+    pl:
+      - koncert
+      - kino
+      - teatr
+      - wystawa
+      - sztuka
+      - muzeum
+      - aktor
+      - reżyser
+      - film
 
   crime_nonpolitical:
     # Виключено: "fraud" / "podvod" / "fraudă" — занадто часто з'являються
@@ -145,6 +166,15 @@ keywords:
       - înjunghiere
       - accident rutier
       - violență domestică
+    pl:
+      - kradzież
+      - morderstwo
+      - zabójstwo
+      - włamanie
+      - wypadek drogowy
+      - kolizja
+      - przemoc domowa
+      - ugodzenie nożem
 
   ads:
     en:
@@ -173,6 +203,13 @@ keywords:
       - reducere
       - promoție
       - publicitate
+    pl:
+      - reklama
+      - sponsorowane
+      - promocja
+      - zniżka
+      - wyprzedaż
+      - rabat
 
   geopolitics_uk:
     # Геополітика поза регіоном — Велика Британія
@@ -201,3 +238,8 @@ keywords:
       - marea britanie
       - britanic
       - regatul unit
+    pl:
+      - wielka brytania
+      - brytyjski
+      - zjednoczone królestwo
+      - londyn

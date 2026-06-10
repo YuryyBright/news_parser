@@ -166,13 +166,13 @@ const ProfileTab = ({ person }: { person: Person }) => (
               rel="noopener noreferrer"
               className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-slate-100/60 dark:bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-200/60 dark:border-slate-800/60 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:bg-slate-800/80 transition-all group"
             >
-              <span className="text-slate-400 dark:text-slate-500 group-hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors">
+              <span className="text-slate-400 dark:text-slate-500 group-hover:text-slate-400 dark:text-slate-500 transition-colors">
                 <ContactIcon type={type} />
               </span>
               <span className="text-xs text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:text-white transition-colors flex-1">
                 {value}
               </span>
-              <ExternalLink className="w-3 h-3 text-slate-400 dark:text-slate-600 group-hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors" />
+              <ExternalLink className="w-3 h-3 text-slate-400 dark:text-slate-600 group-hover:text-slate-400 dark:text-slate-500 transition-colors" />
             </a>
           ))}
         </div>
@@ -232,7 +232,7 @@ const NewsTab = ({ person }: { person: Person }) => {
           <Newspaper className="w-5 h-5 text-slate-400 dark:text-slate-600" />
         </div>
         <div>
-          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-slate-500">
             Немає прив'язаних новин
           </p>
           <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
@@ -265,7 +265,7 @@ const NewsLinkCard = ({ link }: { link: NewsLink }) => (
           </p>
         )}
         {link.excerpt && (
-          <blockquote className="mt-1.5 pl-2 border-l-2 border-violet-500/40 text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 italic line-clamp-3">
+          <blockquote className="mt-1.5 pl-2 border-l-2 border-violet-500/40 text-[11px] text-slate-400 dark:text-slate-500 italic line-clamp-3">
             {link.excerpt}
           </blockquote>
         )}
@@ -322,7 +322,7 @@ const EventsTab = ({
             <CalendarDays className="w-5 h-5 text-slate-400 dark:text-slate-600" />
           </div>
           <div>
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-400 dark:text-slate-500">
               Заходи не зафіксовані
             </p>
             <p className="text-xs text-slate-400 dark:text-slate-600 mt-0.5">
@@ -346,7 +346,7 @@ const EventsTab = ({
               >
                 <div className="flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                    <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+                    <Icon className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -372,7 +372,7 @@ const EventsTab = ({
                       </p>
                     )}
                     {event.description && (
-                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 leading-relaxed line-clamp-2">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 leading-relaxed line-clamp-2">
                         {event.description}
                       </p>
                     )}
@@ -452,7 +452,7 @@ const ChangelogEntry = ({ entry }: { entry: ChangeLogEntry }) => (
             ? "видалив"
             : "змінив"}
         {entry.field_name && (
-          <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
+          <span className="text-slate-400 dark:text-slate-500">
             {" "}
             «{entry.field_name}»
           </span>
@@ -562,7 +562,7 @@ export const PersonDrawer = ({
                   {fullName(person)}
                 </h2>
                 {person.position_title && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
                     {person.position_title}
                   </p>
                 )}
@@ -639,7 +639,7 @@ export const PersonDrawer = ({
                     <Icon className="w-3.5 h-3.5" />
                     {tab.label}
                     {count != null && count > 0 && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-mono">
                         {count}
                       </span>
                     )}

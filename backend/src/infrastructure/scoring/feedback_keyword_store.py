@@ -70,6 +70,12 @@ STOP_WORDS: dict[str, set[str]] = {
         "from", "by", "as", "that", "this", "it", "not", "also", "its",
         "their", "about", "after", "more", "all",
     },
+    "pl": {
+        "i", "w", "z", "na", "do", "że", "jak", "ale", "albo", "to", "ten",
+        "nie", "przy", "po", "od", "dla", "on", "ona", "oni", "jego", "ich",
+        "my", "wy", "już", "jeszcze", "dlatego", "przez", "kiedy", "gdzie",
+        "kto", "między", "nad", "oraz", "o", "za", "się",
+    },
 }
 
 # ── System / User prompts для LLM ─────────────────────────────────────────────

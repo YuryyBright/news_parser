@@ -153,16 +153,14 @@ class OrgUnitUpdate(BaseModel):
     valid_from: datetime | None = None
     valid_to: datetime | None = None
     is_active: bool | None = None
-    leader_id: str | None = None
-    leader_title: str | None = None
-    leader_id: str | None
-    leader_title: str | None
-    leader: PersonOut | None = None
-
+    leader_id: str | None = None      # ← тільки один раз
+    leader_title: str | None = None   # ← тільки один раз
 
 class OrgUnitOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
+    leader_id: str | None = None        # ← додати
+    leader_title: str | None = None     # ← додати
+    leader: PersonOut | None = None     # ← додати
     id: str
     country_id: str
     parent_id: str | None = None

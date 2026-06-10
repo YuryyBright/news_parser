@@ -22,7 +22,7 @@ export const TopTagsChart = ({ filters }: Props) => {
 
   if (isLoading)
     return (
-      <div className="h-[320px] w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-100 dark:bg-slate-800" />
+      <div className="h-[320px] w-full animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
     );
 
   if (!items.length)

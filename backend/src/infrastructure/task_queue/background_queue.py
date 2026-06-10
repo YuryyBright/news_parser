@@ -100,17 +100,30 @@ class InMemoryTaskQueue(ITaskQueue):
                 f"Available: {list(_REGISTRY.keys())}"
             )
 
+        # ДОДАНО: Перевірка на дублікати (Дедублікація)
+        # Не додаємо завдання, якщо таке ж вже чекає або виконується
+        for existing_record in self._tasks.values():
+            if (
+                existing_record.task_name == task_name
+                and existing_record.status in ("pending", "in_progress")
+                and existing_record.kwargs == kwargs
+            ):
+                logger.info(
+                    "Task %s with kwargs %s already queued/running, skipping", 
+                    task_name, kwargs
+                )
+                return existing_record.task_id
+
         task_id = str(uuid.uuid4())
         record = _TaskRecord(task_id=task_id, task_name=task_name, kwargs=kwargs)
         self._tasks[task_id] = record
 
-        # Run via the new lock wrapper
+        # Запуск через обгортку з локом
         record._asyncio_task = asyncio.create_task(
             self._run_with_lock(task_name, record, handler, kwargs),
             name=f"{task_name}:{task_id[:8]}",
         )
 
-        # logger.info("Task enqueued: %s id=%s kwargs=%s", task_name, task_id[:8], kwargs)
         return task_id
 
     async def _run_with_lock(self, task_name: str, record: _TaskRecord, handler, kwargs: dict) -> None:

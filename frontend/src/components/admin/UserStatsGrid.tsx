@@ -74,10 +74,10 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-900 dark:text-white mb-1">
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">
           👥 Активність користувачів
         </h2>
-        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400">
           Детальна аналітика користувачів та їх взаємодії
         </p>
       </div>
@@ -125,8 +125,8 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-50 dark:bg-slate-900 p-6">
-          <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">
+        <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 mb-2">
             Середня статей на користувача
           </p>
           <div className="flex items-end gap-4">
@@ -144,8 +144,8 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
           </div>
         </div>
 
-        <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-50 dark:bg-slate-900 p-6">
-          <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">
+        <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+          <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 mb-2">
             Середній фідбек на користувача
           </p>
           <div className="flex items-end gap-4">
@@ -164,13 +164,13 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
         </div>
       </div>
 
-      <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-50 dark:bg-slate-900 p-6">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-900 dark:text-white mb-4">
+      <div className="rounded-2xl border-2 border-slate-200 dark:border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
           📊 Метрики утримання
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400">
               DAU (Active Today)
             </p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
@@ -182,7 +182,7 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
             </p>
           </div>
           <div>
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400">
               WAU (Active Week)
             </p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">
@@ -195,7 +195,7 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-300 dark:border-slate-700">
-          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">
+          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 mb-2">
             Утримання користувачів
           </p>
           <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
@@ -204,7 +204,7 @@ export const UserStatsGrid = ({ filters: _filters }: Props) => {
               style={{ width: `${Math.min(returningUsersTrend, 100)}%` }}
             />
           </div>
-          <p className="text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white mt-2">
+          <p className="text-sm font-semibold text-slate-900 dark:text-white mt-2">
             {returningUsersTrend.toFixed(1)}% повертаються
           </p>
         </div>

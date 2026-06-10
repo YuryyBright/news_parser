@@ -61,44 +61,42 @@ class CountryRepository:
         return r.scalar_one_or_none()
 
     async def get_detail(self, country_id: str) -> CountryModel | None:
-            r = await self._s.execute(
-                select(CountryModel)
-                .where(CountryModel.id == country_id)
-                .options(
-                    selectinload(CountryModel.org_units).options(
-                        selectinload(OrgUnitModel.persons).options(
-                            selectinload(PersonModel.news_links),
-                            selectinload(PersonModel.changelog),
-                        ),
-                        selectinload(OrgUnitModel.news_links),
-                        selectinload(OrgUnitModel.changelog),
-                        
-                        # ✅ ДОДАНО: Кажемо SQLAlchemy не робити запит за дітьми.
-                        # Pydantic отримає порожній масив, помилки не буде, 
-                        # а фронтенд сам збере дерево через buildTree().
-                        noload(OrgUnitModel.children),
+        r = await self._s.execute(
+            select(CountryModel)
+            .where(CountryModel.id == country_id)
+            .options(
+                selectinload(CountryModel.org_units).options(
+                    selectinload(OrgUnitModel.persons).options(
+                        selectinload(PersonModel.news_links),
+                        selectinload(PersonModel.changelog),
                     ),
-                    selectinload(CountryModel.news_links),
-                    selectinload(CountryModel.changelog),
-                )
+                    selectinload(OrgUnitModel.leader),  # ← ДОДАТИ
+                    selectinload(OrgUnitModel.news_links),
+                    selectinload(OrgUnitModel.changelog),
+                    noload(OrgUnitModel.children),
+                ),
+                selectinload(CountryModel.news_links),
+                selectinload(CountryModel.changelog),
             )
-            return r.scalar_one_or_none()
+        )
+        return r.scalar_one_or_none()
     async def list(
-        self,
-        q: str | None = None,
-        is_active: bool | None = None,
-        limit: int = 50,
-        offset: int = 0,
-    ) -> tuple[list[CountryModel], int]:
+            self,
+            q: str | None = None,
+            is_active: bool | None = None,
+            limit: int = 50,
+            offset: int = 0,
+        ) -> tuple[list[CountryModel], int]:
         stmt = select(CountryModel)
         if q:
+            like = f"%{q.lower()}%"
             stmt = stmt.where(
                 or_(
-                    CountryModel.name_uk.ilike(f"%{q}%"),
-                    CountryModel.name_en.ilike(f"%{q}%"),
-                    CountryModel.code.ilike(f"%{q}%"),
+                    func.lower(CountryModel.name_uk).like(like),
+                    func.lower(CountryModel.name_en).like(like),
+                    func.lower(CountryModel.code).like(like),
                 )
-            )
+                )
         if is_active is not None:
             stmt = stmt.where(CountryModel.is_active == is_active)
 
@@ -199,12 +197,11 @@ class OrgUnitRepository:
         result = await self._s.execute(stmt)
         return result.scalar_one_or_none()
     async def get_tree(self, country_id: str) -> list[OrgUnitModel]:
-        """Return all units for a country (tree built by service layer)."""
         r = await self._s.execute(
             select(OrgUnitModel)
             .where(OrgUnitModel.country_id == country_id)
             .options(
-                # ✅ FIX: Ensure persons load both relationships here too
+                selectinload(OrgUnitModel.leader),  # ← ДОДАТИ
                 selectinload(OrgUnitModel.persons).options(
                     selectinload(PersonModel.news_links),
                     selectinload(PersonModel.changelog),
@@ -447,30 +444,34 @@ class NewsLinkRepository:
 # Search Repository
 # ══════════════════════════════════════════════════════════════════════════════
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Search Repository
-# ══════════════════════════════════════════════════════════════════════════════
+# infrastructure/persistence/repositories/handbook_repo.py
+
 
 class HandbookSearchRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def search(self, q: str, limit: int = 20) -> list[dict]:
-        results: list[dict] = []
-        like = f"%{q}%"
-        
-        # Balance the search limits across 4 entities now (Countries, OrgUnits, Persons, Events)
-        entity_limit = limit // 4 + 1
+    def _search_filter(self, column, q: str):
+        """Надійний case-insensitive пошук для української кирилиці"""
+        return func.lower(column).like(func.lower(f"%{q}%"))
 
-        # 1. Countries
+    async def search(self, q: str, limit: int = 20) -> list[dict]:
+        if not q or not q.strip():
+            return []
+
+        q = q.strip()
+        results: list[dict] = []
+        entity_limit = max(5, limit // 4)
+
+        # === 1. Countries ===
         r = await self._s.execute(
-            select(CountryModel)
-            .where(or_(
-                CountryModel.name_uk.ilike(like),
-                CountryModel.name_en.ilike(like),
-                CountryModel.code.ilike(like),
-            ))
-            .limit(entity_limit)
+            select(CountryModel).where(
+                or_(
+                    self._search_filter(CountryModel.name_uk, q),
+                    self._search_filter(CountryModel.name_en, q),
+                    func.lower(CountryModel.code).like(func.lower(f"%{q}%")),
+                )
+            ).limit(entity_limit)
         )
         for c in r.scalars().all():
             results.append({
@@ -482,60 +483,87 @@ class HandbookSearchRepository:
                 "country_name": c.name_uk,
             })
 
-       # 2. Org units — with full parent path
+        # === 2. Org Units ===
         r = await self._s.execute(
             select(OrgUnitModel, CountryModel)
             .join(CountryModel, OrgUnitModel.country_id == CountryModel.id)
-            .where(or_(
-                OrgUnitModel.name.ilike(like),
-                OrgUnitModel.short_name.ilike(like),
-            ))
+            .where(
+                or_(
+                    self._search_filter(OrgUnitModel.name, q),
+                    self._search_filter(OrgUnitModel.short_name, q),
+                    self._search_filter(OrgUnitModel.unit_type, q),
+                    self._search_filter(OrgUnitModel.description, q),
+                    self._search_filter(OrgUnitModel.legal_basis, q),
+                )
+            )
+            .limit(entity_limit * 2)
+        )
+        org_unit_rows = r.all()
+
+        # === 3. Persons ===
+        r = await self._s.execute(
+            select(PersonModel, CountryModel)
+            .join(CountryModel, PersonModel.country_id == CountryModel.id)
+            .where(
+                or_(
+                    self._search_filter(PersonModel.first_name, q),
+                    self._search_filter(PersonModel.last_name, q),
+                    self._search_filter(PersonModel.patronymic, q),
+                    self._search_filter(PersonModel.position_title, q),
+                )
+            )
             .limit(entity_limit)
         )
-        # ← ЗБЕРЕГТИ ДО all_units_r запиту
-        org_unit_rows = r.all()
-        all_units_r = await self._s.execute(
-            select(OrgUnitModel.id, OrgUnitModel.parent_id, OrgUnitModel.name, OrgUnitModel.short_name)
-        )
-        unit_rows = {row.id: row for row in all_units_r}
-        # 3. Persons
-
-        # Build a flat index of all units for ancestor resolution
-        all_units_r = await self._s.execute(
-            select(OrgUnitModel.id, OrgUnitModel.parent_id, OrgUnitModel.name, OrgUnitModel.short_name)
-        )
-        unit_rows = {row.id: row for row in all_units_r}
-        def get_path(unit_id: str) -> list[str]:
-            """Return [root_name, ..., direct_parent_name] for a unit."""
-            path = []
-            current_id = unit_rows.get(unit_id, None)
-            # Walk up via parent_id
-            seen = set()
-            node = unit_rows.get(unit_id)
-            if node:
-                pid = node.parent_id
-                while pid and pid not in seen:
-                    seen.add(pid)
-                    parent = unit_rows.get(pid)
-                    if not parent:
-                        break
-                    path.insert(0, parent.short_name or parent.name)
-                    pid = parent.parent_id
-            return path
- 
-        for unit, country in org_unit_rows:
-            ancestor_path = get_path(unit.id)
-            # subtitle = "Батько › Дід" — full path from root to direct parent
-            subtitle = " › ".join(ancestor_path) if ancestor_path else unit.unit_type
+        for p, country in r.all():
             results.append({
-                "entity_type": "org_unit",
-                "id": unit.id,
-                "title": unit.name,
-                "subtitle": subtitle,  # now full path!
+                "entity_type": "person",
+                "id": p.id,
+                "title": f"{p.last_name} {p.first_name}",
+                "subtitle": p.position_title or "Персона",
                 "country_code": country.code,
                 "country_name": country.name_uk,
             })
 
-        # Sort combined results by title length or alphabetically if desired, 
-        # or just truncate to the absolute limit.
+        # === 4. Ancestor path для Org Units ===
+        if org_unit_rows:
+            all_units_r = await self._s.execute(
+                select(
+                    OrgUnitModel.id,
+                    OrgUnitModel.parent_id,
+                    OrgUnitModel.name,
+                    OrgUnitModel.short_name
+                )
+            )
+            # ВАЖЛИВО: .all() замість .scalars()
+            unit_rows = all_units_r.all()
+            unit_dict = {row.id: row for row in unit_rows}   # ← виправлено
+
+            def get_ancestor_path(unit_id: str) -> list[str]:
+                path = []
+                seen = set()
+                current = unit_dict.get(unit_id)
+                while current and current.parent_id and current.parent_id not in seen:
+                    seen.add(current.parent_id)
+                    parent = unit_dict.get(current.parent_id)
+                    if not parent:
+                        break
+                    path.insert(0, parent.short_name or parent.name)
+                    current = parent
+                return path
+
+            for unit, country in org_unit_rows:
+                ancestor_path = get_ancestor_path(unit.id)
+                subtitle = " › ".join(ancestor_path) if ancestor_path else (unit.unit_type or "")
+
+                results.append({
+                    "entity_type": "org_unit",
+                    "id": unit.id,
+                    "title": unit.name,
+                    "subtitle": subtitle,
+                    "country_code": country.code,
+                    "country_name": country.name_uk,
+                })
+
         return results[:limit]
+    
+

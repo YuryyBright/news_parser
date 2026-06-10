@@ -35,7 +35,7 @@ export const ArticleStatusChart = ({ filters }: Props) => {
   if (isLoading)
     return (
       <div className="flex h-[300px] items-center justify-center">
-        <div className="h-32 w-32 animate-pulse rounded-full bg-slate-100 dark:bg-slate-100 dark:bg-slate-800" />
+        <div className="h-32 w-32 animate-pulse rounded-full bg-slate-100 dark:bg-slate-800" />
       </div>
     );
 

@@ -98,6 +98,8 @@ _LANG_LABELS: dict[str, str] = {
     "en": "🇬🇧 English",
     "ro": "🇷🇴 Română",
     "sk": "🇸🇰 Slovenčina",
+    "hu": "🇭🇺 Magyar",
+    "pl": "🇵🇱 Polski",
 }
 
 
@@ -166,6 +168,8 @@ async def cmd_langs(message: Message) -> None:
         "/en — 🇬🇧 English\n"
         "/ro — 🇷🇴 Română\n"
         "/sk — 🇸🇰 Slovenčina\n"
+        "/hu — 🇭🇺 Magyar\n"
+        "/pl — 🇵🇱 Polski\n"
         "/all — скинути, отримувати всі",
         parse_mode="HTML",
     )

@@ -22,7 +22,7 @@ export const TimeSeriesChart = ({ filters }: Props) => {
 
   if (isLoading)
     return (
-      <div className="h-[350px] w-full animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-100 dark:bg-slate-800" />
+      <div className="h-[350px] w-full animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
     );
 
   const chartData = Array.isArray(data)

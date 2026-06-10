@@ -3,6 +3,8 @@
 // Uses inline SVG flag icons instead of emoji flags
 // because Chrome on Windows does not render flag emoji.
 
+import { pl } from "date-fns/locale";
+
 export interface LangMeta {
   label: string;
   /** Two-letter ISO 3166-1 country code for the flag (lowercase) */

@@ -150,7 +150,7 @@ class SubmitFeedbackUseCase:
         try:
             content_text  = _article_text(article)
             original_lang = _detect_text_language(content_text)
-            if original_lang not in {"en", "hu", "sk", "ro"}:
+            if original_lang not in {"en", "hu", "sk", "ro", 'pl'}:
                 return
             old_bucket = "positive" if existing.liked else "negative"
             await self._corpus_manager.remove_article_feedback(

@@ -74,6 +74,7 @@ keywords:
   - anti-dronă
   - industria de apărare
   - miliarde euro
+  - eugen tomac
 
   # SK-специфіка
   - demokrati
@@ -86,3 +87,62 @@ keywords:
   - varsó
   - lengyelország
   - magyar
+  # PL: Країни / регіони
+  - polska
+
+  # PL: Персони (прізвища топ-політиків)
+  - tusk
+  - duda
+  - sikorski
+  - kaczyński
+  - hołownia
+  - kosiniak-kamysz
+  - morawiecki
+  - trzaskowski
+  - bodnar
+
+  # PL: Організації / структури
+  - mon
+  - msz
+  - straż graniczna
+  - wot
+  - kas
+  - cba
+
+  # PL: Економіка / санкції
+  - sankcje
+  - kpo
+
+  # PL: Військова лексика (специфічна)
+  - drony
+  - śmigłowiec
+  - helikopter
+  - żołnierze
+  - wojsko
+
+  # PL: Географія (прикордонна зона та логістичні хаби)
+  - medyka
+  - korczowa
+  - dorohusk
+  - hrebenne
+  - rzeszów
+  - jasionka
+
+  # PL: Кримінал транскордонний (специфічна лексика)
+  - przemyt
+  - przemytnik
+  - narkotyki
+  - papierosy bez akcyzy
+  - konfiskata
+  - cbśp
+
+  # PL: Внутрішня політика (специфічні скандали/терміни)
+  - komisja śledcza
+  - pegasus
+  - fundusz sprawiedliwości
+  - trybunał konstytucyjny
+
+  # PL: Дипломатія / специфіка
+  - warszawa
+  - warszawski
+  - polsko-ukraińskie

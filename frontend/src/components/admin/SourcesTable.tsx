@@ -17,7 +17,7 @@ export const SourcesTable = ({ filters }: Props) => {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-100 dark:bg-slate-800"
+            className="h-10 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800"
           />
         ))}
       </div>
@@ -46,7 +46,7 @@ export const SourcesTable = ({ filters }: Props) => {
           {items.map((s: any) => (
             <tr
               key={s.source_id}
-              className="hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-slate-800/50"
+              className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
             >
               <td className="px-6 py-4 font-medium">{s.source_name}</td>
               <td className="px-6 py-4 text-right">{s.total_articles}</td>

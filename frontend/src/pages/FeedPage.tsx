@@ -207,20 +207,20 @@ const FilterPanel = ({
             transition={{ type: "spring", damping: 28, stiffness: 320 }}
             className={cn(
               "fixed right-0 top-0 bottom-0 z-50 w-80 max-w-[90vw]",
-              "bg-white dark:bg-slate-50 dark:bg-slate-900",
-              "border-l border-slate-200 dark:border-slate-200 dark:border-slate-800",
+              "bg-white dark:bg-slate-900",
+              "border-l border-slate-200 dark:border-slate-800",
               "flex flex-col shadow-2xl",
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-200 dark:border-slate-800 flex-shrink-0">
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-900 dark:text-white flex items-center gap-2">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
+              <span className="text-sm font-semibold text-slate-900 dark:text-white dark:text-white flex items-center gap-2">
                 <SlidersHorizontal className="w-4 h-4" />
                 Фільтри
               </span>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -230,7 +230,7 @@ const FilterPanel = ({
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
               {/* Sort */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
+                <label className="block text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2.5">
                   Сортування
                 </label>
                 <div className="flex gap-2">
@@ -241,8 +241,8 @@ const FilterPanel = ({
                       className={cn(
                         "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-all",
                         draft.sortBy === value
-                          ? "bg-slate-50 dark:bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-slate-900 dark:text-white dark:text-slate-900"
-                          : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300",
+                          ? "bg-white dark:bg-slate-900 border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white"
+                          : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300",
                       )}
                     >
                       <ArrowUpDown className="w-3 h-3" />
@@ -255,10 +255,10 @@ const FilterPanel = ({
               {/* Score slider */}
               <div>
                 <div className="flex items-center justify-between mb-2.5">
-                  <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                  <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                     Мін. релевантність
                   </label>
-                  <span className="text-sm font-mono font-semibold text-slate-900 dark:text-slate-900 dark:text-white tabular-nums">
+                  <span className="text-sm font-mono font-semibold text-slate-900 dark:text-white tabular-nums">
                     {draft.minScore.toFixed(2)}
                   </span>
                 </div>
@@ -285,13 +285,13 @@ const FilterPanel = ({
                   )}
                 />
                 <div className="flex justify-between mt-1.5">
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     0.00
                   </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     0.50
                   </span>
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     1.00
                   </span>
                 </div>
@@ -301,7 +301,7 @@ const FilterPanel = ({
               {availableLangs.length > 1 && (
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                       Мови
                     </label>
                     {draft.langs.length > 0 && (
@@ -334,7 +334,7 @@ const FilterPanel = ({
                               "text-xs font-medium",
                               active
                                 ? "text-slate-900 dark:text-white dark:text-slate-900"
-                                : "text-slate-700 dark:text-slate-700 dark:text-slate-300",
+                                : "text-slate-700 dark:text-slate-300",
                             )}
                           >
                             {meta.label}
@@ -350,7 +350,7 @@ const FilterPanel = ({
               {availableTags.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2.5">
-                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
+                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-1.5">
                       <Tag className="w-3 h-3" />
                       Теги
                     </label>
@@ -373,8 +373,8 @@ const FilterPanel = ({
                           className={cn(
                             "px-2.5 py-1 rounded-full text-xs font-medium border transition-all",
                             active
-                              ? "bg-slate-50 dark:bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-slate-900 dark:text-white dark:text-slate-900"
-                              : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500",
+                              ? "bg-white dark:bg-slate-900 border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white"
+                              : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500",
                           )}
                         >
                           {tag}
@@ -387,13 +387,13 @@ const FilterPanel = ({
             </div>
 
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-200 dark:border-slate-800 flex gap-2 flex-shrink-0">
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex gap-2 flex-shrink-0">
               <button
                 onClick={() => setDraft(DEFAULT_FILTERS)}
                 className={cn(
                   "flex-1 py-2 rounded-lg text-sm font-medium border transition-all",
-                  "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400",
-                  "hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-slate-800",
+                  "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400",
+                  "hover:bg-slate-50 dark:hover:bg-slate-800",
                 )}
               >
                 Скинути
@@ -406,8 +406,8 @@ const FilterPanel = ({
                 disabled={!hasChanges}
                 className={cn(
                   "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
-                  "bg-slate-50 dark:bg-slate-900 dark:bg-white text-slate-900 dark:text-white dark:text-slate-900",
-                  "hover:bg-slate-700 dark:hover:bg-slate-100",
+                  "bg-white dark:bg-slate-900 text-slate-900 dark:text-white",
+                  "hover:bg-slate-100 dark:hover:bg-slate-700",
                   "disabled:opacity-40 disabled:cursor-not-allowed",
                 )}
               >
@@ -441,8 +441,8 @@ const LangTabBar = ({ langs, active, counts, onSelect }: LangTabBarProps) => {
         className={cn(
           "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap",
           active === null
-            ? "bg-slate-50 dark:bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-slate-900 dark:text-white dark:text-slate-900"
-            : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-400 dark:hover:border-slate-600",
+            ? "bg-white dark:bg-slate-900 border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white"
+            : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-400 dark:hover:border-slate-600",
         )}
       >
         Всі
@@ -450,8 +450,8 @@ const LangTabBar = ({ langs, active, counts, onSelect }: LangTabBarProps) => {
           className={cn(
             "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
             active === null
-              ? "bg-white/20 text-slate-900 dark:text-white dark:bg-black/15 dark:text-slate-900"
-              : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400",
+              ? "bg-white/20 text-slate-900 dark:bg-black/15 dark:text-white"
+              : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400",
           )}
         >
           {total}
@@ -473,8 +473,8 @@ const LangTabBar = ({ langs, active, counts, onSelect }: LangTabBarProps) => {
             className={cn(
               "flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all whitespace-nowrap",
               isActive
-                ? "bg-slate-50 dark:bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-slate-900 dark:text-white dark:text-slate-900"
-                : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-400 dark:hover:border-slate-600",
+                ? "bg-white dark:bg-slate-900 border-slate-900 dark:border-slate-100 text-slate-900 dark:text-white"
+                : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-400 dark:hover:border-slate-600",
             )}
           >
             <FlagImg lang={lang} className="w-5 h-3.5" />
@@ -483,8 +483,8 @@ const LangTabBar = ({ langs, active, counts, onSelect }: LangTabBarProps) => {
               className={cn(
                 "inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold",
                 isActive
-                  ? "bg-white/20 text-slate-900 dark:text-white dark:bg-black/15 dark:text-slate-900"
-                  : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400",
+                  ? "bg-white/20 text-slate-900 dark:bg-black/15 dark:text-white"
+                  : "bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400",
               )}
             >
               {count}
@@ -679,11 +679,11 @@ export const FeedPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-900 dark:text-white">
+          <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
             Стрічка
           </h1>
           {total > 0 && (
-            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-500 mt-0.5">
               {total} статей ·{" "}
               {unreadCount > 0 ? `${unreadCount} нових` : "всі прочитані"}
             </p>
@@ -715,7 +715,7 @@ export const FeedPage = () => {
               "relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
               activeFilterCount > 0
                 ? "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
+                : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
             )}
           >
             <SlidersHorizontal className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -735,7 +735,7 @@ export const FeedPage = () => {
                 "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
                 intervalSec !== null
                   ? "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                  : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
+                  : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
               )}
             >
               <Timer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -749,14 +749,14 @@ export const FeedPage = () => {
             </button>
 
             {showTimerPanel && (
-              <div className="absolute right-0 top-full mt-2 z-20 w-48 bg-white dark:bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-3">
+              <div className="absolute right-0 top-full mt-2 z-20 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-slate-700 dark:text-slate-700 dark:text-slate-300">
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                     Авто-оновлення
                   </span>
                   <button
                     onClick={() => setShowTimerPanel(false)}
-                    className="text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white"
+                    className="text-slate-400 dark:text-slate-500 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -773,7 +773,7 @@ export const FeedPage = () => {
                         "px-2.5 py-1 rounded-lg text-xs font-medium border transition-all",
                         intervalSec === value
                           ? "bg-blue-500 border-blue-500 text-slate-900 dark:text-white"
-                          : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
+                          : "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800",
                       )}
                     >
                       {label}
@@ -781,7 +781,7 @@ export const FeedPage = () => {
                   ))}
                 </div>
                 {intervalSec !== null && countdown !== null && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 mt-2">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-500 mt-2">
                     Оновлення через{" "}
                     <span className="tabular-nums font-medium text-blue-500">
                       {formatCountdown(countdown)}
@@ -799,7 +799,7 @@ export const FeedPage = () => {
             className={cn(
               "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-medium border transition-all",
               "border-slate-200 dark:border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-600 dark:text-slate-700 dark:text-slate-300",
-              "hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed",
+              "hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed",
             )}
           >
             <RefreshCw
@@ -814,7 +814,7 @@ export const FeedPage = () => {
       </div>
 
       {/* Read/Unread/All tabs */}
-      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-full sm:w-fit">
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-full sm:w-fit">
         {FEED_FILTER_TABS.map(({ key, label }) => (
           <button
             key={key}
@@ -822,8 +822,8 @@ export const FeedPage = () => {
             className={cn(
               "flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-md text-sm font-medium transition-all",
               feedFilter === key
-                ? "bg-white dark:bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-900 dark:text-white shadow-sm"
-                : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
+                ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm"
+                : "text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200",
             )}
           >
             {label}
@@ -849,7 +849,7 @@ export const FeedPage = () => {
       {/* Active filter chips */}
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
+          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-500">
             Фільтри:
           </span>
           {filters.minScore > 0 && (
@@ -890,7 +890,7 @@ export const FeedPage = () => {
           ))}
           <button
             onClick={() => setFilters(DEFAULT_FILTERS)}
-            className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-700 dark:text-slate-300 hover:underline"
+            className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-700 dark:text-slate-300 hover:underline"
           >
             Скинути всі
           </button>
@@ -903,17 +903,17 @@ export const FeedPage = () => {
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="h-[60px] bg-slate-100 dark:bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
+              className="h-[60px] bg-slate-100 dark:bg-slate-800 rounded-xl animate-pulse"
               style={{ opacity: 1 - i * 0.1 }}
             />
           ))}
         </div>
       ) : isEmpty ? (
-        <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
           {feedFilter === "unread" ? (
             <>
               <CheckCheck className="w-10 h-10 mb-3 text-emerald-500" />
-              <p className="text-base font-medium text-slate-700 dark:text-slate-700 dark:text-slate-300">
+              <p className="text-base font-medium text-slate-700 dark:text-slate-300">
                 Все прочитано!
               </p>
               <p className="text-sm mt-1">Нових статей у фіді немає</p>
@@ -927,7 +927,7 @@ export const FeedPage = () => {
           ) : (
             <>
               <Sparkles className="w-10 h-10 mb-3" />
-              <p className="text-base font-medium text-slate-700 dark:text-slate-700 dark:text-slate-300">
+              <p className="text-base font-medium text-slate-700 dark:text-slate-300">
                 Стрічка порожня
               </p>
               <p className="text-sm mt-1">Додайте джерела або оновіть фід</p>
@@ -935,7 +935,7 @@ export const FeedPage = () => {
           )}
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+        <div className="flex flex-col divide-y divide-slate-100 dark:divide-slate-800 border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden">
           {filteredItems.map(renderItem)}
         </div>
       )}
@@ -943,14 +943,14 @@ export const FeedPage = () => {
       <div ref={sentinelRef} className="h-4" />
 
       {isFetchingNextPage && (
-        <div className="flex items-center justify-center py-6 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-center py-6 text-slate-400 dark:text-slate-500">
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
           <span className="text-sm">Завантаження...</span>
         </div>
       )}
 
       {!hasNextPage && allItems.length > 0 && (
-        <p className="text-center text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-600 py-6">
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500 dark:text-slate-600 py-6">
           Всі {total} статей завантажено
         </p>
       )}

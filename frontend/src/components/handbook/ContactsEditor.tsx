@@ -102,7 +102,7 @@ export const ContactsEditor = ({
           <div key={idx} className="flex items-center gap-2">
             {/* Type select */}
             <div className="relative flex-shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white dark:bg-slate-100 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white dark:bg-slate-100 dark:bg-slate-800/60 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500">
                 {getContactTypeIcon(entry.type)}
               </div>
               <select
@@ -190,7 +190,7 @@ export const ResourcesEditor = ({
           <div className="flex items-center gap-2">
             {/* Type */}
             <div className="relative">
-              <div className="flex items-center gap-1 px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">
+              <div className="flex items-center gap-1 px-2 py-1.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 text-xs">
                 {getResourceIcon(r.resource_type)}
                 <span>
                   {RESOURCE_TYPES.find((t) => t.value === r.resource_type)

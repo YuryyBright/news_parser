@@ -1,5 +1,5 @@
 // src/components/articles/ArticleDrawer.tsx
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, ExternalLink, Calendar, Globe, ChevronLeft } from "lucide-react";
 import { useArticle } from "../../hooks/useArticles";
@@ -37,7 +37,6 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
     <AnimatePresence>
       {articleId && (
         <>
-          {/* Backdrop — тільки md+ */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -46,36 +45,31 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
             onClick={onClose}
           />
 
-          {/* Drawer */}
           <motion.aside
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             className={cn(
-              // Mobile: full screen, slide from right
               "fixed inset-0 z-50",
-              // md+: side drawer
               "md:left-auto md:right-0 md:top-0 md:bottom-0 md:inset-y-0 md:w-full md:max-w-2xl",
-              "bg-white dark:bg-slate-50 dark:bg-slate-900",
-              "border-l border-slate-200 dark:border-slate-200 dark:border-slate-800",
+              "bg-white dark:bg-slate-900",
+              "border-l border-slate-200 dark:border-slate-800",
               "flex flex-col shadow-2xl",
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-200 dark:border-slate-800 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
               <div className="flex items-center gap-2">
-                {/* Mobile back button */}
                 <button
                   onClick={onClose}
-                  className="md:hidden mr-1 p-1.5 -ml-1 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 transition-colors"
+                  className="md:hidden mr-1 p-1.5 -ml-1 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </button>
                 {article && <ArticleBadge status={article.status} />}
                 {article && <ScoreBadge score={article.relevance_score} />}
               </div>
-              {/* Desktop close button */}
               <div className="hidden md:flex items-center gap-2">
                 {article && (
                   <NewsLinkerV2
@@ -86,7 +80,7 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
                 )}
                 <button
                   onClick={onClose}
-                  className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-400 dark:text-slate-600 dark:hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -103,7 +97,6 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
 
               {article && (
                 <div className="p-4 sm:p-6 space-y-4">
-                  {/* Selection hint bar */}
                   <AnimatePresence>
                     {selectedText && (
                       <motion.div
@@ -131,13 +124,11 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
                     )}
                   </AnimatePresence>
 
-                  {/* Title */}
-                  <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-900 dark:text-white leading-tight">
+                  <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white leading-tight">
                     {article.title}
                   </h1>
 
-                  {/* Meta */}
-                  <div className="flex flex-wrap gap-3 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <div className="flex flex-wrap gap-3 text-sm text-slate-400 dark:text-slate-500">
                     <span className="flex items-center gap-1.5">
                       <Globe className="w-3.5 h-3.5 flex-shrink-0" />
                       <FlagImg
@@ -153,20 +144,18 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
                     </span>
                   </div>
 
-                  {/* Tags */}
                   <TagsList tags={article.tags} clickable />
 
-                  {/* Body — ref для захоплення виділення */}
                   <div
                     ref={bodyRef}
                     className="prose prose-sm dark:prose-invert max-w-none prose-slate select-text"
                   >
-                    <p className="text-slate-700 dark:text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap text-sm sm:text-base">
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap text-sm sm:text-base">
                       {article.body}
                     </p>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400/50 italic">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">
                     💡 Виділіть текст, щоб прив'язати фрагмент до довідника
                   </p>
                 </div>
@@ -177,10 +166,8 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
             {article && (
               <div
                 className={cn(
-                  "px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 dark:border-slate-200 dark:border-slate-800 flex-shrink-0",
-                  "flex items-center justify-between gap-4",
-                  // Safe area on mobile
-                  "pb-safe",
+                  "px-4 sm:px-6 py-3 sm:py-4 border-t border-slate-200 dark:border-slate-800 flex-shrink-0",
+                  "flex items-center justify-between gap-4 pb-safe",
                 )}
               >
                 <FeedbackButtons
@@ -193,7 +180,7 @@ export const ArticleDrawer = ({ articleId, onClose }: Props) => {
                   rel="noopener noreferrer"
                   className={cn(
                     "flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium",
-                    "bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-slate-900 dark:text-white transition-colors",
+                    "bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white transition-colors",
                     "flex-shrink-0",
                   )}
                 >

@@ -73,7 +73,7 @@ const Field = ({
   children: React.ReactNode;
 }) => (
   <div className="space-y-1.5">
-    <label className="flex items-center gap-1 text-[11px] font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+    <label className="flex items-center gap-1 text-[11px] font-mono text-slate-400 dark:text-slate-500 uppercase tracking-wider">
       {label}
       {required && <span className="text-red-400">*</span>}
       {hint && (

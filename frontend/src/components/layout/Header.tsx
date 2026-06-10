@@ -11,9 +11,8 @@ export const Header = () => {
   return (
     <header
       className={cn(
-        // Використовуємо justify-end, щоб притиснути елементи вправо
         "flex items-center justify-end h-14 sm:h-16 px-3 sm:px-6 gap-3",
-        "bg-white dark:bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-200 dark:border-slate-800",
+        "bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800",
         "transition-colors duration-300",
       )}
     >
@@ -23,8 +22,8 @@ export const Header = () => {
           onClick={toggleTheme}
           className={cn(
             "w-9 h-9 rounded-lg flex items-center justify-center",
-            "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400",
-            "hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
+            "text-slate-500 dark:text-slate-400",
+            "hover:bg-slate-100 dark:hover:bg-slate-800",
             "transition-all duration-200",
           )}
           aria-label="Переключити тему"
@@ -36,10 +35,10 @@ export const Header = () => {
           )}
         </button>
 
-        {/* Заглушка аватара користувача */}
+        {/* Аватар користувача */}
         <button
           onClick={() => navigate("/login")}
-          className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-slate-900 dark:text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+          className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white text-sm font-semibold hover:opacity-90 transition-opacity"
           aria-label="Профіль користувача"
         >
           U

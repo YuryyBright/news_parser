@@ -108,8 +108,8 @@ export const FeedbackButtons = ({
         title="Не показувати"
         className={cn(
           btnBase,
-          "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-300 dark:border-slate-700",
-          "hover:bg-slate-100 dark:hover:bg-slate-100 dark:bg-slate-800",
+          "text-slate-400 dark:text-slate-500 dark:text-slate-500 border-slate-200 dark:border-slate-300 dark:border-slate-700",
+          "hover:bg-slate-100 dark:hover:bg-slate-800",
           "disabled:opacity-50",
         )}
       >

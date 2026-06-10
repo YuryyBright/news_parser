@@ -75,18 +75,10 @@ async def handle_ingest_source(source_id: str) -> dict:
     }
 
 async def handle_process_articles() -> dict:
-    """
-    Обробити всі 'pending' статті:
-      - визначити мову
-      - порахувати relevance score
-      - оновити статус → ACCEPTED або REJECTED
-
-    Запускається після handle_ingest_source або окремо по scheduler.
-    """
     from src.config.container import get_container
-
     container = get_container()
 
+    # Use case має обробляти лімітовану кількість (напр. 50-100 за раз)
     result = await container.process_articles_uc_standalone().execute()
 
     logger.info(
@@ -98,6 +90,15 @@ async def handle_process_articles() -> dict:
         raise RuntimeError(
             f"All {result.failed} articles failed. Errors: {result.errors[:3]}"
         )
+
+    # Якщо ми обробили статті, можливо, в БД ще залишились pending.
+    # Віддаємо контроль Event Loop-у і ставимо задачу знову.
+    if result.processed > 0:
+        await asyncio.sleep(1)  # Даємо FastAPI час на HTTP-запити до БД
+        await container.task_queue.enqueue("process_articles")
+    else:
+        # Немає нових статей для обробки
+        await asyncio.sleep(5)
 
     return {"processed": result.processed, "failed": result.failed}
 

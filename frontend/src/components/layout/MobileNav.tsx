@@ -12,7 +12,7 @@ const navItems = [
 
 export const MobileNav = () => {
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-200 dark:border-slate-800 safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 safe-area-bottom">
       <div className="flex items-stretch h-16">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
@@ -23,7 +23,7 @@ export const MobileNav = () => {
                 "flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
                 isActive
                   ? "text-blue-600 dark:text-blue-400"
-                  : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500",
+                  : "text-slate-400 dark:text-slate-500 dark:text-slate-500",
               )
             }
           >

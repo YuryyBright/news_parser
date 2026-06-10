@@ -124,7 +124,7 @@ export const PhotoUpload = ({
                 }}
               />
             ) : (
-              <span className="text-2xl font-bold text-slate-400 dark:text-slate-500 dark:text-slate-400">
+              <span className="text-2xl font-bold text-slate-400 dark:text-slate-500">
                 {initials || (
                   <Image className="w-7 h-7 text-slate-400 dark:text-slate-600" />
                 )}
@@ -144,7 +144,7 @@ export const PhotoUpload = ({
 
         {/* Action buttons */}
         <div className="flex-1 space-y-2 pt-1">
-          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-2">
             {value ? "Фото встановлено" : "Додати фото персони"}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -158,7 +158,7 @@ export const PhotoUpload = ({
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                 mode === "upload"
                   ? "bg-blue-500/15 border-blue-500/30 text-blue-400"
-                  : "bg-white dark:bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600",
+                  : "bg-white dark:bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600",
               )}
             >
               <Upload className="w-3.5 h-3.5" />
@@ -171,7 +171,7 @@ export const PhotoUpload = ({
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
                 mode === "url"
                   ? "bg-amber-500/15 border-amber-500/30 text-amber-400"
-                  : "bg-white dark:bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600",
+                  : "bg-white dark:bg-slate-100 dark:bg-slate-800/60 border-slate-300 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-white hover:border-slate-400 dark:hover:border-slate-600",
               )}
             >
               <Link2 className="w-3.5 h-3.5" />
@@ -221,7 +221,7 @@ export const PhotoUpload = ({
         >
           <Camera className="w-6 h-6 text-slate-400 dark:text-slate-500" />
           <div className="text-center">
-            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               Перетягніть фото або{" "}
               <span className="text-blue-400 underline">виберіть файл</span>
             </p>

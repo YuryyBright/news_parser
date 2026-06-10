@@ -188,7 +188,7 @@ export const PersonForm = ({ data, onSuccess }: Props) => {
       {/* Preview name */}
       {fullPreviewName && (
         <div className="px-3 py-2 rounded-lg bg-slate-100/60 dark:bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
-          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Повне ім'я:{" "}
             <span className="text-slate-900 dark:text-white font-medium">
               {fullPreviewName}

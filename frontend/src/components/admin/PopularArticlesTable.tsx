@@ -23,6 +23,8 @@ export const PopularArticlesTable = ({ filters }: Props) => {
       ro: "🇷🇴",
       sk: "🇸🇰",
       hu: "🇭🇺",
+      pl: "🇵🇱",
+      ua: "🇺🇦",
     };
     return emojis[lang] || "🌍";
   };
@@ -52,7 +54,7 @@ export const PopularArticlesTable = ({ filters }: Props) => {
           {data.map((article: any, idx: number) => (
             <tr
               key={article.article_id}
-              className="hover:bg-slate-50 dark:hover:bg-slate-100 dark:bg-slate-800/50"
+              className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
             >
               <td className="px-6 py-4">
                 <a
@@ -63,7 +65,7 @@ export const PopularArticlesTable = ({ filters }: Props) => {
                   {idx + 1}. {article.title.substring(0, 50)}...
                 </a>
               </td>
-              <td className="px-6 py-4 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+              <td className="px-6 py-4 text-slate-400 dark:text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 {article.source_name}
               </td>
               <td className="px-6 py-4 text-center text-lg">

@@ -10,7 +10,7 @@ export const Layout = () => {
   const { sidebarOpen } = useUIStore();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-white dark:bg-slate-950 transition-colors duration-300">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
       {/* Sidebar — hidden on mobile, visible md+ */}
       <div className="hidden md:block">
         <Sidebar />

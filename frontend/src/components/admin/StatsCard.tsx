@@ -18,16 +18,16 @@ export const StatsCard = ({ title, value, icon, trend, className }: Props) => (
   >
     <div className="flex items-start justify-between">
       <div className="space-y-1">
-        <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400">
           {title}
         </p>
-        <p className="text-3xl font-semibold tracking-tighter text-slate-900 dark:text-slate-900 dark:text-white">
+        <p className="text-3xl font-semibold tracking-tighter text-slate-900 dark:text-white">
           {value}
         </p>
       </div>
 
       {icon && (
-        <div className="rounded-2xl bg-slate-100 p-3 text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-all group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-slate-100 dark:bg-slate-800 dark:group-hover:bg-blue-950">
+        <div className="rounded-2xl bg-slate-100 p-3 text-slate-400 dark:text-slate-500 transition-all group-hover:bg-blue-100 group-hover:text-blue-600 dark:bg-slate-100 dark:bg-slate-800 dark:group-hover:bg-blue-950">
           {icon}
         </div>
       )}
@@ -41,7 +41,7 @@ export const StatsCard = ({ title, value, icon, trend, className }: Props) => (
         )}
       >
         {trend >= 0 ? "↑" : "↓"} {Math.abs(trend)}%
-        <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">
+        <span className="text-slate-400 dark:text-slate-500 text-xs">
           від минулого періоду
         </span>
       </div>

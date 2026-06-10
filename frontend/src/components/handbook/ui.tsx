@@ -17,9 +17,9 @@
  *   border-slate-300 dark:border-slate-700    → border-slate-300
  *   text-slate-900 dark:text-white          → text-slate-900
  *   text-slate-700 dark:text-slate-300      → text-slate-700
- *   text-slate-400 dark:text-slate-500 dark:text-slate-400      → text-slate-400 dark:text-slate-500
- *   text-slate-400 dark:text-slate-500      → text-slate-400 dark:text-slate-500 dark:text-slate-400
- *   text-slate-400 dark:text-slate-600      → text-slate-400 dark:text-slate-500 dark:text-slate-400
+ *   text-slate-400 dark:text-slate-500      → text-slate-400 dark:text-slate-500
+ *   text-slate-400 dark:text-slate-500      → text-slate-400 dark:text-slate-500
+ *   text-slate-400 dark:text-slate-600      → text-slate-400 dark:text-slate-500
  *   placeholder-slate-400 dark:placeholder-slate-500 → placeholder-slate-400
  */
 import { cn } from "../../lib/utils";
@@ -41,14 +41,14 @@ export const Field = ({
   <div className="space-y-1.5">
     <label
       className="flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider
-      text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400"
+      text-slate-400 dark:text-slate-500 dark:text-slate-500 dark:text-slate-400"
     >
       {label}
       {required && <span className="text-red-500 dark:text-red-400">*</span>}
       {hint && (
         <span
           className="normal-case font-sans ml-1
-          text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-600"
+          text-slate-400 dark:text-slate-500 dark:text-slate-600"
         >
           ({hint})
         </span>
@@ -220,7 +220,7 @@ export const DateInput = ({
     />
     <Calendar
       className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none
-      text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"
+      text-slate-400 dark:text-slate-500 dark:text-slate-500"
     />
   </div>
 );
@@ -248,7 +248,7 @@ export const DateRangePicker = ({
     </Field>
     <span
       className="mb-2 text-sm pb-0.5
-      text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"
+      text-slate-400 dark:text-slate-500 dark:text-slate-500"
     >
       —
     </span>
@@ -264,7 +264,7 @@ export const SectionDivider = ({ label }: { label: string }) => (
   <div className="flex items-center gap-3 py-1">
     <span
       className="text-[10px] font-mono uppercase tracking-widest whitespace-nowrap
-      text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"
+      text-slate-400 dark:text-slate-500 dark:text-slate-500"
     >
       {label}
     </span>
@@ -360,7 +360,7 @@ export const Pagination = ({
     >
       <span
         className="text-[11px] font-mono
-        text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"
+        text-slate-400 dark:text-slate-500 dark:text-slate-500"
       >
         {from}–{to} з {total}
       </span>
@@ -370,7 +370,7 @@ export const Pagination = ({
           disabled={page <= 1}
           className="px-2 py-1 rounded text-xs transition-colors
             text-slate-400 dark:text-slate-500 hover:text-slate-900 hover:bg-slate-100
-            dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800
+            dark:text-slate-400 dark:text-slate-500 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800
             disabled:opacity-40 disabled:cursor-not-allowed"
         >
           ‹
@@ -392,7 +392,7 @@ export const Pagination = ({
                 "w-6 h-6 rounded text-xs font-mono transition-colors",
                 p === page
                   ? "bg-blue-600 text-slate-900 dark:text-white"
-                  : "text-slate-400 dark:text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800",
+                  : "text-slate-400 dark:text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:text-slate-500 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800",
               )}
             >
               {p}
@@ -404,7 +404,7 @@ export const Pagination = ({
           disabled={page >= pages}
           className="px-2 py-1 rounded text-xs transition-colors
             text-slate-400 dark:text-slate-500 hover:text-slate-900 hover:bg-slate-100
-            dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800
+            dark:text-slate-400 dark:text-slate-500 dark:hover:text-slate-900 dark:text-white dark:hover:bg-slate-100 dark:bg-slate-800
             disabled:opacity-40 disabled:cursor-not-allowed"
         >
           ›
