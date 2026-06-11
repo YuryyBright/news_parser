@@ -2,47 +2,26 @@
 """
 EmbeddingTagger — zero-shot тегер на основі cosine similarity.
 
-[ОНОВЛЕНО] Gap-based tag selection замість flat threshold.
-
-Проблема flat threshold (0.40):
-  Multilingual-e5 на текстах про NATO/politics/diplomacy/war дає scores:
-    war=0.71, politics=0.68, diplomacy=0.65, society=0.58, economy=0.52,
-    humanitarian=0.48, crime=0.43, energy=0.41, technology=0.40
-  Всі 9 тегів вище 0.40 → assigned. Але стаття про одне-два з них.
-
-Рішення: два механізми разом:
-
-1. MIN_ABSOLUTE_THRESHOLD (0.45):
-   Жорсткий floor — теги нижче цього ніколи не присвоюються.
-   Прибирає явний шум (technology для статті про NATO).
-
-2. Gap-based selection (MAX_TAGS_PER_ARTICLE + gap):
-   Після фільтрації за floor — беремо top-K і шукаємо "розрив".
-   Якщо між тегом N і тегом N+1 різниця >= GAP_THRESHOLD (0.08) → стоп.
-   Це відокремлює "справжні" теги від "схожих за моделлю".
-
-   Приклад (стаття про NATO без HU контексту):
-     Scores після floor:
-       diplomacy=0.72, politics=0.68, war=0.61, society=0.52, economy=0.49
-     Gaps:
-       diplomacy→politics: 0.04 (маленький, обидва)
-       politics→war:       0.07 (маленький, всі три)
-       war→society:        0.09 ← >= GAP_THRESHOLD → стоп!
-     Результат: ["diplomacy", "politics", "war"] ✓ (не всі 5)
-
-3. MAX_TAGS_PER_ARTICLE (4):
-   Hard cap — ніколи більше 4 тегів незалежно від gaps.
-   "Все важливе" = "нічого важливого".
+Gap-based tag selection замість flat threshold (детальний опис підходу
+дивись в історії змін модуля — без змін щодо алгоритму).
 
 Конфігурація:
   MIN_ABSOLUTE_THRESHOLD = 0.45  # floor
   GAP_THRESHOLD          = 0.08  # розрив між сусідніми тегами → стоп
   MAX_TAGS_PER_ARTICLE   = 4     # hard cap
-  MIN_TAGS_SCORE_FOR_ONE = 0.55  # якщо тільки 1 тег — він має бути впевненим
+  MIN_SCORE_SINGLE_TAG   = 0.55  # якщо тільки 1 тег — він має бути впевненим
+
+Мови описів тегів: EN, UA, HU, SK, RO, PL.
+  Додано польську (PL), бо корпус новин включає видання з Польщі
+  (прикордонно-міграційна тематика, біженці, відносини з Україною тощо).
 
 Теги і їх семантичні описи:
   Описи навмисно РІЗНІ щоб мінімізувати cross-tag overlap.
   Важливо: НЕ дублювати слова між тегами — модель тоді краще розрізняє.
+
+Канонічні (UA) теги, що повертає tag(), беруться з
+src.infrastructure.tagging.tag_vocabulary.EMBEDDING_TAG_LABELS —
+єдиного джерела правди, спільного з CategoryTagger / CompositeTagger.
 """
 from __future__ import annotations
 
@@ -51,6 +30,7 @@ import logging
 import numpy as np
 
 from src.infrastructure.ml.embedder import Embedder
+from src.infrastructure.tagging.tag_vocabulary import EMBEDDING_TAG_LABELS, ALLOWED_TAGS
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +44,13 @@ logger = logging.getLogger(__name__)
 TAG_DESCRIPTIONS: dict[str, str] = {
     "war": (
         # Фокус: бойові дії, зброя, фізичне насильство, лінія фронту
-        # EN — тактика, зброя, оперативні терміни
+        # EN
         "armed combat frontline battlefield troops soldiers weapons missiles drones artillery shelling"
         " infantry armored column tank assault offensive defensive maneuver ceasefire"
         " air strike cruise missile HIMARS cluster munition mine sniper casualty POW"
         " occupation siege encirclement retreat advance reinforcement mobilization"
         " military operation special operation naval attack kamikaze drone FPV"
-        # UA — ЗСУ, фронт, зброя, події
+        # UA
         " бойові дії фронт зброя снаряди ракети дрони обстріл ЗСУ окупація атака"
         " наступ відступ оборона штурм танк бронетехніка артилерія засідка"
         " мобілізація ротація втрати полонені евакуація з зони бойових дій"
@@ -88,37 +68,35 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " operațiuni militare arme rachete soldați artilerie bombardament"
         " drone atac aerian ofensivă defensivă tancuri mobilizare front"
         " victime prizonieri de război forțe armate"
+        # PL
+        " działania zbrojne front broń pociski rakiety drony ostrzał artyleryjski"
+        " żołnierze piechota kolumna pancerna czołg natarcie ofensywa obrona"
+        " nalot rakieta manewrowa miny snajper jeniec wojenny okupacja"
+        " oblężenie okrążenie odwrót natarcie mobilizacja"
+        " operacja wojskowa atak morski dron kamikaze bezzałogowiec"
     ),
 
     "politics": (
-        # Фокус: внутрішня політика, вибори, парламент, влада
+        # Фокус: Внутрішня політика, вибори, уряд, ПРОРОСІЙСЬКИЙ вплив, зв'язки з РФ
         # EN
-        "elections parliament government coalition opposition party vote scandal resignation"
-        " prime minister president cabinet minister legislation reform decree"
-        " constitution referendum snap election polling approval rating ruling party"
-        " impeachment censure motion no-confidence vote political crisis"
-        " spokesperson press conference statement mandate term of office"
+        "elections parliament government domestic policy coalition opposition party crisis"
+        " pro-russian influence ties with russia anti-ukrainian sentiment ruling party"
+        " prime minister president legislation decree constitution snap election"
         # UA
-        " вибори парламент коаліція опозиція скандал відставка законопроект"
-        " Верховна рада президент Зеленський уряд кабінет міністрів"
-        " нардеп депутат фракція законодавство реформа референдум"
-        " партія слуга народу ОПЗЖ ЄС указ декрет пресслужба"
-        " рейтинг довіри довибори проміжні вибори кандидат"
+        " вибори парламент коаліція опозиція уряд національна політика політична криза"
+        " проросійські сили антиукраїнський вплив рф зв'язки з росією законодавство"
+        " Верховна рада президент Зеленський кабінет міністрів нардеп фракція"
         # HU
-        " választások parlament kormánykoalíció ellenzék botrány lemondás"
-        " miniszterelnök Orbán Fidesz Momentum DK MSZP Jobbik törvény"
-        " alkotmány rendelet parlamenti szavazás bizalmi szavazás mandátum"
-        " pártkongresszus elnökség politikai válság sajtóértekezlet"
+        " választások parlament belpolitika kormánykoalíció ellenzék politikai válság"
+        " orosz befolyás ukránellenes pártkongresszus lemondás törvény"
         # SK
-        " voľby parlament koalícia opozícia škandál demisia"
-        " predseda vlády Fico Pellegrini Šimečka SMER PS SaS KDH"
-        " zákon nariadenie hlasovanie vládna kríza stranícky"
-        " prezident parlamentná väčšina menšinová vláda"
+        " voľby parlament domáca politika koalícia opozícia ruský vplyv vládna kríza"
+        " zákon nariadenie hlasovanie menšinová vláda"
         # RO
-        " alegeri parlament coaliție opoziție scandal demisie"
-        " premier Ciolacu PSD PNL USR AUR Iohannis lege decret"
-        " vot de neîncredere criză politică partid campanie electorală"
-        " ministru cabinet parlamentar reformă constituție"
+        " alegeri parlament politică internă coaliție influență rusă criză politică"
+        # PL
+        " wybory parlament polityka krajowa opozycja rosyjskie wpływy antyukraiński"
+        " Sejm Senat dymisja wotum nieufności"
     ),
 
     "diplomacy": (
@@ -152,6 +130,14 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " ministrul afacerilor externe NATO UE ONU sancțiuni acord"
         " bilateral summit incident diplomatic ambasadă consulat"
         " politică externă negocieri de pace memorandum"
+        # PL
+        " stosunki dyplomatyczne negocjacje traktat sojusz szczyt rozmowy dwustronne"
+        " NATO UE ONZ ambasador minister spraw zagranicznych porozumienie międzynarodowe"
+        " sankcje persona non grata ambasada konsulat"
+        " G7 G20 OBWE polityka zagraniczna"
+        " forum wielostronne pakt bezpieczeństwa memorandum"
+        " mediacja normalizacja incydent dyplomatyczny"
+        " wysłannik specjalny rozmowy pokojowe rozejm"
     ),
 
     "economy": (
@@ -169,23 +155,31 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " гривня НБУ Національний банк ставка відсоток дефіцит профіцит"
         " МВФ Світовий банк кредит транш зовнішній борг реструктуризація"
         " безробіття зарплата мінімальна зарплата ринок праці"
-        " приватизація держкомпанія субсидія тарифи ЖКГ"
+        " приватизація держкомпанія тарифи ЖКГ"
         " фондовий ринок ПФТС УБ інвестиційний клімат"
         # HU
         " gazdaság infláció piac befektetés adó költségvetés"
         " forint MNB Magyar Nemzeti Bank kamatemelés GDP növekedés"
         " munkanélküliség bérszínvonal deviza árfolyam export import"
-        " privatizáció állami vállalat szubvenció hitel IMF"
+        " privatizáció állami vállalat hitel IMF"
         # SK
         " ekonomika inflácia trh investície rozpočet daň"
         " euro NBS Národná banka Slovenska HDP rast mzdy"
         " nezamestnanosť export import obchodný deficit privatizácia"
-        " úver dotácia štátna firma fiškálna menová politika"
+        " úver štátna firma fiškálna menová politika"
         # RO
         " economie inflație piață investiții buget impozit"
         " leu BNR Banca Națională PIB creștere economică salarii"
-        " șomaj export import deficit privatizare subvenție"
+        " șomaj export import deficit privatizare"
         " FMI credit restructurare datorie externă"
+        # PL
+        " gospodarka PKB inflacja rynek giełda deficit handlowy budżet"
+        " inwestycje bank centralny złoty stopa procentowa polityka fiskalna"
+        " NBP Narodowy Bank Polski podwyżka stóp procentowych"
+        " wzrost gospodarczy recesja bezrobocie zasiłek dla bezrobotnych"
+        " eksport import cło łańcuch dostaw rentowność obligacji rating kredytowy"
+        " prywatyzacja nacjonalizacja dług restrukturyzacja"
+        " wskaźnik cen konsumpcyjnych siła nabywcza wzrost płac"
     ),
 
     "energy": (
@@ -220,42 +214,38 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " Romgaz Hidroelectrica Nuclearelectrica Transelectrica"
         " conducte gaze securitate energetică tarife energie"
         " panouri solare eoliene cărbune termocentrale blackout"
+        # PL
+        " gaz ropa energia elektryczna elektrownia jądrowa gazociąg kryzys energetyczny"
+        " blackout odnawialne źródła energii energia słoneczna wiatrowa ogrzewanie paliwo"
+        " LNG bezpieczeństwo energetyczne miks energetyczny"
+        " sieć przesyłowa awaria zasilania przerwy w dostawie prądu"
+        " PGNiG PGE Orlen taryfa energetyczna"
+        " węgiel elektrownia cieplna elektrownia wodna magazyn energii"
+        " transformacja energetyczna dekarbonizacja emisje CO2"
     ),
 
     "society": (
-        # Фокус: люди, соціальні рухи, демографія — НЕ війна
+        # Фокус: Соціальна політика, пенсії, допомога українським біженцям, виплати
         # EN
-        "protest demonstration civil society human rights minority"
-        " population migration refugees demographics culture education healthcare"
-        " gender equality LGBTQ+ abortion rights freedom of press"
-        " civic activism NGO think tank social movement"
-        " aging population birth rate emigration brain drain"
-        " religious community church mosque synagogue"
-        " hate speech discrimination racism antisemitism"
-        " university students youth strike labor union workers"
+        "social policy welfare pensions healthcare education refugee support assistance"
+        " demographic crisis ukrainian refugees diaspora civil society minority"
+        " protest demonstration human rights civic activism NGO"
         # UA
-        " протест права людини меншини міграція демографія освіта"
-        " охорона здоров'я медицина лікарня церква релігія культура"
-        " НГО громадянське суспільство волонтери активісти"
-        " народжуваність смертність еміграція заробітчани діаспора"
-        " пресса свобода слова цензура незалежні ЗМІ журналіст"
-        " студенти університет школа освітня реформа"
+        " соціальна політика соціальні виплати пенсії медицина освіта допомога українцям"
+        " біженці з україни субсидії громадянське суспільство демографія міграція"
+        " протест права людини меншини народжуваність переселенці"
         # HU
-        " tüntetés emberi jogok kisebbség migráció demográfia oktatás"
-        " egészségügy egyház civil szervezet sajtószabadság"
-        " bevándorlás elvándorlás születési ráta öregedés"
-        " hátrányos megkülönböztetés rasszizmus antiszemiták"
-        " szakszervezet sztrájk munkajog diákok egyetem"
+        " szociálpolitika nyugdíj egészségügy oktatás ukrán menekültek támogatása"
+        " szociális ellátás demográfia civil szervezet tüntetés emberi jogok"
         # SK
-        " protest ľudské práva menšiny migrácia demografia vzdelávanie"
-        " zdravotníctvo cirkev médiá sloboda tlače občianska spoločnosť"
-        " prisťahovalectvo vysťahovalectvo pôrodnosť starnutie"
-        " diskriminácia rasizmus antisemitizmus odborový zväz štrajk"
+        " sociálna politika dôchodok zdravotníctvo podpora utečencov z ukrajiny"
+        " protest ľudské práva menšiny vzdelávanie"
         # RO
-        " protest drepturile omului minorități migrație demografie educație"
-        " sănătate biserică ONG libertatea presei societate civilă"
-        " imigrație emigrație natalitate îmbătrânire populație"
-        " discriminare rasism antisemitism sindicat grevă tineri"
+        " politică socială pensie sănătate sprijin pentru refugiați ucraineni"
+        " protest drepturile omului minorități"
+        # PL
+        " polityka społeczna emerytura ochrona zdrowia uchodźcy z ukrainy wsparcie socjalne"
+        " protest demonstracja społeczeństwo obywatelskie prawa człowieka"
     ),
 
     "humanitarian": (
@@ -271,7 +261,7 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " orphan missing persons war crimes documentation"
         # UA
         " гуманітарна допомога евакуація жертви цивільні відбудова волонтери"
-        " ВПО внутрішньо переміщені особи біженці прихисток"
+        " ВПО внутрішньо переміщені особи прихисток"
         " гуманітарний коридор постраждалі мирне населення"
         " Червоний Хрест МКЧХ ООН допомога продовольство"
         " розмінування розчищення відновлення зруйновані будинки"
@@ -289,36 +279,32 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " ajutor umanitar evacuare victime civili reconstrucție voluntari"
         " refugiați persoane strămutate UNHCR ICRC Crucea Roșie"
         " coridor umanitar crime de război traumă reconstrucție"
+        # PL
+        " pomoc humanitarna ewakuacja ofiary cywile odbudowa wolontariusze"
+        " uchodźcy osoby wewnętrznie przesiedlone obóz dla uchodźców azyl"
+        " pomoc żywnościowa zaopatrzenie medyczne schronienie ochrona ludności cywilnej"
+        " rozminowanie odbudowa po wojnie trauma"
+        " korytarz humanitarny bezpieczny przejazd zawieszenie broni dla pomocy"
+        " sieroty osoby zaginione zbrodnie wojenne dokumentacja"
+        " UNHCR Czerwony Krzyż ONZ Światowy Program Żywnościowy"
     ),
 
     "technology": (
-        # Фокус: IT, AI, кіберпростір — максимально відмінно від решти
+        # Фокус ВИКЛЮЧНО на: Кібербезпека, злами, хакери, розробка ПЗ (ніяких AI чи стартапів)
         # EN
-        "artificial intelligence machine learning software startup cybersecurity"
-        " digital innovation blockchain algorithm data cloud computing"
-        " large language model LLM generative AI deepfake neural network"
-        " semiconductor chip GPU quantum computing robotics automation"
-        " data center fiber optic 5G satellite internet Starlink"
-        " open source API SaaS platform venture capital unicorn IPO"
-        " disinformation cyber attack ransomware phishing malware"
-        " digital transformation e-government digital ID e-health"
+        "cybersecurity hacker cyberattack ddos ransomware phishing malware virus"
+        " data breach software development programmer it company digital defense information security"
         # UA
-        " штучний інтелект кібербезпека стартап блокчейн цифровізація"
-        " Дія e-Rezident держреєстри цифровий уряд кіберзахист"
-        " ІТ-галузь IT-компанія розробник програміст аутсорс"
-        " кіберзлочин хакер DDOS атака фішинг дезінформація"
+        " кібербезпека хакер злам взлом кібератака витік даних вірус троян"
+        " розробка програмного забезпечення програміст розробник it-компанія кіберзахист"
         # HU
-        " mesterséges intelligencia kiberbiztonság startup digitális innováció"
-        " algoritmus adatközpont felhőszolgáltatás kibertámadás"
-        " digitalizáció e-közigazgatás okosváros technológiai vállalat"
+        " kiberbiztonság kibertámadás adatlopás hacker szoftverfejlesztés vírus"
         # SK
-        " umelá inteligencia kybernetická bezpečnosť startup digitálna"
-        " algoritmus dátové centrum cloud kybernetický útok"
-        " digitalizácia e-government softvér technologická firma"
+        " kybernetická bezpečnosť kybernetický útok haker softvér vývojár"
         # RO
-        " inteligență artificială securitate cibernetică startup digital"
-        " algoritm centru de date cloud atac cibernetic"
-        " digitalizare e-guvernare software companie tehnologică"
+        " securitate cibernetică atac cibernetic hacker software dezvoltator"
+        # PL
+        " cyberbezpieczeństwo cyberatak haker wyciek danych oprogramowanie wirus programista"
     ),
 
     "crime": (
@@ -354,6 +340,15 @@ TAG_DESCRIPTIONS: dict[str, str] = {
         " spălare de bani mită condamnare sentință"
         " crimă organizată trafic de droguri contrabandă"
         " DNA DIICOT ANI dosar penal confiscare bunuri"
+        # PL
+        " przestępstwo korupcja zatrzymanie sąd prokurator policja oszustwo łapówka"
+        " pranie pieniędzy przekupstwo wyrok skazanie"
+        " przestępczość zorganizowana przemyt narkotyków handel ludźmi szmugiel"
+        " antykorupcyjny CBA Europol Interpol"
+        " akt oskarżenia nakaz aresztowania ekstradycja ochrona świadków"
+        " defraudacja konfiskata mienia sygnalista"
+        " trybunał zbrodni wojennych MTK"
+        " przemoc domowa"
     ),
 }
 # ─── Конфігурація gap-based selection ────────────────────────────────────────
@@ -383,11 +378,11 @@ class EmbeddingTagger:
 
         # Стаття про NATO без HU контексту:
         tags = tagger.tag("Akár kilép Trump a NATO-ból...")
-        # → ["diplomacy", "politics"]  (не всі 9 тегів)
+        # → ["зовнішня політика", "національна політика"]
 
         # Стаття про ракетний удар:
         tags = tagger.tag("Ракетний удар по Харкову...")
-        # → ["war", "humanitarian"]
+        # → ["військова техніка", "гуманітарна"]
     """
 
     def __init__(
@@ -405,6 +400,22 @@ class EmbeddingTagger:
         self._min_score_single_tag = min_score_single_tag
 
         self._tag_vectors: dict[str, np.ndarray] = self._build_tag_vectors()
+
+        # Fail-fast: усі внутрішні ключі TAG_DESCRIPTIONS мають мати мапінг
+        # на канонічний UA-тег, інакше gap-selection може "тихо" загубити тег.
+        _missing = set(TAG_DESCRIPTIONS) - set(EMBEDDING_TAG_LABELS)
+        if _missing:
+            raise ValueError(
+                f"EmbeddingTagger: для ключів {_missing} немає мапінгу в "
+                f"tag_vocabulary.EMBEDDING_TAG_LABELS."
+            )
+        _bad_labels = set(EMBEDDING_TAG_LABELS.values()) - ALLOWED_TAGS
+        if _bad_labels:
+            raise ValueError(
+                f"EmbeddingTagger: мітки {_bad_labels} відсутні в "
+                f"tag_vocabulary.ALLOWED_TAGS."
+            )
+
         logger.info(
             "EmbeddingTagger initialized: %d tags, floor=%.2f gap=%.2f max=%d",
             len(self._tag_vectors), min_absolute_threshold, gap_threshold, max_tags,
@@ -425,7 +436,8 @@ class EmbeddingTagger:
         Gap-based tag selection.
 
         Returns:
-            Список тегів відсортований за score DESC.
+            Відсортований список КАНОНІЧНИХ (українських) тегів —
+            значення з tag_vocabulary.ALLOWED_TAGS.
             Зазвичай 1-3 теги. Максимум MAX_TAGS_PER_ARTICLE.
         """
         scored = self._score_all(text)
@@ -433,12 +445,28 @@ class EmbeddingTagger:
             return []
 
         selected = self._gap_select(scored)
-        return [tag for tag, _ in selected]
+
+        # Переклад внутрішніх ключів (war/politics/...) у канонічні UA-теги.
+        result: set[str] = set()
+        for internal_tag, _score in selected:
+            label = EMBEDDING_TAG_LABELS.get(internal_tag)
+            if label is None:
+                # Не повинно статись через перевірку в __init__,
+                # але про всяк випадок — не пропускаємо "сирий" ключ.
+                logger.warning(
+                    "EmbeddingTagger: немає мапінгу для внутрішнього тегу %r — пропущено",
+                    internal_tag,
+                )
+                continue
+            result.add(label)
+
+        return sorted(result)
 
     def tag_with_scores(self, text: str) -> dict[str, float]:
         """
         Всі scores для діагностики (без gap-selection, без floor).
-        Корисно щоб зрозуміти чому тег не потрапив.
+        Повертає ВНУТРІШНІ ключі (war/politics/...), а не канонічні теги —
+        зручно для дебагу алгоритму вибору.
         """
         if not text or not text.strip():
             return {}

@@ -68,7 +68,7 @@ async def cmd_start(message: Message) -> None:
         await message.answer(
             "✅ Підписано! Надсилатиму важливі новини (score ≥ 74%).\n\n"
             "🌐 За замовчуванням отримуєш <b>всі мови</b>.\n"
-            "Обери конкретні: /uk  /en  /ro  /sk\n"
+            "Обери конкретні: /uk  /en  /ro  /sk  /hu  /pl\n"
             "Скинути фільтр: /all\n"
             "Поточні налаштування: /langs\n\n"
             "/stop — відписатись.",
@@ -134,6 +134,14 @@ async def cmd_uk(message: Message) -> None:
 async def cmd_en(message: Message) -> None:
     await _toggle_lang(message, "en")
 
+@router.message(Command("hu"))
+async def cmd_hu(message: Message) -> None:
+    await _toggle_lang(message, "hu")
+
+
+@router.message(Command("pl"))
+async def cmd_pl(message: Message) -> None:
+    await _toggle_lang(message, "pl")
 
 @router.message(Command("ro"))
 async def cmd_ro(message: Message) -> None:
@@ -152,7 +160,7 @@ async def cmd_all(message: Message) -> None:
     user_repo.set_langs(message.chat.id, set())   # порожня = всі
     await message.answer(
         "🌐 Фільтр скинуто — отримуватимеш <b>всі мови</b>.\n"
-        "Обрати конкретні: /uk  /en  /ro  /sk",
+        "Обрати конкретні: /uk  /en  /ro  /sk  /hu  /pl",
         parse_mode="HTML",
     )
 
@@ -275,21 +283,23 @@ async def run_bot(
         return
 
     await bot.set_my_commands([
-        BotCommand(command="start",          description="Підписатись на новини"),
-        BotCommand(command="stop",           description="Відписатись"),
-        BotCommand(command="langs",          description="Мій поточний фільтр мов"),
-        BotCommand(command="uk",             description="🇺🇦 Увімк/вимк українські"),
-        BotCommand(command="en",             description="🇬🇧 Toggle English news"),
-        BotCommand(command="ro",             description="🇷🇴 Toggle știri române"),
-        BotCommand(command="sk",             description="🇸🇰 Toggle slovenské správy"),
-        BotCommand(command="all",            description="🌐 Отримувати всі мови"),
-        BotCommand(command="controls",       description="📋 Аналіз заходів (LLM)"),
-        BotCommand(command="controls_list",  description="📋 Список без LLM"),
-        BotCommand(command="add_control",    description="➕ Додати захід"),
-        BotCommand(command="add_controls",   description="➕ Масово додати"),
-        BotCommand(command="del_control",    description="✅ Зняти захід"),
-        BotCommand(command="clear_controls", description="🗑 Очистити всі"),
-    ])
+            BotCommand(command="start",          description="Підписатись на новини"),
+            BotCommand(command="stop",           description="Відписатись"),
+            BotCommand(command="langs",          description="Мій поточний фільтр мов"),
+            BotCommand(command="uk",             description="🇺🇦 Увімк/вимк українські"),
+            BotCommand(command="en",             description="🇬🇧 Toggle English news"),
+            BotCommand(command="ro",             description="🇷🇴 Toggle știri române"),
+            BotCommand(command="sk",             description="🇸🇰 Toggle slovenské správy"),
+            BotCommand(command="hu",             description="🇭🇺 Toggle magyar hírek"),
+            BotCommand(command="pl",             description="🇵🇱 Toggle polskie wiadomości"),
+            BotCommand(command="all",            description="🌐 Отримувати всі мови"),
+            BotCommand(command="controls",       description="📋 Аналіз заходів (LLM)"),
+            BotCommand(command="controls_list",  description="📋 Список без LLM"),
+            BotCommand(command="add_control",    description="➕ Додати захід"),
+            BotCommand(command="add_controls",   description="➕ Масово додати"),
+            BotCommand(command="del_control",    description="✅ Зняти захід"),
+            BotCommand(command="clear_controls", description="🗑 Очистити всі"),
+        ])
 
     dp = Dispatcher()
     dp.include_router(router)
